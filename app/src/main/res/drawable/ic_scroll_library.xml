@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Библиотека» — стопка лежащих книг и одна стоящая рядом, всё на подставке.
+
+    Стопка, а не стеллаж в две полки: стеллаж рисовал ряды одинаковых
+    корешков, и на 24 точках они сливались в частокол. У лежащей стопки
+    силуэт узнаётся с одного взгляда и не повторяет ни один соседний знак
+    раздела.
+
+    Подставка снизу — сплошная черта под всем: она собирает стопку и стоящую
+    книгу в одну вещь, иначе они читались бы двумя разными знаками рядом.
+
+    Левый край каждой лежащей книги вогнут внутрь — это сложенные страницы, а
+    правый скруглён капсулой: так книга отличается от простого прямоугольника.
+    Короткая черта внутри — обрез страниц.
+
+    Обводка тоньше, чем у соседних знаков раздела: внутри книги полоса, и на
+    общей толщине 1.7 просвет между ней и краями затекал в сплошное пятно.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Верхняя лежащая книга. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.3"
+        android:strokeLineJoin="round"
+        android:pathData="M6.2,7.6 H11.65 A1.75,1.75 0 0 1 11.65,11.1 H6.2 C6.85,10.35 6.85,8.35 6.2,7.6 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M7.9,9.35 H10.4" />
+
+    <!-- Средняя, самая длинная: стопка не должна читаться лесенкой. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.3"
+        android:strokeLineJoin="round"
+        android:pathData="M5.5,11.45 H12.85 A1.75,1.75 0 0 1 12.85,14.95 H5.5 C6.15,14.2 6.15,12.2 5.5,11.45 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M7.2,13.2 H10.0" />
+
+    <!-- Нижняя. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.3"
+        android:strokeLineJoin="round"
+        android:pathData="M6.2,15.3 H11.85 A1.75,1.75 0 0 1 11.85,18.8 H6.2 C6.85,18.05 6.85,16.05 6.2,15.3 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M8.9,17.05 H11.0" />
+
+    <!-- Стоящая книга: две черты — обрезы, по ним она и читается книгой. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.3"
+        android:strokeLineJoin="round"
+        android:pathData="M15.0,18.8 V5.6 H19.2 V18.8" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M15.0,8.0 H19.2" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round"
+        android:pathData="M15.0,16.4 H19.2" />
+
+    <!-- Подставка. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.3"
+        android:strokeLineJoin="round"
+        android:pathData="M4.0,18.8 H20.4 V21.4 H4.0 Z" />
+
+</vector>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Строка расписания высотой 46dp — один из набора готовых размеров.
+    Макет выбирается в `DayWidgetService` по трети высоты виджета.
+
+    Высота задана самим текстовым полям, а не только корню: список меряет
+    строку по содержимому, а высоту корня подменяет — проверено на Android 15:
+    строка выходила ниже заказанной, и в виджет заглядывало четвёртое дело.
+
+    Тень — вместо подложки: виджет прозрачный, и на светлых обоях белый
+    текст без неё растворяется.
+
+    Время и название делят строку почти поровну: с рабочего стола время
+    читают не реже названия, а мелкой подписью оно терялось.
+
+    Название подбирает кегль само (`autoSizeTextType`): короткое берёт всю высоту,
+    длинное сжимается до двух строчек. Один кегль на все названия был бы либо
+    мелким для коротких, либо резал длинные.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="46dp"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:paddingLeft="10dp"
+    android:paddingRight="10dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <TextView
+        android:id="@+id/item_time"
+        android:layout_width="match_parent"
+        android:layout_height="15dp"
+        android:gravity="center"
+        android:maxLines="1"
+        android:includeFontPadding="false"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="11sp"
+        android:autoSizeMaxTextSize="11sp"
+        android:autoSizeStepGranularity="1sp"
+        android:textColor="@color/widget_muted"
+        android:shadowColor="@color/widget_shadow"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="6" />
+
+    <TextView
+        android:id="@+id/item_title"
+        android:layout_width="match_parent"
+        android:layout_height="27dp"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:autoSizeTextType="uniform"
+        android:autoSizeMinTextSize="13sp"
+        android:autoSizeMaxTextSize="21sp"
+        android:autoSizeStepGranularity="1sp"
+        android:textColor="@color/widget_ink"
+        android:shadowColor="@color/widget_shadow"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="7" />
+
+</LinearLayout>

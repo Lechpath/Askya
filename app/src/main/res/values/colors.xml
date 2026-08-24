@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#FAF9F5</color>
+    <color name="ic_launcher_background">#FBF3E7</color>
+
+    <!--
+        Виджет без подложки: дела лежат прямо на обоях. Отсюда белый текст с
+        тенью — на светлых обоях без неё он растворялся бы. Идущее сейчас дело
+        оставлено коралловым: это единственное, что виджет выделяет.
+    -->
+    <color name="widget_ink">#FFFFFF</color>
+    <color name="widget_accent">#D97757</color>
+    <color name="widget_muted">#D6FFFFFF</color>
+    <color name="widget_shadow">#B3000000</color>
+</resources>

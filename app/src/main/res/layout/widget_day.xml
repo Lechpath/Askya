@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Виджет расписания. Шапки нет намеренно: события занимают всю площадь, а то,
+    что первое дело идёт сейчас, видно по цвету — подпись отнимала бы место у
+    того, ради чего виджет и смотрят.
+
+    Подложки тоже нет: дела лежат прямо на обоях. Читаются они за счёт белого
+    текста с тенью, а не за счёт заплатки под ним.
+
+    Список — ListView, потому что только коллекция в RemoteViews умеет
+    прокручиваться: обычный столбик показал бы столько, сколько влезло.
+
+    Знак в углу дышит и поворачивается — единственным способом, какой есть в
+    RemoteViews: готовые кадры в `ViewFlipper` с `autoStart`. Своей отрисовки там нет,
+    аниматоры туда не передаются, а будить виджет будильником ради картинки —
+    цена, которой он не стоит. Лепестков пять и они одинаковые, поэтому
+    тридцать шесть кадров по два градуса замыкают круг бесшовно: поворот на 72
+    градуса возвращает рисунок в себя. Флиппер сам замирает, когда рабочий
+    стол не на экране, так что батарею это не трогает.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp">
+
+    <ListView
+        android:id="@+id/widget_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:scrollbars="none" />
+
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:textColor="@color/widget_ink"
+        android:shadowColor="@color/widget_shadow"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="6" />
+
+    <ViewFlipper
+        android:id="@+id/widget_mark"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="start|top"
+        android:autoStart="true"
+        android:flipInterval="100"
+        android:measureAllChildren="false">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="0.0"
+            android:scaleX="0.820"
+            android:scaleY="0.820" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="2.0"
+            android:scaleX="0.821"
+            android:scaleY="0.821" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="4.0"
+            android:scaleX="0.825"
+            android:scaleY="0.825" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="6.0"
+            android:scaleX="0.832"
+            android:scaleY="0.832" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="8.0"
+            android:scaleX="0.841"
+            android:scaleY="0.841" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="10.0"
+            android:scaleX="0.852"
+            android:scaleY="0.852" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="12.0"
+            android:scaleX="0.865"
+            android:scaleY="0.865" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="14.0"
+            android:scaleX="0.879"
+            android:scaleY="0.879" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="16.0"
+            android:scaleX="0.894"
+            android:scaleY="0.894" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="18.0"
+            android:scaleX="0.910"
+            android:scaleY="0.910" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="20.0"
+            android:scaleX="0.926"
+            android:scaleY="0.926" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="22.0"
+            android:scaleX="0.941"
+            android:scaleY="0.941" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="24.0"
+            android:scaleX="0.955"
+            android:scaleY="0.955" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="26.0"
+            android:scaleX="0.968"
+            android:scaleY="0.968" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="28.0"
+            android:scaleX="0.979"
+            android:scaleY="0.979" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="30.0"
+            android:scaleX="0.988"
+            android:scaleY="0.988" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="32.0"
+            android:scaleX="0.995"
+            android:scaleY="0.995" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="34.0"
+            android:scaleX="0.999"
+            android:scaleY="0.999" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="36.0"
+            android:scaleX="1.000"
+            android:scaleY="1.000" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="38.0"
+            android:scaleX="0.999"
+            android:scaleY="0.999" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="40.0"
+            android:scaleX="0.995"
+            android:scaleY="0.995" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="42.0"
+            android:scaleX="0.988"
+            android:scaleY="0.988" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="44.0"
+            android:scaleX="0.979"
+            android:scaleY="0.979" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="46.0"
+            android:scaleX="0.968"
+            android:scaleY="0.968" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="48.0"
+            android:scaleX="0.955"
+            android:scaleY="0.955" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="50.0"
+            android:scaleX="0.941"
+            android:scaleY="0.941" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="52.0"
+            android:scaleX="0.926"
+            android:scaleY="0.926" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="54.0"
+            android:scaleX="0.910"
+            android:scaleY="0.910" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="56.0"
+            android:scaleX="0.894"
+            android:scaleY="0.894" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="58.0"
+            android:scaleX="0.879"
+            android:scaleY="0.879" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="60.0"
+            android:scaleX="0.865"
+            android:scaleY="0.865" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="62.0"
+            android:scaleX="0.852"
+            android:scaleY="0.852" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="64.0"
+            android:scaleX="0.841"
+            android:scaleY="0.841" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="66.0"
+            android:scaleX="0.832"
+            android:scaleY="0.832" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="68.0"
+            android:scaleX="0.825"
+            android:scaleY="0.825" />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_flower"
+            android:rotation="70.0"
+            android:scaleX="0.821"
+            android:scaleY="0.821" />
+    </ViewFlipper>
+
+</FrameLayout>

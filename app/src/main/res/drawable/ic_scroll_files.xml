@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Файлы» — лист пергамента: волнистые края и две строки письма. Раздел
+    называется Scroll, и знак у него свитковый, а не «файл с загнутым углом».
+
+    Знаки раздела рисованы свои: готовые из набора Material есть в каждом
+    приложении и про это ничего не говорят. Обводкой, а не заливкой: одной
+    толщины с соседними и тонируется темой в месте вызова.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.5,6 C7,3.2 9.5,8.2 12,5.4 C14.5,2.6 17,7.6 19.5,4.8 V18 C17,20.8 14.5,15.8 12,18.6 C9.5,21.4 7,16.4 4.5,19.2 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M8,10.4 H16" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M8,14 H13.5" />
+
+</vector>

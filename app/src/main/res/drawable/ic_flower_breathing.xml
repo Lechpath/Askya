@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Дышащий цветок для системной заставки Android 12+.
+
+    Она показывается в тот же миг, когда приложение запускают, — задолго до
+    того, как соберётся первый кадр Compose, и всё это время цветок на экране
+    рисует система. Дышать он может только сам: своей отрисовки там нет,
+    аниматоры туда не передаются, и единственный способ — анимированный вектор.
+
+    Дыхание то же, что у заставки приложения и у цветка ожидания: размер
+    ходит между 0,94 и 1,04 с замедлением к краям, полный вдох-выдох — 4,4
+    секунды. Разворот на кривой, а не рывком: ровный ход выдавал бы, где
+    кончается вдох.
+
+    Цветок берётся из ic_flower.xml за группу «breath» — второй копии
+    геометрии нет, и правка лепестков в tools\make-icon.ps1 доходит и сюда.
+-->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_flower">
+
+    <target android:name="breath">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.94"
+                    android:valueTo="1.04"
+                    android:valueType="floatType"
+                    android:duration="2200"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.94"
+                    android:valueTo="1.04"
+                    android:valueType="floatType"
+                    android:duration="2200"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+
+</animated-vector>

@@ -1,0 +1,145 @@
+package app.askya.echo
+
+import android.content.ContentUris
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/** Дорожка из музыки на телефоне. */
+data class Track(
+    val id: Long,
+    val uri: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val albumId: Long,
+    val durationMs: Long,
+    /** Папка, в которой лежит файл, — по ней собирается раздел «Папки». */
+    val folder: String,
+)
+
+/** Папка с музыкой: имя и всё, что в ней лежит. */
+data class MusicFolder(
+    val name: String,
+    val tracks: List<Track>,
+)
+
+/**
+ * Музыка на телефоне — через `MediaStore`.
+ *
+ * Своей библиотеки Echo не ведёт: файлы уже разложены и подписаны системой, а
+ * второй список тех же песен пришлось бы держать в согласии с первым. Читается
+ * при каждом открытии заново — телефон между открытиями пополняют.
+ *
+ * Рингтоны и уведомления отброшены: `is_music` в MediaStore ровно для этого, а
+ * без него в плеере первым делом оказываются системные звуки.
+ */
+object EchoLibrary {
+
+    suspend fun load(context: Context): List<Track> = withContext(Dispatchers.IO) {
+        val columns = buildList {
+            add(MediaStore.Audio.Media._ID)
+            add(MediaStore.Audio.Media.TITLE)
+            add(MediaStore.Audio.Media.ARTIST)
+            add(MediaStore.Audio.Media.ALBUM)
+            add(MediaStore.Audio.Media.ALBUM_ID)
+            add(MediaStore.Audio.Media.DURATION)
+            // Имя папки система считает сама начиная с Android 10; на более
+            // старых его приходится вырезать из пути файла.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                add(MediaStore.Audio.Media.BUCKET_DISPLAY_NAME)
+            } else {
+                @Suppress("DEPRECATION")
+                add(MediaStore.Audio.Media.DATA)
+            }
+        }.toTypedArray()
+
+        val tracks = mutableListOf<Track>()
+
+        runCatching {
+            context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                columns,
+                "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+                null,
+                "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC",
+            )?.use { cursor ->
+                val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val title = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val artist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val album = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val albumId = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+                val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val place = cursor.getColumnIndex(columns.last())
+
+                while (cursor.moveToNext()) {
+                    val trackId = cursor.getLong(id)
+                    tracks += Track(
+                        id = trackId,
+                        uri = ContentUris.withAppendedId(
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                            trackId,
+                        ).toString(),
+                        title = cursor.getString(title) ?: "Без названия",
+                        artist = cursor.getString(artist).orEmpty().takeIf { it != "<unknown>" }
+                            ?: "Неизвестный исполнитель",
+                        album = cursor.getString(album).orEmpty(),
+                        albumId = cursor.getLong(albumId),
+                        durationMs = cursor.getLong(duration),
+                        folder = folderName(cursor.getString(place)),
+                    )
+                }
+            }
+        }
+
+        tracks
+    }
+
+    /**
+     * Та же музыка, разложенная по папкам устройства.
+     *
+     * Считается из уже прочитанного списка, а не вторым запросом к MediaStore:
+     * это те же самые файлы, и два прохода по базе дали бы два разных среза,
+     * стоило бы что-нибудь скачаться между ними.
+     */
+    fun folders(tracks: List<Track>): List<MusicFolder> = tracks
+        .groupBy { it.folder }
+        .map { (name, inside) -> MusicFolder(name, inside) }
+        .sortedBy { it.name.lowercase() }
+
+    /**
+     * Обложка альбома. Ссылка на `albumart` — то, что MediaStore ведёт сам по
+     * тегам файлов; читать её умеет и старая система, и новая.
+     */
+    fun coverUri(albumId: Long): Uri =
+        ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"), albumId)
+
+    /**
+     * Имя папки: на Android 10+ система отдаёт его готовым, ниже — это
+     * последний каталог в пути. Пустое имя бывает у файлов, отданных чужим
+     * провайдером; такие собираются в одну общую кучу.
+     */
+    private fun folderName(value: String?): String {
+        val raw = value.orEmpty()
+        if (raw.isBlank()) return "Без папки"
+        if (!raw.contains('/')) return raw
+        return raw.substringBeforeLast('/').substringAfterLast('/').ifBlank { "Без папки" }
+    }
+}
+
+/** Длительность словами: «3:07». Часы появляются только когда они есть. */
+fun formatDuration(ms: Long): String {
+    if (ms <= 0) return "0:00"
+    val total = ms / 1000
+    val hours = total / 3600
+    val minutes = (total % 3600) / 60
+    val seconds = total % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
+}

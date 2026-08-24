@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Изображения» — стопка карточек, на верхней гора и солнце.
+
+    Прежний знак — росток в раме — о картинках не говорил: рамка читалась как
+    рамка, а лепесток внутри как лепесток. Раздел собирает все картинки разом,
+    поэтому карточек две: одна выглядывает из-за другой, и по одному знаку
+    видно, что там их много.
+
+    Задняя карточка нарисована уголком, а не целым прямоугольником: знаки здесь
+    без заливки, и полный контур просвечивал бы сквозь переднюю карточку.
+
+    Знаки раздела рисованы свои: готовые из набора Material есть в каждом
+    приложении и про это ничего не говорят. Обводкой, а не заливкой: одной
+    толщины с соседними и тонируется темой в месте вызова.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8.8,3.8 H18.2 A2.6,2.6 0 0 1 20.8,6.4 V14.8" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round"
+        android:pathData="M5.2,7.4 H14.6 A2.6,2.6 0 0 1 17.2,10 V18.2 A2.6,2.6 0 0 1 14.6,20.8 H5.2 A2.6,2.6 0 0 1 2.6,18.2 V10 A2.6,2.6 0 0 1 5.2,7.4 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:pathData="M5.5,11.4 A1.15,1.15 0 1 1 7.8,11.4 A1.15,1.15 0 1 1 5.5,11.4 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.0,18.0 L8.1,13.4 L11.3,17.0 L12.9,15.2 L15.8,18.0" />
+
+</vector>

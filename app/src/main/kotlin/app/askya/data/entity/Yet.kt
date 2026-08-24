@@ -1,0 +1,54 @@
+package app.askya.data.entity
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import app.askya.domain.model.ListMark
+import java.time.LocalDateTime
+
+/**
+ * Список в разделе Yet — «ещё», «пока ещё».
+ *
+ * Списков много, а не один общий: «ещё купить», «ещё посмотреть», «ещё взять с
+ * собой» — это разные списки, и в одном они мешали бы друг другу. Название
+ * задаёт человек: заранее придуманного набора нет, потому что «ещё» у каждого
+ * своё.
+ *
+ * Знак ([mark]) выбирают вместе с названием — как цвет корешка у книги: список
+ * заводят и тут же решают, чем в нём отмечать. Не выбрали — квадрат, тот же,
+ * что у чек-листа в заметке.
+ */
+@Entity(tableName = "yet_lists")
+data class YetList(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String = "",
+    val mark: ListMark = ListMark.SQUARE,
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+)
+
+/**
+ * Строка списка Yet.
+ *
+ * Ничего, кроме текста, отметки и уровня: у быстрого списка нет ни сроков, ни
+ * важности — как только они появляются, это уже дело, и ему место в AskyaDay.
+ *
+ * Уровень один и логический, а не отступ в пробелах: строка бывает пунктом или
+ * подпунктом, и глубже читать список уже тяжело — как и в разметке заметки.
+ * Текст хранится без маркера: «- » и «1. » — это то, как список записали, а не
+ * то, что в нём написано.
+ *
+ * Сделанное не удаляется само. Вычеркнутая строка — это ещё и память о том,
+ * что сделано; убирают её отдельным действием, когда список надоел.
+ *
+ * Внешнего ключа на список нет — как и у записей Scroll: удаление списка
+ * убирает его строки явно, в репозитории, а не каскадом из базы.
+ */
+@Entity(tableName = "yet_items", indices = [Index("listId")])
+data class YetItem(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val listId: Long,
+    val text: String = "",
+    val done: Boolean = false,
+    val nested: Boolean = false,
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+)

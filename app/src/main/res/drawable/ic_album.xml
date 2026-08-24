@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Альбом — обложка с кольцами у корешка, на ней гора и солнце.
+
+    От знака «Изображения» (стопка карточек) отличается тем, что говорит не
+    «картинок много», а «картинки сложены»: кольца — это то, чем альбом
+    отличается от кучи снимков, и читаются они даже в мелком размере, когда
+    гору внутри уже не разобрать.
+
+    Книга рядом тоже с корешком, поэтому у альбома внутри картинка, а не
+    пустая обложка: без неё альбом и книга стали бы одним знаком.
+
+    Кольца — три штриха поперёк корешка, а не окружности: окружность в 24
+    точках вырождается в кляксу, а штрих остаётся штрихом.
+
+    Обводкой, а не заливкой: одной толщины с соседними знаками и тонируется
+    темой в месте вызова.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round"
+        android:pathData="M6.4,4.4 H17.6 A2.4,2.4 0 0 1 20.0,6.8 V17.2 A2.4,2.4 0 0 1 17.6,19.6 H6.4 A2.4,2.4 0 0 1 4.0,17.2 V6.8 A2.4,2.4 0 0 1 6.4,4.4 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:pathData="M8.2,4.4 V19.6" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M6.6,7.8 H9.8 M6.6,12.0 H9.8 M6.6,16.2 H9.8" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:pathData="M15.1,9.2 A1.1,1.1 0 1 1 17.3,9.2 A1.1,1.1 0 1 1 15.1,9.2 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M10.2,16.6 L12.9,12.9 L14.8,15.0 L16.0,13.7 L18.6,16.6" />
+
+</vector>

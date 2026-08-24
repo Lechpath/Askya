@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Списки» — три строки с отметками: две отмечены, одна ещё ждёт. Незакрытая
+    строка внизу нужна по смыслу раздела: список существует ради того, что ещё
+    не сделано.
+
+    Обводкой, а не заливкой: одной толщины с остальными знаками подразделов.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.4,6.6 L5.2,8.4 L8.6,4.6" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M11.6,6.4 H20.6" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.4,13 L5.2,14.8 L8.6,11" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M11.6,12.8 H20.6" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.6,17.6 H8.4 A0.9,0.9 0 0 1 9.3,18.5 V20.3 A0.9,0.9 0 0 1 8.4,21.2 H3.6 A0.9,0.9 0 0 1 2.7,20.3 V18.5 A0.9,0.9 0 0 1 3.6,17.6 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M11.6,19.4 H20.6" />
+
+</vector>

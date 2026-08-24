@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Знак AskyaEcho — наушники: дуга оголовья и две чашки.
+
+    Раньше здесь были нотки с дугой отзвука. Нотка говорит «музыка вообще» —
+    так помечают и радио, и рингтон, и звук уведомления; наушники говорят
+    «слушать», и это ровно то, зачем в раздел приходят: вечером, в дороге, для
+    себя одного.
+
+    Обводкой в 1,7 и круглыми концами — одной линией с остальными знаками меню:
+    свитком Scroll, солнцем настроек, днём AskyaDay. Чашки скруглены заметно
+    сильнее прямоугольника, иначе на двадцати четырёх точках они читаются
+    коробками, а не мягкими подушками на ушах.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Оголовье: полукруг от чашки до чашки. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5,15 V12 A7,7 0 0 1 19,12 V15" />
+
+    <!-- Левая чашка. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.4,15 H5.6 A1.6,1.6 0 0 1 7.2,16.6 V18.8 A1.6,1.6 0 0 1 5.6,20.4 H4.4 A1.6,1.6 0 0 1 2.8,18.8 V16.6 A1.6,1.6 0 0 1 4.4,15 Z" />
+
+    <!-- Правая чашка. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18.4,15 H19.6 A1.6,1.6 0 0 1 21.2,16.6 V18.8 A1.6,1.6 0 0 1 19.6,20.4 H18.4 A1.6,1.6 0 0 1 16.8,18.8 V16.6 A1.6,1.6 0 0 1 18.4,15 Z" />
+
+</vector>

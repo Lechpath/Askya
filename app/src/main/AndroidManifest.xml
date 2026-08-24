@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Сети приложению больше не нужно: разговор с моделью убран, и всё —
+        заметки, расписание, списки, практики — живёт на телефоне. Разрешение
+        не запрашивается вовсе.
+    -->
+
+    <!-- Уведомления напоминаний. С Android 13 их спрашивают у человека. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        Музыка для AskyaEcho. С Android 13 у аудио своё разрешение; на
+        версиях до неё общее чтение хранилища, ограниченное maxSdkVersion:
+        на новых система его всё равно не даёт, а в списке разрешений оно
+        выглядело бы как запрос на все файлы подряд.
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!--
+        Удаление песни с телефона. С Android 10 файл стирается через системное
+        окно подтверждения, и права на запись для этого не нужно; до неё другого
+        способа нет — отсюда maxSdkVersion. Спрашивается оно не заранее, а в
+        момент, когда человек просит удалить.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!--
+        Плеер в шторке и в системном центре управления. Звук идёт и когда
+        приложение свёрнуто, а служба переднего плана — единственный способ
+        сказать системе, что процесс убивать посреди песни нельзя. Тип
+        mediaPlayback с Android 14 обязателен и объявляется дважды: правом и
+        самой службой.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!--
+        Виджет расписания переживает перезагрузку, а будильники — нет. Без
+        этого разрешения он замирал бы на том, что показывал до выключения
+        телефона, пока система не разбудит его сама.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        Надиктовка заметок. Микрофон слушает сама Askya, а распознаёт речь
+        системная служба: своё окно распознавания показывает чужое приложение
+        во весь экран, и заметка на это время пропадает из виду.
+
+        Это единственное место, где телефон может выйти в интернет — на части
+        устройств распознавание работает только с сетью; на этом оно есть
+        отдельным приложением и работает без неё. Разрешение спрашивается не на
+        входе в заметку, а по нажатию значка микрофона: до него надиктовка не
+        нужна, а спрошенное заранее выглядит как подслушивание.
+
+        Без queries Android 11+ не даст даже увидеть, есть ли распознавание на
+        телефоне.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".app.AskyaApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Askya">
+
+        <activity
+            android:name=".app.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Виджет расписания: что идёт сейчас и что дальше. Полупрозрачный,
+            с прокруткой — список внутри ListView, потому что в RemoteViews
+            прокручивается только коллекция.
+        -->
+        <receiver
+            android:name=".widget.DayWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_day_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.DayWidgetAlarmReceiver"
+            android:exported="false" />
+
+        <!--
+            Напоминания: будильник стреляет в приёмник, тот показывает
+            уведомление. Оба не exported — их зовёт только система и мы сами.
+        -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".reminders.ReminderBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".widget.DayWidgetBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Ссылки наружу: по ним мессенджер (или что выберут в окне
+            «поделиться») читает отправляемую картинку. Не exported и без
+            постоянных прав: доступ выдаётся на один файл и на один заход,
+            вместе с самим намерением.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!--
+            Плеер AskyaEcho: уведомление со своими кнопками и MediaSession, из
+            которой система рисует карточку в центре управления. Не exported —
+            её зовёт только само приложение.
+        -->
+        <service
+            android:name=".echo.EchoService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!--
+            Служба списка. exported=false плюс разрешение системы: без
+            BIND_REMOTEVIEWS лаунчер не имеет права к ней привязаться.
+        -->
+        <service
+            android:name=".widget.DayWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+    </application>
+
+</manifest>

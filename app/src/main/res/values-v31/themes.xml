@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Системная заставка Android 12+: она показывается в тот же миг, когда
+        приложение запускают, — задолго до того, как соберётся первый кадр
+        Compose. Раньше это время экран был пустым кремовым листом, и цветок
+        появлялся только к концу запуска.
+
+        Тот же цветок, тот же кремовый лист и то же дыхание, что и у заставки
+        приложения (`ui/launch/AskyaSplash.kt`): системная снимается ровно
+        тогда, когда своя нарисовалась, и переход между ними не читается как
+        смена экрана — цветок дышит с первого мгновения и не замирает на нём.
+    -->
+    <style name="Theme.Askya" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@color/window_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_flower_breathing</item>
+        <!-- Дольше секунды система показывать анимацию значка не берётся. -->
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+    </style>
+</resources>
