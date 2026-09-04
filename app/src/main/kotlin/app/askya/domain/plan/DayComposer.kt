@@ -1,6 +1,5 @@
 package app.askya.domain.plan
 
-import app.askya.data.entity.CheckIn
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import java.time.LocalDate
@@ -18,7 +17,6 @@ import java.time.LocalTime
 data class DayRequest(
     val date: LocalDate,
     val routine: List<RoutineItem>,
-    val checkIn: CheckIn?,
     val existing: List<ScheduleItem>,
 )
 

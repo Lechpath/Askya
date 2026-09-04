@@ -88,8 +88,10 @@ import app.askya.ui.scroll.NoShareDialog
 import app.askya.ui.scroll.shareImage
 import app.askya.ui.scroll.ScrollViewModel
 import app.askya.ui.theme.Accent
+import app.askya.ui.theme.CoralAccent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Ink
+import app.askya.ui.theme.PaperInk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -414,7 +416,7 @@ private fun DrawScope.drawOverlay(edits: ImageEdits, view: Placement, chosen: In
             val half = paint.measureText(item.text) / 2f + 10f
             val height = paint.textSize * 0.7f
             drawRect(
-                color = Accent,
+                color = CoralAccent,
                 topLeft = Offset(p.x - half, p.y - height),
                 size = Size(half * 2f, height * 2f),
                 style = StrokeStyle(width = 2f),
@@ -700,7 +702,7 @@ private fun ToolRow(tool: Tool, onPick: (Tool) -> Unit) {
                 Text(
                     text = item.label,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (active) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (active) CoralAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -887,10 +889,14 @@ private const val HISTORY = 12
 
 private val RATIOS = listOf("1:1" to 1f, "4:3" to 4f / 3f, "3:4" to 3f / 4f, "16:9" to 16f / 9f)
 
+// Краски карандаша — сами по себе, а не роли темы: ими пишут поверх картинки,
+// и написанное остаётся в файле. Гамма приложения к чернилам на фотографии
+// отношения не имеет, а надпись, поменявшая цвет от настройки, была бы уже
+// другой надписью.
 private val PALETTE = listOf(
     Color.White,
-    Ink,
-    Accent,
+    PaperInk,
+    CoralAccent,
     Color(0xFFC0392B),
     Color(0xFFE0A526),
     Color(0xFF3E7A4F),

@@ -1,4 +1,4 @@
-# Regenerates the launcher icon vectors.
+﻿# Regenerates the launcher icon vectors.
 #
 # VectorDrawable cannot draw text, so the app name is converted to outline paths
 # from the Gabriola font (Windows). Re-run this after changing the wording,
@@ -406,6 +406,38 @@ $sides
 </vector>
 "@
 
+# --- the same flower, painted by the theme ---
+#
+# Only the Android 12+ system splash uses it. There the colour is chosen by the
+# person in the settings, and a drawable cannot read a preference: the theme
+# passes it in as ?attr/askyaFlowerInk, and MainActivity picks the theme.
+#
+# A second copy of the geometry is generated rather than hand-written for the
+# same reason ic_flower.xml is generated at all: petals are edited here, and a
+# hand-kept copy would drift on the first edit. ic_flower.xml itself keeps the
+# literal colour — it is inflated by the launcher (widgets) and by SystemUI
+# (notification icons), where our theme attribute does not exist.
+$flowerSplash = @"
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @SPLASHDOC@ -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:name="breath"
+        android:pivotX="54"
+        android:pivotY="54">
+
+$($sides -replace '#EE8B3D', '?attr/askyaFlowerInk')
+
+    </group>
+
+</vector>
+"@
+
 $foreground = @"
 <?xml version="1.0" encoding="utf-8"?>
 <!-- @DOC@ -->
@@ -434,10 +466,11 @@ $enc = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText("$res\drawable\ic_wordmark_echo.xml", $echoWordmark, $enc)
 [System.IO.File]::WriteAllText("$res\drawable\ic_new_block.xml", $newBlock, $enc)
 [System.IO.File]::WriteAllText("$res\drawable\ic_flower.xml", $flower, $enc)
+[System.IO.File]::WriteAllText("$res\drawable\ic_flower_splash.xml", $flowerSplash, $enc)
 
 Write-Output ('Regenerated ic_launcher_foreground.xml, ic_wordmark.xml, ic_wordmark_echo.xml, ' +
-              'ic_new_block.xml and ic_flower.xml.')
-Write-Output 'The @DOC@ / @MARKDOC@ / @ECHODOC@ / @ACTIONDOC@ placeholders are replaced by hand.'
+              'ic_new_block.xml, ic_flower.xml and ic_flower_splash.xml.')
+Write-Output 'The @DOC@ / @MARKDOC@ / @ECHODOC@ / @ACTIONDOC@ / @FLOWERDOC@ / @SPLASHDOC@ placeholders are replaced by hand.'
 
 # Numbers the animation is built on. Compose cannot read them out of the vector,
 # so they live as constants in EchoCurtain.kt and are checked against this line

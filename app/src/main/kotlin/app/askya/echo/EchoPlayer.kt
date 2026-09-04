@@ -305,6 +305,29 @@ class EchoPlayer(
         return null
     }
 
+    /**
+     * Что заиграет через [delta] шагов, если ничего не трогать.
+     *
+     * Нужна обложке: смахивая её, человек видит под ней следующую песню ещё
+     * до того, как отпустит палец, — и увидеть он должен именно ту, что
+     * заиграет. Считать её на экране из [EchoState.queue] нельзя: вперемешку
+     * порядок обхода свой, и «следующая в списке» и «следующая на самом деле»
+     * — разные дорожки.
+     *
+     * `null` — показывать нечего: очередь пуста или в ней одна дорожка, и
+     * шаг вперёд упирается в неё же. Обложке это говорит «смахивать некуда»,
+     * и она отвечает пружиной, а не подменой.
+     */
+    fun peek(delta: Int): Track? {
+        if (order.isEmpty()) return null
+        val here = cursor.takeIf { it in order.indices }
+        // Курсора нет — дорожку включили не из этой очереди; тогда шаг в любую
+        // сторону начинает её с начала, и показать надо именно первую.
+        val at = if (here == null) 0 else ((here + delta) + order.size) % order.size
+        val found = queue.getOrNull(order[at]) ?: return null
+        return found.takeIf { it.uri != _state.value.track?.uri }
+    }
+
     /** Прыжок по очереди: место — номер в [EchoState.queue], в порядке обхода. */
     fun jump(position: Int) {
         if (position !in order.indices) return

@@ -60,6 +60,7 @@ import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 
 /**
  * Файл, раскрытый карточкой почти во весь экран.
@@ -148,6 +149,7 @@ fun FileCard(
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(RoundedCornerShape(28.dp))
                 // Тап по самой карточке не закрывает её: иначе чтение
                 // обрывалось бы от промаха мимо строки. Но вкладку выделения
                 // он убирает: системная, она висит поверх текста и сама не

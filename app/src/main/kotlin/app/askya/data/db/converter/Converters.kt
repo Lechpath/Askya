@@ -1,8 +1,10 @@
 package app.askya.data.db.converter
 
 import androidx.room.TypeConverter
+import app.askya.domain.model.AccountKind
 import app.askya.domain.model.BlockIcon
-import app.askya.domain.model.BookColor
+import app.askya.domain.model.MarkColor
+import app.askya.domain.model.EntryKind
 import app.askya.domain.model.ListMark
 import app.askya.domain.model.Priority
 import java.time.LocalDate
@@ -59,15 +61,16 @@ class Converters {
         value?.let { name -> BlockIcon.entries.firstOrNull { it.name == name } }
 
     /**
-     * Цвет корешка книги — тоже именем. Пусто значит «не выбирали», и цвет
-     * выводится из названия; неизвестное имя приравнено к пустому.
+     * Краска-метка — тоже именем: ею покрашены и корешок книги, и счёт в
+     * Ledger. Пусто значит «не выбирали», и краска выводится из названия;
+     * неизвестное имя приравнено к пустому.
      */
     @TypeConverter
-    fun bookColorToString(value: BookColor?): String? = value?.name
+    fun markColorToString(value: MarkColor?): String? = value?.name
 
     @TypeConverter
-    fun stringToBookColor(value: String?): BookColor? =
-        value?.let { name -> BookColor.entries.firstOrNull { it.name == name } }
+    fun stringToMarkColor(value: String?): MarkColor? =
+        value?.let { name -> MarkColor.entries.firstOrNull { it.name == name } }
 
     /**
      * Знак строки списка — тоже именем. Неизвестное имя сводится к квадрату:
@@ -91,4 +94,26 @@ class Converters {
     @TypeConverter
     fun stringToTags(value: String): List<String> =
         if (value.isBlank()) emptyList() else value.split("\n").filter { it.isNotBlank() }
+
+    /**
+     * Что записано в книге и что за счёт — тоже именами, по тому же правилу.
+     *
+     * Имя здесь важнее обычного: `kind` разбирается прямо в SQL, где считаются
+     * остатки счетов (`LedgerDao.observeDeltas`), — по строке 'EARN', а не по
+     * номеру. Порядковый номер в перечислении сдвинулся бы от вставки нового
+     * значения, и запрос молча начал бы считать доходы расходами.
+     */
+    @TypeConverter
+    fun entryKindToString(value: EntryKind): String = value.name
+
+    @TypeConverter
+    fun stringToEntryKind(value: String): EntryKind =
+        EntryKind.entries.firstOrNull { it.name == value } ?: EntryKind.SPEND
+
+    @TypeConverter
+    fun accountKindToString(value: AccountKind): String = value.name
+
+    @TypeConverter
+    fun stringToAccountKind(value: String): AccountKind =
+        AccountKind.entries.firstOrNull { it.name == value } ?: AccountKind.CARD
 }

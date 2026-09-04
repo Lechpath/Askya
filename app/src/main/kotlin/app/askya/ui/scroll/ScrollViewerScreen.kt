@@ -150,7 +150,7 @@ fun ScrollViewerScreen(
     val current = pages.getOrNull(pager.currentPage) ?: note
 
     /*
-     * Книга открывается не просмотром, а читалкой: у epub и fb2 есть главы,
+     * Книга открывается не просмотром, а читалкой: у fb2 есть главы,
      * оглавление и место, на котором человек остановился, — показывать их
      * прокруткой текста значило бы отдать всё это чужому приложению.
      *
@@ -299,7 +299,7 @@ private fun Viewed(note: Note, onOpenElsewhere: (Note, String) -> Unit) {
  * можно отдать наружу — из карточки файла.
  */
 @Composable
-private fun OfficeView(uri: String, format: DocFormat) {
+internal fun OfficeView(uri: String, format: DocFormat) {
     when (val text = rememberOfficeText(uri, format)) {
         null -> Waiting()
         "" -> Failed(
@@ -329,7 +329,7 @@ private fun OfficeView(uri: String, format: DocFormat) {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ImageView(uri: String) {
+internal fun ImageView(uri: String) {
     // Крупнее превью в сетке: здесь картинку и разглядывают.
     val bitmap = rememberThumbnail(uri, targetPx = 2048)
 
@@ -388,7 +388,7 @@ private fun ImageView(uri: String) {
 
 /** Текстовый файл: читается целиком и показывается разметкой. */
 @Composable
-private fun TextView(uri: String) {
+internal fun TextView(uri: String) {
     when (val loaded = rememberTextFile(uri)) {
         null -> Waiting()
         "" -> Failed("Прочитать не вышло — файл удалили или отозвали доступ.")
@@ -408,7 +408,7 @@ private fun TextView(uri: String) {
  * ленивый список легко просит соседние одновременно.
  */
 @Composable
-private fun PdfView(uri: String) {
+internal fun PdfView(uri: String) {
     val context = LocalContext.current
     var renderer by remember(uri) { mutableStateOf<PdfRenderer?>(null) }
     var descriptor by remember(uri) { mutableStateOf<ParcelFileDescriptor?>(null) }
@@ -507,7 +507,7 @@ private fun Unsupported(note: Note, onOpenExternally: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Askya показывает картинки, текст, pdf, epub и fb2, docx и xlsx. " +
+            text = "Askya показывает картинки, текст, pdf, fb2, docx и xlsx. " +
                 "Этот формат (${note.mime.ifEmpty { "неизвестный" }}) — не из них.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

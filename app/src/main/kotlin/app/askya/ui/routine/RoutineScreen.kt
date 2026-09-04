@@ -33,7 +33,11 @@ import app.askya.ui.components.CardDialog
 import app.askya.ui.components.CardGrid
 import app.askya.ui.components.DayPart
 import app.askya.ui.components.DayPartTitle
+import app.askya.domain.model.DeedLink
+import app.askya.domain.model.LinkKind
+import app.askya.ui.components.LinkChoice
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.rememberLinkChoices
 import app.askya.ui.components.blockIconOf
 import app.askya.ui.components.formatRange
 import app.askya.ui.theme.Accent
@@ -56,9 +60,20 @@ import app.askya.ui.theme.Ink
  * отражение текущих намерений.
  */
 @Composable
-fun RoutineScreen(onBack: () -> Unit) {
+fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
     val viewModel: RoutineViewModel = viewModel(factory = RoutineViewModel.factory(appContainer()))
     val items by viewModel.items.collectAsStateWithLifecycle()
+    val bridges by appContainer().bridgeRepository.bridges()
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    // Мосты — такие же строки выбора, как книги и списки: у строки списка дел
+    // «чем делается» тот же вопрос, что у дела в дне.
+    val linkChoices = rememberLinkChoices() + bridges.map { bridge ->
+        LinkChoice(
+            value = DeedLink(LinkKind.BRIDGE, bridge.id).store(),
+            title = bridge.name.ifBlank { "Без названия" },
+            group = "Мосты",
+        )
+    }
 
     // null — диалога нет; Editing(null) — новое дело.
     var editing by remember { mutableStateOf<Editing?>(null) }
@@ -113,7 +128,7 @@ fun RoutineScreen(onBack: () -> Unit) {
 
                     item(key = part.name) {
                         Column(modifier = Modifier.padding(top = 10.dp)) {
-                            DayPartTitle(part.title)
+                            DayPartTitle(part.title, part = part)
                             CardGrid(partItems) { item, cardModifier ->
                                 RoutineCard(
                                     item = item,
@@ -142,10 +157,17 @@ fun RoutineScreen(onBack: () -> Unit) {
                     time = formatRange(it.startTime, it.endTime),
                     icon = it.icon,
                     priority = it.priority,
+                    link = it.link,
                 )
             },
             withNote = false,
             withPriority = true,
+            // Привязка у строки списка — та же, что у дела дня, и стоит она
+            // здесь ради повторяющегося: «Чтение Библии» делается одной и той
+            // же книгой каждый день, и выбирать её заново в каждом дне
+            // человек не станет. День берёт её отсюда по названию.
+            linkChoices = linkChoices,
+            onOpenLink = onOpenLink,
             onDismiss = { editing = null },
             onDelete = current.item?.let { item ->
                 {
@@ -162,6 +184,7 @@ fun RoutineScreen(onBack: () -> Unit) {
                         endTime = draft.end,
                         icon = draft.icon,
                         priority = draft.priority,
+                        link = draft.link,
                     ),
                 )
             },

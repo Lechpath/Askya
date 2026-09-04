@@ -12,13 +12,15 @@
     секунды. Разворот на кривой, а не рывком: ровный ход выдавал бы, где
     кончается вдох.
 
-    Цветок берётся из ic_flower.xml за группу «breath» — второй копии
-    геометрии нет, и правка лепестков в tools\make-icon.ps1 доходит и сюда.
+    Цветок берётся за группу «breath» из ic_flower_splash.xml — той же
+    геометрии, что и ic_flower.xml, но покрашенной темой: краску заставки
+    выбирают в настройках, а рисунок не умеет читать настройки. Обе копии
+    печатает tools\make-icon.ps1, и правка лепестков доходит до обеих.
 -->
 <animated-vector
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:drawable="@drawable/ic_flower">
+    android:drawable="@drawable/ic_flower_splash">
 
     <target android:name="breath">
         <aapt:attr name="android:animation">

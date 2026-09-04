@@ -64,6 +64,18 @@ class EchoRepository(private val dao: EchoDao) {
 
     suspend fun remove(id: Long) = dao.deleteTrackById(id)
 
+    /**
+     * Переписать порядок плейлиста целиком — в том виде, в каком его показали.
+     *
+     * Списком, а не перестановкой двух соседей: номера в базе бывают с
+     * пропусками и повторами (строки приходили и уходили годами), и обмен
+     * двух одинаковых номеров не меняет ничего. Пересчёт от нуля по списку с
+     * экрана не может разойтись с тем, что человек видит.
+     */
+    suspend fun reorder(rows: List<EchoPlaylistTrack>) {
+        rows.forEachIndexed { at, row -> dao.setPosition(row.id, at) }
+    }
+
     /** Отмеченное — свой список, живущий рядом с плейлистами. */
     fun favorites(): Flow<List<EchoFavorite>> = dao.observeFavorites()
 

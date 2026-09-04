@@ -2,15 +2,13 @@ package app.askya.domain.docs
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * Разбор документов проверяется обычным тестом на машине — потому он и написан
  * своими руками, без `XmlPullParser`: системный разборщик живёт в Android, и
- * ошибку в чтении epub пришлось бы искать на телефоне.
+ * ошибку в чтении книги пришлось бы искать на телефоне.
  */
 class MarkupTest {
 
@@ -87,104 +85,6 @@ class MarkupTest {
             },
         )
         return parts
-    }
-}
-
-class HtmlTest {
-
-    @Test
-    fun `страница разбирается на заголовки и абзацы`() {
-        val blocks = htmlBlocks(
-            """
-            <html><head><title>прочь</title><style>p{color:red}</style></head>
-            <body><h2>Глава первая</h2><p>Первый абзац.</p><div>Второй абзац.</div></body></html>
-            """.trimIndent(),
-        )
-
-        assertEquals(BookBlock.Heading(2, "Глава первая"), blocks[0])
-        assertEquals(BookBlock.Paragraph("Первый абзац."), blocks[1])
-        assertEquals(BookBlock.Paragraph("Второй абзац."), blocks[2])
-    }
-
-    @Test
-    fun `оформление и пустые абзацы выбрасываются`() {
-        val blocks = htmlBlocks("<p>  </p><p><em>Курсив</em> и <b>жирный</b></p><p></p>")
-        assertEquals(listOf(BookBlock.Paragraph("Курсив и жирный")), blocks)
-    }
-
-    @Test
-    fun `список выходит строками с точкой`() {
-        val blocks = htmlBlocks("<ul><li>раз</li><li>два</li></ul>")
-        assertEquals(listOf(BookBlock.Paragraph("• раз"), BookBlock.Paragraph("• два")), blocks)
-    }
-}
-
-class EpubTest {
-
-    @Test
-    fun `книга собирается по описи, а имена глав берутся из оглавления`() {
-        val book = assertNotNull(parseEpub(epubParts()))
-
-        assertEquals("Тихий дом", book.title)
-        assertEquals("А. Автор", book.author)
-        assertEquals(listOf("Начало", "Конец"), book.chapters.map { it.title })
-        assertEquals(
-            BookBlock.Paragraph("Дом стоял тихо."),
-            book.chapters.first().blocks.last(),
-        )
-    }
-
-    @Test
-    fun `пустые страницы главами не становятся`() {
-        val parts = epubParts().toMutableMap()
-        parts["OEBPS/cover.xhtml"] = "<html><body><img src=\"c.jpg\"/></body></html>".toByteArray()
-        parts["OEBPS/content.opf"] = OPF.replace(
-            "<itemref idref=\"one\"/>",
-            "<itemref idref=\"cover\"/><itemref idref=\"one\"/>",
-        ).replace(
-            "<item id=\"one\"",
-            "<item id=\"cover\" href=\"cover.xhtml\" media-type=\"application/xhtml+xml\"/><item id=\"one\"",
-        ).toByteArray()
-
-        val book = assertNotNull(parseEpub(parts))
-        assertEquals(2, book.chapters.size)
-    }
-
-    @Test
-    fun `без описи книги нет`() {
-        assertNull(parseEpub(mapOf("META-INF/container.xml" to "<container/>".toByteArray())))
-    }
-
-    private fun epubParts(): Map<String, ByteArray> = mapOf(
-        "META-INF/container.xml" to (
-            "<container><rootfiles><rootfile full-path=\"OEBPS/content.opf\"/>" +
-                "</rootfiles></container>"
-            ).toByteArray(),
-        "OEBPS/content.opf" to OPF.toByteArray(),
-        "OEBPS/toc.ncx" to NCX.toByteArray(),
-        "OEBPS/one.xhtml" to (
-            "<html><body><h1>Первая</h1><p>Дом стоял тихо.</p></body></html>"
-            ).toByteArray(),
-        "OEBPS/two.xhtml" to "<html><body><p>И замолчал.</p></body></html>".toByteArray(),
-    )
-
-    private companion object {
-        val OPF = """
-            <package><metadata><dc:title>Тихий дом</dc:title><dc:creator>А. Автор</dc:creator></metadata>
-            <manifest>
-              <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-              <item id="one" href="one.xhtml" media-type="application/xhtml+xml"/>
-              <item id="two" href="two.xhtml" media-type="application/xhtml+xml"/>
-            </manifest>
-            <spine toc="ncx"><itemref idref="one"/><itemref idref="two"/></spine></package>
-        """.trimIndent()
-
-        val NCX = """
-            <ncx><navMap>
-              <navPoint><navLabel><text>Начало</text></navLabel><content src="one.xhtml"/></navPoint>
-              <navPoint><navLabel><text>Конец</text></navLabel><content src="two.xhtml#top"/></navPoint>
-            </navMap></ncx>
-        """.trimIndent()
     }
 }
 
@@ -322,7 +222,7 @@ class FormatTest {
 
     @Test
     fun `формат узнаётся по имени, даже когда система молчит`() {
-        assertEquals(DocFormat.BOOK, documentFormat("Толстой.epub", ""))
+        assertEquals(DocFormat.BOOK, documentFormat("Толстой.fb2", ""))
         assertEquals(DocFormat.BOOK, documentFormat("сказка.fb2.zip", "application/zip"))
         assertEquals(DocFormat.WORD, documentFormat("Договор.DOCX", "application/octet-stream"))
         assertEquals(DocFormat.EXCEL, documentFormat("смета.xlsx", ""))
@@ -345,7 +245,7 @@ class FormatTest {
 
 /**
  * Проверка целиком: настоящий zip — как книга приходит с телефона — читается
- * до глав. Разбор архива и разбор описи легко расходятся порознь, а ломается
+ * до глав. Разбор архива и разбор книги легко расходятся порознь, а ломается
  * от этого именно связка.
  */
 class ArchiveTest {
@@ -353,29 +253,27 @@ class ArchiveTest {
     @Test
     fun `книга читается из настоящего архива`() {
         val zipped = zip(
-            "mimetype" to "application/epub+zip",
-            "META-INF/container.xml" to
-                "<container><rootfiles><rootfile full-path=\"OEBPS/content.opf\"/>" +
-                "</rootfiles></container>",
-            "OEBPS/content.opf" to (
-                "<package><metadata><dc:title>Проба пера</dc:title></metadata>" +
-                    "<manifest><item id=\"c1\" href=\"ch1.xhtml\" " +
-                    "media-type=\"application/xhtml+xml\"/></manifest>" +
-                    "<spine><itemref idref=\"c1\"/></spine></package>"
+            // Обложка и служебный файл сборщика: в память попасть не должны.
+            "cover.jpg" to "не картинка, но и не разметка",
+            "info.txt" to "собрано чем попало",
+            "Проба пера.fb2" to (
+                "<FictionBook><description><title-info>" +
+                    "<book-title>Проба пера</book-title>" +
+                    "<first-name>Иван</first-name><last-name>Тестов</last-name>" +
+                    "</title-info></description>" +
+                    "<body><section><title><p>Утро</p></title>" +
+                    "<p>Дом стоял на краю деревни.</p></section></body></FictionBook>"
                 ),
-            "OEBPS/ch1.xhtml" to
-                "<html><body><h1>Утро</h1><p>Дом стоял на краю деревни.</p></body></html>",
-            // Картинка в текст попасть не должна и в память тоже.
-            "OEBPS/cover.jpg" to "не картинка, но и не разметка",
         )
 
         val parts = readArchive(zipped.inputStream()) { name ->
-            name.endsWith(".xml") || name.endsWith(".opf") || name.endsWith(".xhtml")
+            name.endsWith(".fb2", ignoreCase = true)
         }
-        assertFalse(parts.containsKey("OEBPS/cover.jpg"))
+        assertEquals(setOf("Проба пера.fb2"), parts.keys)
 
-        val book = assertNotNull(parseEpub(parts))
+        val book = assertNotNull(parseFb2(parts.values.single().asMarkup()))
         assertEquals("Проба пера", book.title)
+        assertEquals("Иван Тестов", book.author)
         assertEquals("Утро", book.chapters.single().title)
         assertEquals(
             BookBlock.Paragraph("Дом стоял на краю деревни."),

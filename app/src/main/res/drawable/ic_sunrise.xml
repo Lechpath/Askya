@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Собрать день» в шапке AskyaDay — восходящее солнце.
+
+    Прежде здесь стоял цветок Askya, но с тех пор цветок открывает меню на всех
+    экранах, и два цветка в одной шапке значили бы разное: слева лицо
+    приложения, справа действие. Знак действия должен говорить про действие.
+
+    Восход, а не солнце в зените: кнопка не про погоду и не про полдень, она
+    начинает день — тот, которого ещё нет. Полудиск встаёт из-за черты, под
+    чертой лежит дорожка: по ней видно, где земля, и без неё дуга читается как
+    зонт.
+
+    Солнце в карточке «Подъём» — другое: полный круг с лучами по всей
+    окружности. Спутать их можно только нарочно.
+
+    Обводкой, а не заливкой: одной толщины со знаками разделов и тонируется
+    темой в месте вызова.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Полудиск над чертой. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M7.6,15.8 A4.4,4.4 0 0 1 16.4,15.8" />
+
+    <!-- Луч прямо вверх. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,9.6 V7.2" />
+
+    <!-- Два косых луча. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M7.97,11.77 L6.7,10.5" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M16.03,11.77 L17.3,10.5" />
+
+    <!-- Черта горизонта. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M2.8,15.8 H21.2" />
+
+    <!-- Дорожка под чертой. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M7.6,18.8 H16.4" />
+
+</vector>

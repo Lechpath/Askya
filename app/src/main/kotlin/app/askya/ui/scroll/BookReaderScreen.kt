@@ -87,11 +87,11 @@ import app.askya.domain.docs.BookText
 import app.askya.domain.docs.readBook
 import app.askya.ui.components.highlighted
 import app.askya.ui.components.snippet
-import app.askya.ui.theme.Accent
-import app.askya.ui.theme.AccentSoft
-import app.askya.ui.theme.Cream
-import app.askya.ui.theme.Ink
-import app.askya.ui.theme.Muted
+import app.askya.ui.theme.CoralAccent
+import app.askya.ui.theme.CoralSoft
+import app.askya.ui.theme.PaperCream
+import app.askya.ui.theme.PaperInk
+import app.askya.ui.theme.PaperMuted
 import app.askya.ui.theme.Night
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
@@ -103,7 +103,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
- * Читалка книг: epub и fb2 внутри Askya.
+ * Читалка книг: fb2 внутри Askya.
  *
  * Книгу отдавали чужому приложению — и человек уходил из Scroll в чужую
  * навигацию, к чужим шрифтам и чужой рекламе, а место, на котором он
@@ -164,7 +164,7 @@ fun BookReaderScreen(
         when {
             failed -> Trouble(
                 text = "Открыть книгу не вышло. Файл могли удалить, отозвать доступ — " +
-                    "или это не epub и не fb2.",
+                    "или это не fb2.",
                 action = "Открыть другим приложением",
                 palette = palette,
                 onAction = onOpenElsewhere,
@@ -749,6 +749,7 @@ private fun search(book: BookText, needle: String): List<Found> {
                 is BookBlock.Paragraph -> block.text
                 BookBlock.Divider -> return@forEachIndexed
             }
+            if (text.isEmpty()) return@forEachIndexed
             if (!text.contains(needle, ignoreCase = true)) return@forEachIndexed
             places += Found(
                 chapter = chapterIndex,
@@ -1079,13 +1080,17 @@ private class ReaderPalette(
  * читалке вторую незачем.
  */
 private fun paletteOf(page: ReaderPage): ReaderPalette = when (page) {
+    // Сами краски, а не роли темы: у страницы книги свой свет
+    // (кремовая, сепия, ночь), и он выбирается тут же, в читалке. Тема
+    // приложения его не трогает — иначе «кремовая» страница чернела бы от
+    // настройки, к чтению отношения не имеющей.
     ReaderPage.CREAM -> ReaderPalette(
-        page = Cream,
-        ink = Ink,
-        muted = Muted,
+        page = PaperCream,
+        ink = PaperInk,
+        muted = PaperMuted,
         panel = Color(0xFFFFFFFF),
-        border = AccentSoft,
-        accent = Accent,
+        border = CoralSoft,
+        accent = CoralAccent,
     )
 
     ReaderPage.SEPIA -> ReaderPalette(

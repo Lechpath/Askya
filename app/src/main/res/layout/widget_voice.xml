@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Виджет голосовой заметки: кружок с микрофоном и строка о том, что записано
+    последним.
+
+    Без подложки и белым текстом с тенью — как виджеты дня и погоды: все три
+    лежат прямо на обоях и должны читаться на любых.
+
+    Две области нажатия, а не одна. Кружок начинает запись сию секунду; строка
+    рядом открывает «Голос», где записанное лежит и слушается. Одна общая
+    область заставляла бы выбирать между двумя разными делами одним и тем же
+    нажатием — и то, ради чего виджет заводят, оказалось бы через экран.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_voice_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="10dp">
+
+    <FrameLayout
+        android:id="@+id/widget_voice_button"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@drawable/widget_voice_button">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_widget_mic"
+            android:contentDescription="@string/widget_voice_say" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_voice_words"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="2dp">
+
+        <TextView
+            android:id="@+id/widget_voice_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_voice_say"
+            android:textSize="19sp"
+            android:textColor="@color/widget_ink"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:shadowColor="@color/widget_shadow"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="6" />
+
+        <TextView
+            android:id="@+id/widget_voice_last"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_voice_sample"
+            android:textSize="13sp"
+            android:textColor="@color/widget_muted"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:paddingTop="2dp"
+            android:shadowColor="@color/widget_shadow"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="6" />
+
+    </LinearLayout>
+
+</LinearLayout>

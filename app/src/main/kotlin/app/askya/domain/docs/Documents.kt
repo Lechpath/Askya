@@ -11,7 +11,7 @@ import java.io.InputStream
  * Чем документ является для Askya.
  *
  * Не тип из системы и не расширение по отдельности, а вывод из обоих:
- * провайдеры отдают за `.epub` то `application/epub+zip`, то
+ * провайдеры отдают за `.fb2` то `application/x-fictionbook+xml`, то
  * `application/octet-stream`, то пустую строку, — а расширение врёт реже.
  */
 enum class DocFormat {
@@ -23,7 +23,7 @@ enum class DocFormat {
     /** Простой текст и разметка: `.txt`, `.md`, `.csv`, `.log`. */
     TEXT,
 
-    /** Книга: `.epub`, `.fb2`, `.fb2.zip`. */
+    /** Книга: `.fb2` и `.fb2.zip`. */
     BOOK,
 
     /** Word: `.docx`. */
@@ -48,7 +48,7 @@ fun documentFormat(name: String, mime: String): DocFormat {
     val type = mime.lowercase()
 
     return when {
-        lower.endsWith(".epub") || lower.endsWith(".fb2") || lower.endsWith(".fb2.zip") -> DocFormat.BOOK
+        lower.endsWith(".fb2") || lower.endsWith(".fb2.zip") -> DocFormat.BOOK
         lower.endsWith(".docx") -> DocFormat.WORD
         lower.endsWith(".xlsx") || lower.endsWith(".xlsm") -> DocFormat.EXCEL
         lower.endsWith(".pdf") -> DocFormat.PDF
@@ -59,7 +59,7 @@ fun documentFormat(name: String, mime: String): DocFormat {
 
         type.startsWith("image/") -> DocFormat.IMAGE
         type == "application/pdf" -> DocFormat.PDF
-        type.contains("epub") || type.contains("fb2") -> DocFormat.BOOK
+        type.contains("fb2") || type.contains("fictionbook") -> DocFormat.BOOK
         type.contains("wordprocessingml") -> DocFormat.WORD
         type.contains("spreadsheetml") -> DocFormat.EXCEL
         type.startsWith("text/") -> DocFormat.TEXT
@@ -71,9 +71,13 @@ fun documentFormat(name: String, mime: String): DocFormat {
 /**
  * Книга, разобранная по главам, — или `null`, если это не книга.
  *
- * Что внутри — epub или fb2, — решает не расширение, а первые байты: книги
- * приходят и как `.fb2.zip`, и как `.epub` с fb2 внутри, и просто с чужим
- * именем. Zip разбирается как epub, а если внутри лежит fb2 — как fb2.
+ * Что внутри, решает не расширение, а первые байты: fb2 приходит и голым xml,
+ * и упакованным в zip под именем `.fb2.zip`, и просто с чужим именем. Zip
+ * разбирается как архив, из которого берётся лежащий внутри fb2.
+ *
+ * Картинок книга не приносит: единственным форматом, который их приносил, был
+ * epub, а внутри fb2 рисунки лежат закодированными буквами и в текст не идут.
+ * Поэтому и папки под распакованное здесь больше нет — распаковывать нечего.
  */
 suspend fun readBook(context: Context, uri: String): BookText? = withContext(Dispatchers.IO) {
     runCatching {
@@ -81,7 +85,7 @@ suspend fun readBook(context: Context, uri: String): BookText? = withContext(Dis
             if (looksZipped(stream)) {
                 val parts = readArchive(stream) { name -> keepBookEntry(name) }
                 val fb2 = parts.entries.firstOrNull { it.key.endsWith(".fb2", ignoreCase = true) }
-                if (fb2 != null) parseFb2(fb2.value.asMarkup()) else parseEpub(parts)
+                fb2?.let { parseFb2(it.value.asMarkup()) }
             } else {
                 parseFb2(readCapped(stream).asMarkup())
             }
@@ -115,9 +119,9 @@ suspend fun readOfficeDocument(
 /**
  * Zip ли это.
  *
- * Смотрится подпись в первых байтах, а не имя: `.docx`, `.xlsx`, `.epub` и
- * `.fb2.zip` — всё это zip, а старые `.doc` и `.xls` с теми же на вид именами
- * — нет, и разбирать их как архив бессмысленно.
+ * Смотрится подпись в первых байтах, а не имя: `.docx`, `.xlsx` и `.fb2.zip`
+ * — всё это zip, а старые `.doc` и `.xls` с теми же на вид именами — нет, и
+ * разбирать их как архив бессмысленно.
  *
  * Поток после проверки остаётся нетронутым: читать его дальше будет разбор
  * архива, и потерять первые четыре байта нельзя.
@@ -136,13 +140,14 @@ private fun looksZipped(stream: InputStream): Boolean {
     return read == 4 && head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte()
 }
 
-/** Что внутри книги стоит читать: разметка, а не картинки со шрифтами. */
-private fun keepBookEntry(name: String): Boolean {
-    val lower = name.lowercase()
-    return lower.endsWith(".xhtml") || lower.endsWith(".html") || lower.endsWith(".htm") ||
-        lower.endsWith(".xml") || lower.endsWith(".opf") || lower.endsWith(".ncx") ||
-        lower.endsWith(".fb2")
-}
+/**
+ * Что внутри архива стоит читать.
+ *
+ * Только сам fb2: рядом с ним в `.fb2.zip` лежат обложка и служебные файлы
+ * сборщика, и доставать их в память незачем. Раньше сюда входили ещё xhtml,
+ * opf и ncx — их приносил epub.
+ */
+private fun keepBookEntry(name: String): Boolean = name.endsWith(".fb2", ignoreCase = true)
 
 /** Чтение с потолком: подсунутый гигабайт не должен класть приложение. */
 private fun readCapped(stream: InputStream, limit: Int = MAX_BOOK_BYTES): ByteArray {

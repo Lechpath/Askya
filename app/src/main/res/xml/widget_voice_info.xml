@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Обновляться по часам виджету незачем: он показывает последнюю заметку, а
+    она меняется только тогда, когда её записали, — и тогда его будит само
+    приложение (VoiceWidgetProvider.refresh). Поэтому updatePeriodMillis = 0:
+    система не будит его вовсе, и батарея на это не тратится.
+
+    Широкий и низкий: кружок с подписью рядом — это строка, а не карточка.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="70dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="70dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_voice"
+    android:previewLayout="@layout/widget_voice"
+    android:resizeMode="horizontal"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_voice_description" />

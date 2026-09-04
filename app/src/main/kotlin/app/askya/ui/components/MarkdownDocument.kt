@@ -55,6 +55,9 @@ import app.askya.domain.markdown.Markdown
 import app.askya.domain.model.ListMark
 import app.askya.ui.scroll.rememberThumbnail
 import app.askya.ui.theme.Accent
+import app.askya.ui.theme.CoralAccent
+import app.askya.ui.theme.CoralInk
+import app.askya.ui.theme.CoralSoft
 import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
@@ -489,6 +492,11 @@ private fun marked(source: String): AnnotatedString {
  * [onLink] — что делать с нажатой ссылкой. Без него ссылка остаётся видом:
  * подчёркнутой и коралловой, но неживой. Так она и выглядит в разборе без
  * экрана — в тестах.
+ *
+ * Краски здесь сами по себе, а не роли темы: разметка размечается вне
+ * композиции — и в тестах, где темы нет вовсе, — и спросить о выбранной гамме
+ * отсюда некого. Коралловая ссылка и коралловая плашка кода остаются
+ * коралловыми при любой гамме; это три места на всё приложение.
  */
 internal fun inline(
     source: String,
@@ -555,7 +563,7 @@ internal fun inline(
             if (close > 0) {
                 withStyle(
                     SpanStyle(
-                        color = Accent,
+                        color = CoralAccent,
                         baselineShift = BaselineShift.Superscript,
                         fontSize = 11.sp,
                     ),
@@ -582,8 +590,8 @@ internal fun inline(
             withStyle(
                 SpanStyle(
                     fontFamily = FontFamily.Monospace,
-                    background = AccentSoft,
-                    color = AccentInk,
+                    background = CoralSoft,
+                    color = CoralInk,
                     fontSize = 14.sp,
                 ),
             ) {
@@ -602,8 +610,13 @@ internal fun inline(
     }
 }
 
-/** Вид ссылки: коралловым и с чертой — единственная краска, зовущая нажать. */
-private val LINK = SpanStyle(color = Accent, textDecoration = TextDecoration.Underline)
+/**
+ * Вид ссылки: коралловым и с чертой — единственная краска, зовущая нажать.
+ *
+ * Сама краска, а не роль темы: разметка размечается вне композиции, и
+ * выбранную гамму читать отсюда нечем.
+ */
+private val LINK = SpanStyle(color = CoralAccent, textDecoration = TextDecoration.Underline)
 
 internal val BODY = androidx.compose.ui.text.TextStyle(
     fontSize = 16.sp,

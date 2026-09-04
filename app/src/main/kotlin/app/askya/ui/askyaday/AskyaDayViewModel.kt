@@ -6,12 +6,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import android.content.Context
 import app.askya.app.AppContainer
+import app.askya.data.entity.DeedTask
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import app.askya.data.repository.DayRepository
+import app.askya.data.repository.DeedTaskRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
 import app.askya.data.repository.ScheduleRepository
+import app.askya.data.entity.remindAt
 import app.askya.data.entity.reminderOf
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.DayPlan
@@ -37,6 +40,7 @@ class AskyaDayViewModel(
     private val routine: RoutineRepository,
     private val day: DayRepository,
     private val reminders: ReminderRepository,
+    private val deedTasks: DeedTaskRepository,
 ) : ViewModel() {
 
     /** Идёт сборка дня — на это время в шапке дышит цветок. */
@@ -83,24 +87,55 @@ class AskyaDayViewModel(
         schedule.itemsOn(date).map { items -> DayPlan(date, items) }
 
     /**
-     * Разворачивает распорядок в день при первом открытии.
+     * Списки всех дел этого дня, разложенные по делам.
      *
-     * Прошлые дни не заполняются намеренно: расписание на позавчера — это запись
-     * о том, что было, и дорисовывать её задним числом значило бы врать.
+     * Одним потоком на день, а не потоком на дело: маленькая карточка
+     * показывает «3 из 7», и подписка на каждую из полутора десятков карточек
+     * означала бы полтора десятка запросов ради одной цифры.
      */
-    fun ensureGenerated(date: LocalDate) {
-        if (date.isBefore(LocalDate.now())) return
-        viewModelScope.launch { routine.ensureGenerated(date) }
+    fun tasks(date: LocalDate): Flow<Map<Long, List<DeedTask>>> =
+        deedTasks.tasksOn(date).map { all -> all.groupBy { it.deedId } }
+
+    /**
+     * Одно дело по номеру. Нужно шторке: она называет номер, а не дело, и
+     * искать его в потоке дня значило бы ждать, пока день соберётся.
+     */
+    suspend fun deed(id: Long): ScheduleItem? = schedule.get(id)
+
+    /**
+     * Дописать в список дела: одна отправка — столько строк, сколько написали
+     * или вставили. Разбор разметки живёт в репозитории.
+     */
+    fun addTasks(deedId: Long, source: String) {
+        if (deedId <= 0L || source.isBlank()) return
+        viewModelScope.launch { deedTasks.addLines(deedId, source) }
     }
 
-    /** Заполнение по кнопке — работает и для дня, который уже разворачивали. */
-    fun fillFromRoutine(date: LocalDate) {
-        viewModelScope.launch { routine.fillFromRoutine(date) }
+    fun toggleTask(task: DeedTask) {
+        viewModelScope.launch { deedTasks.toggle(task) }
+    }
+
+    /** Убрать строку — в корзину на сутки, как везде. */
+    fun removeTask(id: Long) {
+        viewModelScope.launch { deedTasks.remove(id) }
+    }
+
+    fun clearDoneTasks(deedId: Long) {
+        viewModelScope.launch { deedTasks.clearDone(deedId) }
     }
 
     /**
-     * Кладёт в день выбранные дела списка — третий способ собрать расписание,
-     * между «заполнить целиком» и «написать руками».
+     * Разворачивает список дел в день при первом открытии — тем же сборщиком,
+     * что и цветок в шапке. Что при этом происходит с прошлыми днями и с
+     * пустым списком, решено в [DayRepository.ensureComposed].
+     */
+    fun ensureGenerated(date: LocalDate) {
+        viewModelScope.launch { day.ensureComposed(date) }
+    }
+
+    /**
+     * Кладёт в день выбранные дела списка — способ собрать день по одному
+     * делу, между «собрать целиком» и «написать руками».
      *
      * Что уже стоит в дне, отсеивает окно выбора: правило «то же дело» ([sameDeed])
      * живёт здесь, рядом с экраном, и второй его копии в базе не нужно.
@@ -111,10 +146,12 @@ class AskyaDayViewModel(
     }
 
     /**
-     * Собрать день заново — с профилем, самочувствием и днём недели.
+     * Собрать день заново — по нажатию на цветок.
      *
-     * Только по нажатию: это запрос к модели, то есть деньги человека и
-     * перетасованный день. Делать это молча при каждом открытии нельзя.
+     * То же самое, что происходит само при первом открытии дня
+     * ([ensureGenerated]); разница только в том, что здесь не смотрят, собирали
+     * этот день раньше или нет. Об этом и просят, нажимая: пересобрать уже
+     * собранное.
      */
     fun composeDay(date: LocalDate) {
         if (_composing.value) return
@@ -140,7 +177,7 @@ class AskyaDayViewModel(
     /**
      * Стереть день целиком.
      *
-     * Отметка «день заполнен» не снимается: без неё распорядок развернулся бы
+     * Отметка «день собран» не снимается: без неё список дел развернулся бы
      * сюда снова при следующем открытии, и очистка не пережила бы даже свайпа
      * на соседний день и обратно.
      */
@@ -157,6 +194,77 @@ class AskyaDayViewModel(
 
     fun toggleDone(item: ScheduleItem) {
         viewModelScope.launch { schedule.setDone(item.id, !item.done) }
+    }
+
+    /**
+     * Отметить дело сделанным по номеру — так возвращаются из-за моста.
+     *
+     * Не переключатель, а «сделано»: человек ответил «да» на «отметить?», и
+     * снимать этим отметку с уже отмеченного дела было бы противоположным
+     * тому, что он сказал.
+     */
+    fun markDone(id: Long) {
+        viewModelScope.launch { schedule.setDone(id, true) }
+    }
+
+    /**
+     * Меняет два дела местами: каждое забирает время другого.
+     *
+     * Так работает перетаскивание карточки в расписании. Меняется именно время,
+     * а не порядок строк: в дне порядок и есть время, и переставленное дело,
+     * оставшееся при своих часах, вернулось бы на прежнее место при первой же
+     * перерисовке.
+     *
+     * Конец переезжает вместе с началом. Дело длиной в два часа, положенное на
+     * получасовое, стало бы получасовым — и человек, поменявший местами обед и
+     * созвон, потерял бы полтора часа, ни разу об этом не спросив.
+     *
+     * Напоминания едут следом ([moveReminder]): «за пятнадцать минут» — это про
+     * дело, а не про час, в который оно раньше стояло.
+     */
+    fun swapTimes(context: Context, one: ScheduleItem, other: ScheduleItem) {
+        if (one.id == other.id) return
+        viewModelScope.launch {
+            schedule.save(one.copy(startTime = other.startTime, endTime = other.endTime))
+            schedule.save(other.copy(startTime = one.startTime, endTime = one.endTime))
+            moveReminder(context, one.id, one.date, other.startTime, other.endTime)
+            moveReminder(context, other.id, other.date, one.startTime, one.endTime)
+        }
+    }
+
+    /**
+     * Переносит напоминание о деле на новый час — тем же способом, каким его
+     * задал человек: сказанный прямо час остаётся, «за столько-то до» едет
+     * вслед за началом.
+     *
+     * Выключенное напоминание переписывается, но будильник ему не заводится:
+     * выключили — значит, не звонить.
+     */
+    private suspend fun moveReminder(
+        context: Context,
+        itemId: Long,
+        date: LocalDate,
+        start: LocalTime,
+        end: LocalTime?,
+    ) {
+        val old = reminders.forItems(listOf(itemId)).firstOrNull() ?: return
+        ReminderAlarms.cancel(context, old.id)
+        val moved = reminderOf(
+            title = old.title,
+            eventDate = date,
+            eventStart = start,
+            eventEnd = end,
+            remind = old.remindAt,
+            id = old.id,
+            icon = old.icon,
+            enabled = old.enabled,
+            silent = old.silent,
+            sound = old.sound,
+            soundTitle = old.soundTitle,
+            itemId = itemId,
+        )
+        reminders.save(moved)
+        if (moved.enabled) ReminderAlarms.schedule(context, moved)
     }
 
     /**
@@ -177,6 +285,7 @@ class AskyaDayViewModel(
         silent: Boolean,
         sound: String?,
         soundTitle: String?,
+        link: String?,
     ) {
         viewModelScope.launch {
             val id = if (existing == null) {
@@ -188,6 +297,7 @@ class AskyaDayViewModel(
                         title = title,
                         note = note,
                         icon = icon,
+                        link = link,
                     )
                 )
             } else {
@@ -198,6 +308,7 @@ class AskyaDayViewModel(
                         title = title,
                         note = note,
                         icon = icon,
+                        link = link,
                     )
                 )
                 existing.id
@@ -286,11 +397,24 @@ class AskyaDayViewModel(
         ReminderAlarms.schedule(context, reminder.copy(id = id))
     }
 
-    fun delete(context: Context, id: Long) {
+    /**
+     * Убрать дело — в корзину на сутки, а не из базы вон.
+     *
+     * Напоминание при этом снимается сразу и насовсем: убранное дело не должно
+     * звонить, и ждать суток на это незачем. Возвращённое дело приходит без
+     * него — так честнее, чем воскрешать будильник, о котором человек за эти
+     * минуты успел забыть.
+     */
+    fun remove(context: Context, id: Long) {
         viewModelScope.launch {
-            schedule.delete(id)
+            schedule.remove(id)
             dropReminders(context, listOf(id))
         }
+    }
+
+    /** Вернуть убранное — то, что предлагает полоска внизу экрана. */
+    fun restore(id: Long) {
+        viewModelScope.launch { schedule.restore(id) }
     }
 
     /**
@@ -315,6 +439,7 @@ class AskyaDayViewModel(
                     container.routineRepository,
                     container.dayRepository,
                     container.reminderRepository,
+                    container.deedTaskRepository,
                 )
             }
         }

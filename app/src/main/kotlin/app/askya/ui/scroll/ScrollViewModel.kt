@@ -8,16 +8,23 @@ import app.askya.app.AppContainer
 import app.askya.data.entity.ImageAlbum
 import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
+import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
+import app.askya.data.audio.VoiceRecorder
+import app.askya.data.audio.VoiceStore
 import app.askya.data.repository.NoteRepository
+import app.askya.data.repository.Trash
 import app.askya.data.repository.YetRepository
-import app.askya.domain.model.BookColor
+import app.askya.domain.model.MarkColor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Общая модель Scroll: хаба и всех его разделов.
@@ -29,6 +36,9 @@ import kotlinx.coroutines.launch
 class ScrollViewModel(
     private val notes: NoteRepository,
     yet: YetRepository,
+    private val voiceStore: VoiceStore,
+    private val recorder: VoiceRecorder,
+    private val trash: Trash,
 ) : ViewModel() {
 
     /**
@@ -38,16 +48,25 @@ class ScrollViewModel(
     val lists: StateFlow<List<YetList>> = yet.lists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val remaining: StateFlow<Map<Long, Int>> = yet.remaining()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    val listSizes: StateFlow<Map<Long, Int>> = yet.sizes()
+    /**
+     * Строки списков, разложенные по списку.
+     *
+     * Одним потоком вместо двух прежних («сколько осталось» и «сколько всего»):
+     * лента Scroll вписывает в карточку списка его первые пункты, и по ним же
+     * считается «3 из 12» — две подписки ради двух чисел, выводимых из тех же
+     * строк, были лишними.
+     */
+    val listItems: StateFlow<Map<Long, List<YetItem>>> = yet.itemsByList()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val images: StateFlow<List<Note>> = notes.images()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val loose: StateFlow<List<Note>> = notes.loose()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Полка голосовых заметок — подраздел «Голос». */
+    val voices: StateFlow<List<Note>> = notes.voices()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val topics: StateFlow<List<ScrollTopic>> = notes.topics()
@@ -193,13 +212,13 @@ class ScrollViewModel(
         }
     }
 
-    fun addTopic(title: String, color: BookColor? = null) {
+    fun addTopic(title: String, color: MarkColor? = null) {
         if (title.isBlank()) return
         viewModelScope.launch { notes.addTopic(title, color) }
     }
 
     /** Название и цвет корешка правятся вместе — их вместе и выбирают. */
-    fun updateTopic(topic: ScrollTopic, title: String, color: BookColor?) {
+    fun updateTopic(topic: ScrollTopic, title: String, color: MarkColor?) {
         if (title.isBlank()) return
         viewModelScope.launch { notes.updateTopic(topic, title, color) }
     }
@@ -210,6 +229,59 @@ class ScrollViewModel(
 
     fun delete(note: Note) {
         viewModelScope.launch { notes.delete(note) }
+    }
+
+    // ---- Голос ----
+
+    /**
+     * Начать запись.
+     *
+     * Файл заводится здесь, а не в диктофоне: заводит его папка Askya, и она
+     * же умеет его убрать, если записи не случилось. Диктофону достаётся уже
+     * открытый дескриптор — ровно то, что просит `MediaRecorder`.
+     */
+    fun startRecording() {
+        if (recorder.state.value.going) return
+        viewModelScope.launch {
+            val place = voiceStore.create("golos") ?: return@launch
+            recorder.start(place)
+        }
+    }
+
+    /**
+     * Закончить запись и завести по ней заметку.
+     *
+     * Заголовок — день и час: заметку наговаривают на бегу, и вопрос «как её
+     * назвать» ровно в эту минуту стоил бы той мысли, ради которой её и
+     * записывали. Переименовать можно потом, из карточки.
+     *
+     * Зовётся и по кнопке «Готово», и просто при уходе с экрана: микрофон в
+     * фоне Askya не держит, а наговорённое до ухода терять нельзя.
+     */
+    fun stopRecording() {
+        val done = recorder.stop() ?: return
+        viewModelScope.launch {
+            notes.addVoice(
+                uri = done.uri,
+                title = VOICE_STAMP.format(LocalDateTime.now()),
+                durationMs = done.durationMs,
+            )
+        }
+    }
+
+    /** Бросить запись: ни заметки, ни файла не остаётся. */
+    fun cancelRecording() = recorder.cancel()
+
+    fun renameVoice(note: Note, title: String) {
+        viewModelScope.launch { notes.save(note.copy(title = title.trim().ifBlank { "Голос" })) }
+    }
+
+    /** Убрать заметку — в ту же корзину на сутки, что запись, дело и трату. */
+    fun removeVoice(note: Note) {
+        viewModelScope.launch {
+            notes.remove(note.id)
+            trash.remembered(Trash.Kind.NOTE, note.id)
+        }
     }
 
     /** Убрать выбранные картинки разом — так их убирают из сетки пачкой. */
@@ -252,7 +324,26 @@ class ScrollViewModel(
 
     companion object {
         fun factory(container: AppContainer) = viewModelFactory {
-            initializer { ScrollViewModel(container.noteRepository, container.yetRepository) }
+            initializer {
+                ScrollViewModel(
+                    container.noteRepository,
+                    container.yetRepository,
+                    container.voiceStore,
+                    container.voiceRecorder,
+                    container.trash,
+                )
+            }
         }
     }
 }
+
+/**
+ * День и час, которыми подписывается только что наговорённая заметка:
+ * «27 августа, 14:32».
+ *
+ * Язык задан явно, а не взят системный: приложение написано по-русски целиком,
+ * и заметка, подписанная «27 August» на телефоне с английской системой,
+ * выглядела бы чужой строкой в своём же списке.
+ */
+private val VOICE_STAMP: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMMM, HH:mm", Locale("ru"))

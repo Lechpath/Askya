@@ -55,12 +55,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Danger
 import app.askya.ui.theme.ModeRedSoft
+import app.askya.ui.theme.cardEdge
 
 /**
  * Окно Askya: то, что раскрывается поверх экрана и ждёт ответа.
@@ -130,6 +132,7 @@ fun AskyaDialog(
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(RoundedCornerShape(28.dp))
                 // Тап по самой карточке не закрывает её: иначе набранное
                 // терялось бы от промаха мимо строки.
                 .clickable(
@@ -235,6 +238,10 @@ fun DialogText(text: String, modifier: Modifier = Modifier) {
  *
  * [autoFocus] открывает клавиатуру сразу: в окне с одним полем ждать тапа по
  * нему незачем.
+ *
+ * [keyboard] меняет саму клавиатуру: в поле, куда пишут вес или пульс, буквы
+ * не нужны вовсе, а тянуться до цифрового ряда на каждой строке подхода —
+ * работа, которой не должно быть.
  */
 @Composable
 fun DialogField(
@@ -244,6 +251,7 @@ fun DialogField(
     modifier: Modifier = Modifier,
     autoFocus: Boolean = false,
     singleLine: Boolean = true,
+    keyboard: KeyboardType = KeyboardType.Text,
     onDone: () -> Unit = {},
 ) {
     val focus = remember { FocusRequester() }
@@ -274,6 +282,7 @@ fun DialogField(
             cursorBrush = SolidColor(Accent),
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(
+                keyboardType = keyboard,
                 imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
             ),
             keyboardActions = KeyboardActions(onDone = { onDone() }),

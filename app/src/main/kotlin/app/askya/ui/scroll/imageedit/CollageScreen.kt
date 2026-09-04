@@ -55,6 +55,7 @@ import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.scroll.ScrollViewModel
 import app.askya.ui.scroll.rememberThumbnail
 import app.askya.ui.theme.Accent
+import app.askya.ui.theme.CoralAccent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
@@ -262,7 +263,7 @@ private fun LayoutChip(option: Layout, active: Boolean, onClick: () -> Unit) {
             val top = (size.height - fit) / 2f
             option.cells.forEach { cell ->
                 drawRect(
-                    color = if (active) Accent else Color(0xFF9A968C),
+                    color = if (active) CoralAccent else Color(0xFF9A968C),
                     topLeft = Offset(left + cell.left * width + 1f, top + cell.top * fit + 1f),
                     size = Size(cell.width * width - 2f, cell.height * fit - 2f),
                 )
@@ -271,7 +272,7 @@ private fun LayoutChip(option: Layout, active: Boolean, onClick: () -> Unit) {
         Text(
             text = option.label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (active) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (active) CoralAccent else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

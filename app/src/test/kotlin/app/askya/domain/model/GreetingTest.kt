@@ -3,8 +3,12 @@ package app.askya.domain.model
 import java.time.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class GreetingTest {
+
+    // Границы пор суток. Оборот не задан — значит, нулевой, а на нулевом
+    // обороте каждая пора говорит само приветствие.
 
     @Test
     fun `утро начинается в пять`() {
@@ -30,5 +34,52 @@ class GreetingTest {
         assertEquals("Good night", Greeting.of(LocalTime.of(22, 0)))
         assertEquals("Good night", Greeting.of(LocalTime.of(0, 0)))
         assertEquals("Good night", Greeting.of(LocalTime.of(3, 30)))
+    }
+
+    @Test
+    fun `набор перебирается по кругу и возвращается к началу`() {
+        val morning = LocalTime.of(8, 0)
+        val pool = Greeting.phrases(Greeting.Part.MORNING)
+
+        pool.forEachIndexed { turn, phrase ->
+            assertEquals(phrase, Greeting.of(morning, turn))
+        }
+        // Круг замкнулся: следующий оборот начинает набор заново.
+        assertEquals(pool.first(), Greeting.of(morning, pool.size))
+        assertEquals(pool[1], Greeting.of(morning, pool.size + 1))
+    }
+
+    @Test
+    fun `переполнение счётчика не роняет заставку`() {
+        val evening = LocalTime.of(19, 0)
+        val pool = Greeting.phrases(Greeting.Part.EVENING)
+
+        assertTrue(Greeting.of(evening, Int.MIN_VALUE) in pool)
+        assertTrue(Greeting.of(evening, -1) in pool)
+        assertTrue(Greeting.of(evening, Int.MAX_VALUE) in pool)
+    }
+
+    @Test
+    fun `в каждой поре первой стоит само приветствие`() {
+        assertEquals("Good morning", Greeting.phrases(Greeting.Part.MORNING).first())
+        assertEquals("Good afternoon", Greeting.phrases(Greeting.Part.AFTERNOON).first())
+        assertEquals("Good evening", Greeting.phrases(Greeting.Part.EVENING).first())
+        assertEquals("Good night", Greeting.phrases(Greeting.Part.NIGHT).first())
+    }
+
+    @Test
+    fun `фразы не повторяются внутри поры и написаны по-английски`() {
+        Greeting.Part.entries.forEach { part ->
+            val pool = Greeting.phrases(part)
+            assertTrue(pool.size > 1, "у поры $part должно быть из чего выбирать")
+            assertEquals(pool.size, pool.toSet().size, "в поре $part повторяется фраза")
+            pool.forEach { phrase ->
+                assertTrue(phrase.isNotBlank(), "пустая фраза в поре $part")
+                assertTrue(
+                    phrase.none { it in 'а'..'я' || it in 'А'..'Я' },
+                    "фраза «$phrase» в поре $part не по-английски",
+                )
+            }
+        }
     }
 }

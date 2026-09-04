@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Виджет погоды. Устроен как виджет дня и по тем же правилам: без подложки —
+    погода лежит прямо на обоях, — белым текстом с тенью, чтобы читаться и на
+    светлых обоях.
+
+    Списка здесь нет намеренно, хотя у соседа он есть: у дня дел бывает
+    сколько угодно и их листают, а часов вперёд смотрят ровно четыре — дальше
+    начинается прогноз, а не «что сейчас за окном». Четыре столбика умещаются
+    в самый узкий виджет, и ListView ради них означал бы отдельную службу и
+    прокрутку там, где прокручивать нечего.
+
+    Цветка в углу тоже нет, хотя у дня он есть: лицо этого виджета — сам знак
+    погоды, и второй знак рядом с ним спорил бы за то же место. Askya здесь
+    узнаётся почерком, а не подписью.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_weather_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:id="@+id/widget_weather_body"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/widget_weather_mark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_weather_sample_mark"
+                android:textSize="30sp"
+                android:textColor="@color/widget_ink"
+                android:shadowColor="@color/widget_shadow"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="6" />
+
+            <TextView
+                android:id="@+id/widget_weather_degrees"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_weather_sample_degrees"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:textSize="34sp"
+                android:textColor="@color/widget_ink"
+                android:shadowColor="@color/widget_shadow"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="6" />
+
+            <TextView
+                android:id="@+id/widget_weather_place"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textSize="13sp"
+                android:textColor="@color/widget_muted"
+                android:shadowColor="@color/widget_shadow"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="6" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_weather_words"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_weather_sample_words"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="13sp"
+            android:textColor="@color/widget_muted"
+            android:shadowColor="@color/widget_shadow"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="6" />
+
+        <LinearLayout
+            android:id="@+id/widget_weather_hours"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:paddingTop="8dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/widget_weather_hour_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_weather_time_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="13"
+                    android:textSize="12sp"
+                    android:textColor="@color/widget_muted"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_sign_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="☀"
+                    android:textSize="16sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_degrees_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+21°"
+                    android:textSize="14sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_weather_hour_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_weather_time_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="14"
+                    android:textSize="12sp"
+                    android:textColor="@color/widget_muted"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_sign_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⛅"
+                    android:textSize="16sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_degrees_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+22°"
+                    android:textSize="14sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_weather_hour_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_weather_time_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="15"
+                    android:textSize="12sp"
+                    android:textColor="@color/widget_muted"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_sign_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌦"
+                    android:textSize="16sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_degrees_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+21°"
+                    android:textSize="14sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_weather_hour_4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_weather_time_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="16"
+                    android:textSize="12sp"
+                    android:textColor="@color/widget_muted"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_sign_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌧"
+                    android:textSize="16sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+
+                <TextView
+                    android:id="@+id/widget_weather_degrees_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+19°"
+                    android:textSize="14sp"
+                    android:textColor="@color/widget_ink"
+                    android:shadowColor="@color/widget_shadow"
+                    android:shadowDx="0"
+                    android:shadowDy="1"
+                    android:shadowRadius="6" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_weather_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:gravity="center"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:textSize="15sp"
+        android:textColor="@color/widget_ink"
+        android:shadowColor="@color/widget_shadow"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="6" />
+
+</FrameLayout>

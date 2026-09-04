@@ -1,5 +1,6 @@
 package app.askya.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
@@ -63,6 +65,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -71,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.BlockIcons
+import app.askya.ui.theme.cardEdge
 import java.time.LocalTime
 
 /**
@@ -94,6 +98,21 @@ fun BlockCard(
     metaColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onIconClick: (() -> Unit)? = null,
+    /**
+     * Краска знака, когда она своя. Отдельно от [metaColor] и намеренно: тем
+     * же цветом залит текущий блок целиком, и покрасив заодно время, карточка
+     * с привязкой стала бы неотличима от той, что идёт сейчас.
+     */
+    iconTint: Color? = null,
+    /**
+     * Верхний правый угол — напротив знака дела.
+     *
+     * Заведён под галочку «сделано»: нижний ряд карточки шириной в треть
+     * экрана держит две кнопки, третья в него не встаёт. Угол свободен и так,
+     * а отметка о деле — первое, что с карточки читают.
+     */
+    corner: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Card(
@@ -107,19 +126,45 @@ fun BlockCard(
         // Ширину задаёт ряд — все карточки в нём одинаковые. Высота своя и
         // фиксированная: карточка вытянута вниз, и от длины названия её рост
         // меняться не должен, иначе строка идёт лесенкой.
-        modifier = modifier.height(CARD_HEIGHT),
+        modifier = modifier
+            .cardEdge(RoundedCornerShape(20.dp))
+            .height(CardHeight),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 12.dp, end = 2.dp, top = 12.dp, bottom = 2.dp),
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = metaColor,
-                modifier = Modifier.size(30.dp),
-            )
+            // Знак — дверь, когда делу назначено, чем оно делается: тап по
+            // нему уходит в книгу, список или раздел, а тап по остальной
+            // карточке по-прежнему раскрывает само дело. Своей кнопки для
+            // этого нет и быть не может — в карточке шириной в треть экрана
+            // третья кнопка не помещается, а знак уже говорит ровно о том,
+            // чем дело делается.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = if (onIconClick != null) "Перейти" else null,
+                    tint = iconTint ?: metaColor,
+                    modifier = Modifier
+                        .then(
+                            if (onIconClick != null) {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onIconClick)
+                                    .padding(2.dp)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .size(30.dp),
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                corner()
+            }
             Text(
                 text = time,
                 style = MaterialTheme.typography.bodyLarge,
@@ -140,38 +185,49 @@ fun BlockCard(
     }
 }
 
-private val CARD_HEIGHT = 212.dp
+/**
+ * Высота карточки. Наружу — потому что расписание уменьшает прошедшие дела и
+ * чуть увеличивает текущее, а считать эти доли не от чего, если высота
+ * спрятана здесь.
+ */
+val CardHeight = 212.dp
 
-/** Сколько карточек помещается в строку. Три — как на эскизе. */
+/** Сколько карточек помещается в строку дня. Три — как на эскизе. */
 private const val COLUMNS = 3
 
 /**
- * Сетка карточек: рядами по трое, поровну по ширине экрана.
+ * Сетка карточек: рядами, поровну по ширине экрана.
  *
  * Не поместившиеся переносятся на следующую строку и сдвигают вниз всё, что
  * ниже. Прокрутка только вертикальная — горизонтальная лента прятала бы дела
  * за краем экрана, а эти списки смотрят, чтобы увидеть всё сразу.
+ *
+ * [columns] — трое в дне, где карточка это одно короткое дело; столько же у
+ * счетов, где карточка от этого становится вертикальной и читается поперёк
+ * ряда. Двое остаются тому, чему в трети экрана тесно по-настоящему. Число это
+ * про содержимое, а не про экран, поэтому его называет тот, кто строит сетку.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun <T> CardGrid(
     items: List<T>,
     modifier: Modifier = Modifier,
+    columns: Int = COLUMNS,
     card: @Composable (item: T, modifier: Modifier) -> Unit,
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        maxItemsInEachRow = COLUMNS,
+        maxItemsInEachRow = columns,
         modifier = modifier.fillMaxWidth(),
     ) {
         items.forEach { item -> card(item, Modifier.weight(1f)) }
         // Хвост последней строки добирается пустотой: без этого две карточки
         // растянулись бы на всю ширину и оказались бы вдвое шире соседних
         // сверху.
-        val tail = items.size % COLUMNS
+        val tail = items.size % columns
         if (tail != 0) {
-            repeat(COLUMNS - tail) {
+            repeat(columns - tail) {
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
@@ -185,15 +241,38 @@ fun <T> CardGrid(
  * страницы, а не подписи к строчкам списка.
  */
 @Composable
-fun DayPartTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        fontFamily = FontFamily.Serif,
-        fontSize = 22.sp,
-        letterSpacing = (-0.3).sp,
-        color = MaterialTheme.colorScheme.onBackground,
+fun DayPartTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    /**
+     * Часть дня, чей знак стоит слева от слова. Знак есть у частей дня и
+     * больше ни у кого: этой же подписью набраны заголовки внутри счёта и
+     * напоминаний, а знака у слова «Расходы» нет и не нужно.
+     *
+     * Часть, а не картинка: знак нарисован и движется — см. [DayPartIcon].
+     */
+    part: DayPart? = null,
+) {
+    Row(
         modifier = modifier.padding(bottom = 10.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (part != null) {
+            DayPartIcon(
+                part = part,
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(end = 8.dp),
+                size = 22.dp,
+            )
+        }
+        Text(
+            text = text,
+            fontFamily = FontFamily.Serif,
+            fontSize = 22.sp,
+            letterSpacing = (-0.3).sp,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+    }
 }
 
 /**
@@ -203,6 +282,8 @@ fun DayPartTitle(text: String, modifier: Modifier = Modifier) {
  * десять, когда начинается работа, вечер начинается в шесть, когда она
  * кончается. Ночные дела попадают в вечер — заводить четвёртую часть ради
  * двух дел в году незачем.
+ *
+ * Знака в поле нет: он не картинка, а рисунок с движением — [DayPartIcon].
  */
 enum class DayPart(val title: String) {
     MORNING("Утро"),

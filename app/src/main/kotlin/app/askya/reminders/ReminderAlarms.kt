@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import app.askya.R
 import app.askya.app.AskyaApplication
 import app.askya.app.MainActivity
+import app.askya.data.backup.SnapshotAlarms
 import app.askya.data.entity.Reminder
 import kotlinx.coroutines.runBlocking
 import java.time.ZoneId
@@ -222,11 +223,18 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 }
 
-/** После перезагрузки будильники стёрты — ставим заново. */
+/**
+ * После перезагрузки будильники стёрты — ставим заново.
+ *
+ * Заодно и месячное напоминание про «Слепок»: приёмник тот же, потому что
+ * повод один — перезагрузка, а второй приёмник на то же событие означал бы
+ * два места, где помнят про будильники Askya.
+ */
 class ReminderBootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         ReminderAlarms.rescheduleAll(context)
+        SnapshotAlarms.reschedule(context)
     }
 }

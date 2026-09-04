@@ -7,18 +7,18 @@ import java.util.zip.ZipInputStream
 /**
  * Внутренности сжатого документа — по имени файла.
  *
- * epub, docx и xlsx устроены одинаково: это zip, внутри которого лежит xml.
- * Отсюда одно чтение на все три формата.
+ * `.fb2.zip`, docx и xlsx устроены одинаково: это zip, внутри которого лежит
+ * xml. Отсюда одно чтение на все три формата.
  *
  * Читается одним проходом, а не через `ZipFile`: тот умеет открывать только
  * настоящий файл на диске, а документ в Askya — это ссылка на чужой документ у
  * системного провайдера, и ради `ZipFile` его пришлось бы сначала целиком
  * копировать во временную папку.
  *
- * [keep] решает, что вообще доставать. У книги внутри лежат картинки, шрифты и
- * обложка — мегабайты, из которых текст не читается ни один; беря всё подряд,
- * приложение раскладывало бы книгу в памяти целиком ради сотни килобайт
- * разметки.
+ * [keep] решает, что вообще доставать. В архиве с книгой рядом с текстом лежат
+ * картинки и шрифты — мегабайты, из которых не читается ни один; беря всё
+ * подряд, приложение раскладывало бы книгу в памяти целиком ради сотни
+ * килобайт разметки.
  *
  * Потолок [limit] — на случай подсунутого гигабайта: лучше прочитать начало
  * книги, чем положить приложение по памяти.
@@ -79,23 +79,6 @@ internal fun ByteArray.asMarkup(): String {
         if (charset.isNullOrEmpty()) toString(Charsets.UTF_8) else toString(charset(charset))
     }.getOrElse { toString(Charsets.UTF_8) }
     return text.removePrefix("\uFEFF")
-}
-
-/** Путь внутри архива, разрешённый относительно другого пути. */
-internal fun resolveEntry(base: String, href: String): String {
-    val clean = href.substringBefore('#').substringBefore('?')
-    if (clean.startsWith("/")) return clean.trimStart('/')
-
-    val parts = ArrayList<String>()
-    base.substringBeforeLast('/', "").split('/').forEach { if (it.isNotEmpty()) parts += it }
-    clean.split('/').forEach { part ->
-        when (part) {
-            "", "." -> Unit
-            ".." -> if (parts.isNotEmpty()) parts.removeAt(parts.size - 1)
-            else -> parts += part
-        }
-    }
-    return parts.joinToString("/")
 }
 
 private val CHARSET = Regex("(?:encoding|charset)\\s*=\\s*[\"']?([a-z0-9-]+)")

@@ -38,11 +38,24 @@ import java.time.format.DateTimeFormatter
  * `ContentResolver.openInputStream`, поэтому просмотр, превью и правка
  * работают одним кодом и с теми, и с другими.
  */
-class ImageStore(private val context: Context) {
+class ImageStore(
+    private val context: Context,
+    private val library: app.askya.data.library.AskyaLibrary,
+) {
 
-    /** Где лежат картинки — словами, для окон и подсказок. */
-    val folderName: String =
-        if (MODERN) FOLDER else "Android/data/${context.packageName}/files/$LEGACY_DIR"
+    /**
+     * Где лежат картинки — словами, для окон и подсказок.
+     *
+     * Не `val`, а `get()`: разрешение на библиотеку выдают и отзывают посреди
+     * работы приложения, и запомненный при создании ответ после этого показывал
+     * бы человеку не ту папку, в которую на самом деле легла картинка.
+     */
+    val folderName: String
+        get() = when {
+            library.ready() -> library.folderName
+            MODERN -> FOLDER
+            else -> "Android/data/${context.packageName}/files/$LEGACY_DIR"
+        }
 
     /**
      * Копирует выбранный документ в папку Askya и отдаёт ссылку на копию.
@@ -81,6 +94,26 @@ class ImageStore(private val context: Context) {
                 if (!bitmap.compress(format, QUALITY, output)) error("не записалось")
             }
         }
+
+    /**
+     * Кладёт в папку Askya картинку из «Слепка» и отдаёт ссылку на неё.
+     *
+     * Той же дорогой, что копия и правка, — через [write]: слепок читают на
+     * другом телефоне, где и версия Android другая, и папка своя, и вторая
+     * дорога для того же дела разошлась бы с первой в первый же раз.
+     *
+     * Имя берётся из слепка и заново проходит очистку: оно пришло из чужого
+     * файла, а имя файла в общей папке телефона — не то место, куда стоит
+     * подставлять чужую строку как есть.
+     */
+    suspend fun restore(
+        name: String,
+        mime: String,
+        body: (OutputStream) -> Unit,
+    ): String? = withContext(Dispatchers.IO) {
+        val type = imageMime(name, mime)
+        write(fileName(name, type), type, body)
+    }
 
     /**
      * Переносит старую копию из папки приложения в видимую папку Askya.
@@ -123,6 +156,20 @@ class ImageStore(private val context: Context) {
     suspend fun rename(uri: String?, name: String): String? {
         if (!isOurs(uri)) return null
         val parsed = Uri.parse(uri)
+
+        library.fileOf(uri)?.let { file ->
+            // Библиотека лежит файлами, а не записями: имя меняется
+            // переименованием, и системе о нём говорят дважды — о пропавшем
+            // старом файле и о появившемся новом.
+            return withContext(Dispatchers.IO) {
+                val target = File(file.parentFile, renamed(file.name, name))
+                runCatching {
+                    if (!file.renameTo(target)) return@runCatching null
+                    library.publish(file)
+                    library.publish(target)
+                }.getOrNull()
+            }
+        }
 
         return withContext(Dispatchers.IO) {
             if (parsed.scheme == "file") {
@@ -235,6 +282,7 @@ class ImageStore(private val context: Context) {
     /** Лежит ли файл в нашей папке. Чужие ссылки трогать нельзя. */
     fun isOurs(uri: String?): Boolean {
         val parsed = uri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return false
+        if (library.isOurs(uri)) return true
         return when (parsed.scheme) {
             "file" -> legacyFile(uri) != null
             "content" -> parsed.authority == MediaStore.AUTHORITY && inOurFolder(parsed)
@@ -249,6 +297,13 @@ class ImageStore(private val context: Context) {
      */
     suspend fun delete(uri: String?) {
         if (!isOurs(uri)) return
+        // Файл библиотеки убирает она сама: кроме файла на диске у него есть
+        // запись в индексе системы, и стереть одно, не сказав о другом, значит
+        // оставить в галерее карточку, за которой ничего нет.
+        if (library.isOurs(uri)) {
+            library.remove(uri)
+            return
+        }
         withContext(Dispatchers.IO) {
             val parsed = Uri.parse(uri)
             runCatching {
@@ -269,8 +324,40 @@ class ImageStore(private val context: Context) {
      * проводнику, и половина картинки никому не покажется. Не записалось —
      * запись убирается совсем.
      */
-    private fun write(displayName: String, mime: String, body: (OutputStream) -> Unit): String? =
-        if (MODERN) writeToFolder(displayName, mime, body) else writeToAppFolder(displayName, body)
+    private fun write(displayName: String, mime: String, body: (OutputStream) -> Unit): String? {
+        writeToLibrary(displayName, mime, body)?.let { return it }
+        return if (MODERN) writeToFolder(displayName, mime, body) else {
+            writeToAppFolder(displayName, body)
+        }
+    }
+
+    /**
+     * Первая дорога: полка «Фото» библиотеки Askya.
+     *
+     * `null` означает «библиотеки нет» — разрешения не дали или папку удалили,
+     * — и тогда картинка идёт прежней дорогой, в «Pictures/Askya». Имя файла
+     * собирает сама библиотека: отметку времени и разведение совпадений она
+     * ставит по своему правилу, и второе правило в той же папке было бы лишним.
+     */
+    private fun writeToLibrary(
+        displayName: String,
+        mime: String,
+        body: (OutputStream) -> Unit,
+    ): String? {
+        if (!library.ready()) return null
+        val target = library.newFile(
+            app.askya.data.library.AskyaLibrary.Shelf.PHOTOS,
+            displayName,
+            mime,
+        ) ?: return null
+        return runCatching {
+            target.outputStream().use(body)
+            library.publish(target)
+        }.getOrElse {
+            library.discard(target)
+            null
+        }
+    }
 
     private fun writeToFolder(
         displayName: String,

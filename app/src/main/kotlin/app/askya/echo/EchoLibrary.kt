@@ -19,6 +19,17 @@ data class Track(
     val durationMs: Long,
     /** Папка, в которой лежит файл, — по ней собирается раздел «Папки». */
     val folder: String,
+    /**
+     * Жанр из тега файла. Пустой — тега нет, и это обычное дело.
+     *
+     * Умолчанием, потому что дорожку собирают не только из MediaStore: та, что
+     * поднята из памяти «на чём остановились», знает о себе ровно то, что было
+     * записано в хранилище, и жанра среди этого нет.
+     *
+     * Пустоту разбирают правила раскладки ([EchoRules]): жанр, которого нет в
+     * файле, берётся у соседей того же исполнителя.
+     */
+    val genre: String = "",
 )
 
 /** Папка с музыкой: имя и всё, что в ней лежит. */
@@ -47,6 +58,12 @@ object EchoLibrary {
             add(MediaStore.Audio.Media.ALBUM)
             add(MediaStore.Audio.Media.ALBUM_ID)
             add(MediaStore.Audio.Media.DURATION)
+            // Жанр система отдаёт колонкой только с Android 11. Ниже он лежит
+            // отдельной таблицей, и его дочитывает [genres] вторым запросом:
+            // просить несуществующую колонку нельзя — запрос упадёт целиком.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                add(MediaStore.Audio.Media.GENRE)
+            }
             // Имя папки система считает сама начиная с Android 10; на более
             // старых его приходится вырезать из пути файла.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -74,6 +91,11 @@ object EchoLibrary {
                 val albumId = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val place = cursor.getColumnIndex(columns.last())
+                val kind = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
+                } else {
+                    -1
+                }
 
                 while (cursor.moveToNext()) {
                     val trackId = cursor.getLong(id)
@@ -90,12 +112,74 @@ object EchoLibrary {
                         albumId = cursor.getLong(albumId),
                         durationMs = cursor.getLong(duration),
                         folder = folderName(cursor.getString(place)),
+                        genre = if (kind >= 0) cursor.getString(kind).orEmpty() else "",
                     )
                 }
             }
         }
 
+        // На Android 10 и ниже жанры дочитываются отдельной таблицей.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            val known = genres(context)
+            if (known.isNotEmpty()) {
+                for (at in tracks.indices) {
+                    val name = known[tracks[at].id] ?: continue
+                    tracks[at] = tracks[at].copy(genre = name)
+                }
+            }
+        }
+
         tracks
+    }
+
+    /**
+     * Жанры на системах до Android 11: какой дорожке какой.
+     *
+     * До появления колонки `GENRE` жанр в MediaStore лежит отдельной таблицей,
+     * и связь «дорожка — жанр» читается только через список участников каждого
+     * жанра. Жанров на телефоне единицы, поэтому проходов немного; всё равно
+     * это стоит целого второго обхода базы, и потому делается один раз при
+     * чтении библиотеки, а не при каждом обращении к дорожке.
+     *
+     * Не получилось — пусто: без жанров разложить музыку всё равно есть чем, и
+     * [EchoRules] умеет достраивать их по соседям.
+     */
+    private fun genres(context: Context): Map<Long, String> {
+        val found = mutableMapOf<Long, String>()
+
+        runCatching {
+            context.contentResolver.query(
+                MediaStore.Audio.Genres.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Genres._ID, MediaStore.Audio.Genres.NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Genres._ID)
+                val name = cursor.getColumnIndexOrThrow(MediaStore.Audio.Genres.NAME)
+
+                while (cursor.moveToNext()) {
+                    val genreId = cursor.getLong(id)
+                    val title = cursor.getString(name).orEmpty()
+                    if (title.isBlank()) continue
+
+                    context.contentResolver.query(
+                        MediaStore.Audio.Genres.Members.getContentUri("external", genreId),
+                        arrayOf(MediaStore.Audio.Genres.Members.AUDIO_ID),
+                        null,
+                        null,
+                        null,
+                    )?.use { members ->
+                        val audio = members.getColumnIndexOrThrow(
+                            MediaStore.Audio.Genres.Members.AUDIO_ID,
+                        )
+                        while (members.moveToNext()) found[members.getLong(audio)] = title
+                    }
+                }
+            }
+        }
+
+        return found
     }
 
     /**

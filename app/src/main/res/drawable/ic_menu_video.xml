@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Знак AskyaV — кадр плёнки: рамка с перфорацией по краям и треугольник
+    внутри. Не «экран телевизора» и не голый треугольник из каждого плеера:
+    раздел про файл с кадрами, и перфорация говорит об этом раньше подписи.
+
+    Обводкой, а не заливкой, толщиной 1.7 — как остальные знаки меню:
+    тонируется темой в месте вызова.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.4,4.6 H19.6 A1.6,1.6 0 0 1 21.2,6.2 V17.8 A1.6,1.6 0 0 1 19.6,19.4 H4.4 A1.6,1.6 0 0 1 2.8,17.8 V6.2 A1.6,1.6 0 0 1 4.4,4.6 Z" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M6.6,4.6 V19.4" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M17.4,4.6 V19.4" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M10.4,9.2 L15.2,12 L10.4,14.8 Z" />
+
+</vector>

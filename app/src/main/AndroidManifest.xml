@@ -2,10 +2,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        Сети приложению больше не нужно: разговор с моделью убран, и всё —
-        заметки, расписание, списки, практики — живёт на телефоне. Разрешение
-        не запрашивается вовсе.
+        Сеть — ради одной погоды и больше ни ради чего.
+
+        Прежде разрешения не было вовсе, и это было заявлено принципом: всё —
+        заметки, расписание, списки, музыка, книги — живёт на телефоне. Так
+        оно и осталось: ни одна запись никуда не уходит, аккаунтов нет, облака
+        нет, аналитики нет.
+
+        Погода — единственное, чего на телефоне взять неоткуда: её надо
+        спросить. Спрашивается она у Open-Meteo — без ключа и без аккаунта, —
+        и в запросе едут ровно две вещи: широта и долгота, округлённые до
+        километра (`weather/WeatherService.kt`). Выключенная в настройках
+        погода возвращает приложение к прежнему состоянию: в сеть оно не
+        выходит ни разу.
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        Где телефон — для погоды. Грубое место, а не точное: погоду спрашивают
+        на город, и знать дом человека приложению незачем. Спрашивается при
+        входе в раздел погоды, как и всё остальное в Askya.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Уведомления напоминаний. С Android 13 их спрашивают у человека. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -17,6 +35,18 @@
         выглядело бы как запрос на все файлы подряд.
     -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!--
+        Видео для AskyaV. С Android 13 у него своё разрешение, отдельное от
+        музыки: раздел с фильмами не должен получать доступ к музыке заодно, и
+        наоборот. На версиях до неё хватает общего чтения хранилища, объявленного
+        выше.
+
+        Разрешение спрашивается при входе в раздел, а не на первом запуске.
+        Отдельный файл, открытый через системный выбор, играет и без него: там
+        доступ приходит вместе с самим файлом.
+    -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -29,7 +59,39 @@
     -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="29" />
+
+    <!--
+        Библиотека Askya — своя папка в корне памяти
+        (`data/library/AskyaLibrary.kt`). Заведена по прямой просьбе и по
+        внятной причине: у приложения должно быть одно место, куда оно кладёт
+        копии, чтобы уборка галереи не уносила с собой приложенное к записям.
+
+        С Android 11 создать папку в корне иначе нельзя: обычные разрешения
+        пускают только в общие разделы («Pictures», «Movies») и в свою папку
+        приложения, куда проводник с той же версии не заходит. Отсюда
+        MANAGE_EXTERNAL_STORAGE — разрешение широкое, и потому:
+
+        — оно не спрашивается на первом запуске и вообще нигде, кроме строки
+          «Библиотека Askya» в настройках, где рядом сказано, зачем оно;
+        — отказ ничего не ломает: библиотека объявляет себя неготовой, и всё,
+          что писалось в «Pictures/Askya» и «Movies/Askya», пишется туда же;
+        — читать чужие файлы этим правом приложение не начинает: наружу из
+          Askya по-прежнему уходит один запрос погоды.
+    -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!--
+        Обновление из облака (`app/update/`). Askya не лежит в магазине
+        приложений, и до сих пор новая сборка приезжала файлом на рабочий стол.
+        Теперь приложение умеет спросить у GitHub, нет ли сборки новее, скачать
+        её и отдать системному установщику — окно установки показывает система,
+        и «да» в нём говорит человек, а не приложение.
+
+        Разрешение только на запрос установки; поставить что-либо молча оно не
+        даёт и дать не может.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!--
         Плеер в шторке и в системном центре управления. Звук идёт и когда
@@ -61,32 +123,190 @@
 
         Без queries Android 11+ не даст даже увидеть, есть ли распознавание на
         телефоне.
+
+        Тем же разрешением пишется голосовая заметка в Scroll — «Голос». Там
+        звук не уходит никуда вовсе: он ложится файлом в папку Askya и играется
+        оттуда. И там оно тоже спрашивается по нажатию кнопки, а не на входе; в
+        фоне микрофон не держится ни секунды — службы у диктофона нет, и уход с
+        экрана запись заканчивает.
     -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+        Дрожь — у напоминания: канал уведомлений заведён с ней
+        (`reminders/ReminderAlarms.kt`), а разрешение на неё система требует
+        даже тогда, когда трясёт не приложение, а само уведомление.
+    -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+
+        <!--
+            Мосты: чтобы человек мог выбрать, чем он читает и чем созванивается.
+
+            С Android 11 приложение не видит, что ещё стоит на телефоне, пока не
+            скажет, что именно ищет. Здесь спрашивается ровно то, что показывает
+            рабочий стол: приложения с обычным входом (MAIN/LAUNCHER). Ни одного
+            имени пакета в этом списке нет и быть не может — Askya не знает, чем
+            человек читает, и выбирает он сам (см. `data/entity/Bridge.kt`).
+
+            Без этой строки список выбора пуст, и мосты не к чему подключать.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
+    <!--
+        usesCleartextTraffic — ради одной вещи: ссылки на видео, которую человек
+        принёс сам.
+
+        С Android 9 приложение по умолчанию ходит только по https, и «Смотреть
+        по ссылке» в AskyaV молча не открывало бы всё, что дают по http, —
+        а дают по нему до сих пор и потоки с камер, и записи с домашних
+        серверов. Своих обращений по http у Askya нет ни одного: погода
+        спрашивается по https, и больше она в сеть не выходит никуда.
+
+        Разрешение это касается только того адреса, который набрали руками в
+        окне ссылки: ни одна запись, ни одна настройка и ни один файл никуда не
+        уходят по-прежнему.
+    -->
+
+    <!--
+        allowBackup остаётся включённым, но теперь с описанными правилами
+        (`xml/data_extraction_rules.xml` для Android 12 и новее,
+        `xml/backup_rules.xml` для тех, что старше).
+
+        Прежде правил не было вовсе, и в копию уезжало всё подряд — включая
+        ключ от убранной модели и рассказ о себе, которые к тому времени уже
+        никто не читал. Ключ и рассказ теперь стираются при запуске
+        (`SettingsPreferences.dropRemovedModelSecrets`), а копия перестала быть
+        «всё, что нашлось»: что именно из неё исключено и почему, написано в
+        самих правилах.
+    -->
     <application
         android:name=".app.AskyaApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/Theme.Askya">
 
+        <!--
+            configChanges — ради плеера AskyaV. Без него поворот телефона
+            пересоздаёт Activity, и фильм на секунду гаснет вместе с ней.
+            Compose переживает смену настроек сам: он читает их из composition
+            local, который обновляется и без пересоздания.
+        -->
         <activity
             android:name=".app.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|density"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Askya в системном «Открыть с помощью».
+
+                Объявлено ровно то, что она показывает своими силами: книги,
+                документы, картинки, видео. Ни `*/*`, ни «на всякий случай»:
+                приложение, которое предлагает себя для всякого файла, человек
+                учится пролистывать, и в тот раз, когда оно действительно
+                нужно, он его уже не читает.
+
+                Открытый так файл не заводится записью — он показывается и
+                уходит; почему именно так, написано в `app/Incoming.kt`.
+
+                Два фильтра, а не один, потому что подходят они по-разному:
+                первый — по типу, который прислал проводник, второй — по
+                расширению, когда типа он не знает (а не знает он его у всего,
+                кроме mp4 и pdf).
+            -->
+            <intent-filter android:label="Открыть в Askya">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/markdown" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+            <!--
+                Тот же вход, но по имени файла. Регистр в pathPattern значим,
+                поэтому каждое расширение стоит дважды: файлы, скачанные с
+                разных сайтов, приходят и так, и так.
+            -->
+            <intent-filter android:label="Открыть в Askya">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="application/zip" />
+
+                <data android:pathPattern=".*\.fb2" />
+                <data android:pathPattern=".*\.FB2" />
+                <data android:pathPattern=".*\.mkv" />
+                <data android:pathPattern=".*\.MKV" />
+                <data android:pathPattern=".*\.avi" />
+                <data android:pathPattern=".*\.AVI" />
+                <data android:pathPattern=".*\.mp4" />
+                <data android:pathPattern=".*\.MP4" />
+                <data android:pathPattern=".*\.m4v" />
+                <data android:pathPattern=".*\.M4V" />
+                <data android:pathPattern=".*\.mov" />
+                <data android:pathPattern=".*\.MOV" />
+                <data android:pathPattern=".*\.webm" />
+                <data android:pathPattern=".*\.WEBM" />
+                <data android:pathPattern=".*\.ts" />
+                <data android:pathPattern=".*\.TS" />
+                <data android:pathPattern=".*\.m2ts" />
+                <data android:pathPattern=".*\.M2TS" />
+                <data android:pathPattern=".*\.flv" />
+                <data android:pathPattern=".*\.FLV" />
+                <data android:pathPattern=".*\.wmv" />
+                <data android:pathPattern=".*\.WMV" />
+                <data android:pathPattern=".*\.mpg" />
+                <data android:pathPattern=".*\.MPG" />
+                <data android:pathPattern=".*\.mpeg" />
+                <data android:pathPattern=".*\.MPEG" />
+                <data android:pathPattern=".*\.3gp" />
+                <data android:pathPattern=".*\.3GP" />
+                <data android:pathPattern=".*\.ogv" />
+                <data android:pathPattern=".*\.OGV" />
+                <data android:pathPattern=".*\.rmvb" />
+                <data android:pathPattern=".*\.RMVB" />
+                <data android:pathPattern=".*\.vob" />
+                <data android:pathPattern=".*\.VOB" />
+                <data android:pathPattern=".*\.divx" />
+                <data android:pathPattern=".*\.DIVX" />
+                <data android:pathPattern=".*\.asf" />
+                <data android:pathPattern=".*\.ASF" />
             </intent-filter>
         </activity>
 
@@ -112,11 +332,60 @@
             android:exported="false" />
 
         <!--
+            Виджет погоды: градусы, слово о том, что за окном, и четыре часа
+            вперёд. Своего будильника у него нет — в отличие от виджета дня,
+            ему довольно получасового обновления системы и толчка от самого
+            приложения, когда оно сходило за погодой.
+        -->
+        <receiver
+            android:name=".widget.WeatherWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_weather_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_weather_info" />
+        </receiver>
+
+        <!--
+            Виджет голосовой заметки: кружок с микрофоном. Часов у него нет —
+            updatePeriodMillis = 0, — а перерисовывает его сам раздел «Голос»,
+            когда список записей изменился.
+        -->
+        <receiver
+            android:name=".widget.VoiceWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_voice_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_voice_info" />
+        </receiver>
+
+        <!--
             Напоминания: будильник стреляет в приёмник, тот показывает
             уведомление. Оба не exported — их зовёт только система и мы сами.
         -->
         <receiver
             android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+
+        <!--
+            Нажатие в шторке со списком дела: отметить строку или отметить всё
+            дело. Не exported — намерения к нему готовит само приложение.
+        -->
+        <receiver
+            android:name=".shade.TaskShadeReceiver"
+            android:exported="false" />
+
+        <!-- Месяц без слепка. Своего загрузочного приёмника нет: его будильник
+             восстанавливает тот же, что и напоминания. -->
+        <receiver
+            android:name=".data.backup.SnapshotReceiver"
             android:exported="false" />
 
         <receiver

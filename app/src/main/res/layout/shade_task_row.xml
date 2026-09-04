@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Одна строка списка в шторке уведомлений: знак и текст.
+
+    Нажимается строка целиком, а не один квадратик: попасть пальцем в знак
+    двадцати точек шириной, не глядя, нельзя, а в шторку смотрят на ходу.
+
+    Краски берутся у системы (`?android:attr/textColorPrimary`): шторку рисует
+    она, и на тёмной теме своя, зашитая в разметку, была бы невидимой. Знак
+    красками темы не пользуется — почему, написано в `ic_shade_box.xml`.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/shade_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/shade_row_mark"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/ic_shade_box" />
+
+    <TextView
+        android:id="@+id/shade_row_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textSize="15sp"
+        android:textColor="?android:attr/textColorPrimary" />
+
+</LinearLayout>

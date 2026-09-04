@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,9 +39,12 @@ import app.askya.ui.components.EmptyState
 import app.askya.ui.components.MarkView
 import app.askya.ui.components.NewButton
 import app.askya.ui.components.SHELF_COLUMNS
+import app.askya.data.repository.Trash
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.TileRow
+import app.askya.ui.components.fadingEdges
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 
 /**
  * «Списки» — подраздел Scroll. Прежнее имя, Yet, осталось в коде: маршрут и
@@ -59,6 +63,7 @@ import app.askya.ui.theme.Muted
  */
 @Composable
 fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
+    val trash = appContainer().trash
     val viewModel: YetViewModel = viewModel(factory = YetViewModel.factory(appContainer()))
     val lists by viewModel.lists.collectAsStateWithLifecycle()
     val remaining by viewModel.remaining.collectAsStateWithLifecycle()
@@ -67,7 +72,6 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<YetList?>(null) }
     var opened by remember { mutableStateOf<Long?>(null) }
-    var removing by remember { mutableStateOf<YetItem?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     ScreenScaffold(
@@ -76,8 +80,10 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
         navigationIsBack = true,
         floatingActionButton = { NewButton(label = "new list", onClick = { creating = true }) },
     ) {
+        val sheets = rememberLazyListState()
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            state = sheets,
+            modifier = Modifier.fillMaxSize().fadingEdges(sheets),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -121,7 +127,10 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
                 items = items,
                 onDismiss = { opened = null },
                 onToggle = viewModel::toggle,
-                onRemoveRow = { removing = it },
+                onRemoveRow = { row ->
+                    viewModel.removeItem(row.id)
+                    trash.remembered(Trash.Kind.YET_ROW, row.id)
+                },
                 onAdd = { viewModel.addLines(id, it) },
                 onEdit = { editing = list },
                 onClearDone = { viewModel.clearDone(id) },
@@ -166,16 +175,6 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
         )
     }
 
-    removing?.let { item ->
-        RemoveRowDialog(
-            text = item.text,
-            onDismiss = { removing = null },
-            onRemove = {
-                viewModel.deleteItem(item.id)
-                removing = null
-            },
-        )
-    }
 
     notice?.let { text ->
         AskyaNotice(
@@ -224,6 +223,7 @@ private fun ListTile(
         // один слой над страницей.
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = modifier
+            .cardEdge(RoundedCornerShape(18.dp))
             .height(LIST_HEIGHT)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {

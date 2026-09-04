@@ -576,7 +576,7 @@ private fun FolderPage(
 
 /** Список песен с общей очередью: включённая песня ведёт за собой соседние. */
 @Composable
-private fun TrackList(
+internal fun TrackList(
     tracks: List<Track>?,
     empty: String,
     hint: String,
@@ -612,7 +612,7 @@ private fun TrackList(
  * плеер этим заметно отличался от любого другого в худшую сторону.
  */
 @Composable
-private fun TrackRow(
+internal fun TrackRow(
     track: Track,
     current: Boolean = false,
     onClick: () -> Unit,
@@ -672,7 +672,7 @@ private fun TrackRow(
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CoverTile(
+internal fun CoverTile(
     title: String,
     subtitle: String,
     albumId: Long,

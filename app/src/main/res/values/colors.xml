@@ -4,6 +4,23 @@
     <color name="ic_launcher_background">#FBF3E7</color>
 
     <!--
+        Краски цветка Askya — те же восемь, что предлагает выбор в настройках
+        (`ui/theme/Theme.kt`, FlowerColor). Здесь они повторены не из
+        небрежности: выбор красит Compose своими средствами, а системную
+        заставку Android 12+ — тема, и тема читает только ресурсы. Числа
+        должны совпадать с перечислением; расходятся они на одном экране —
+        первом кадре запуска, где стоят рядом.
+    -->
+    <color name="flower_sunset">#EE8B3D</color>
+    <color name="flower_coral">#D97757</color>
+    <color name="flower_rose">#C2607A</color>
+    <color name="flower_forest">#4E8F60</color>
+    <color name="flower_sea">#4A7FA5</color>
+    <color name="flower_plum">#7E5C9E</color>
+    <color name="flower_amber">#D9A63C</color>
+    <color name="flower_graphite">#5A6470</color>
+
+    <!--
         Виджет без подложки: дела лежат прямо на обоях. Отсюда белый текст с
         тенью — на светлых обоях без неё он растворялся бы. Идущее сейчас дело
         оставлено коралловым: это единственное, что виджет выделяет.

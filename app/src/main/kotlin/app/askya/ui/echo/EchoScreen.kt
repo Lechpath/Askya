@@ -15,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,7 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +36,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +50,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,10 +153,39 @@ fun EchoScreen(onLeave: () -> Unit) {
     // Карточка играющей дорожки: то же, что три точки в списке, но для того,
     // что уже звучит, — к нему приходят чаще всего.
     var opened by remember { mutableStateOf<Track?>(null) }
-    // Церемония переживает поворот экрана: она открывает раздел, а не
-    // сопровождает каждую пересборку композиции.
-    var opening by rememberSaveable { mutableStateOf(true) }
+    // Церемония играется на каждый вход в раздел — обычным `remember`, а не
+    // `rememberSaveable`.
+    //
+    // Saveable здесь был ошибкой, и она стоила разделу входа: уходя из Echo,
+    // навигация сохраняет состояние его страницы (`saveState`) и возвращает
+    // его при следующем заходе (`restoreState`). Вместе со всем прочим
+    // возвращался и снятый флаг — то есть цветок показывался ровно один раз за
+    // установку приложения, а дальше раздел открывался пустым плеером.
+    //
+    // Поворот экрана этому флагу не страшен: Activity объявлена
+    // `configChanges="orientation|screenSize|…"` и при повороте не
+    // пересоздаётся — композиция, а с ней и `remember`, остаются на месте.
+    // Пересобирается всё только при смерти процесса, а там церемония уместна:
+    // это и есть новый вход в раздел.
+    var opening by remember { mutableStateOf(true) }
     var closing by remember { mutableStateOf(false) }
+
+    // Вопрос «что поставить» — то, чем раздел встречает вошедшего.
+    //
+    // Тем же обычным `remember`, что и церемония, и по той же причине: он
+    // задаётся на каждый вход в Echo, а не один раз за установку. [asked]
+    // держит его от повтора внутри одного захода — библиотека дочитывается
+    // уже после занавеса, и без засечки вопрос всплыл бы снова.
+    var start by remember { mutableStateOf(false) }
+    var asked by remember { mutableStateOf(false) }
+
+    // Лаборатория — работа с самими файлами. Открывается долгим нажатием на
+    // вкладку и строкой в настройках; см. [EchoLabCard].
+    var lab by remember { mutableStateOf(false) }
+
+    // Дорожка, на которой остановились, — ею подписана карточка «Продолжить».
+    val lastTrack by preferences.lastTrack
+        .collectAsStateWithLifecycle(initialValue = preferences.last.value)
 
     // Уходя, раздел складывается внутрь себя: под занавесом плеер отступает
     // вглубь, а не стоит столбом, пока его закрывают. Обратно он разворачивается
@@ -230,6 +258,25 @@ fun EchoScreen(onLeave: () -> Unit) {
         if (granted) tracks = container.echoLibrary(context)
     }
 
+    /*
+     * Когда спрашивать. Всё сразу: занавес снят, доступ есть, музыка прочитана
+     * и она не пуста.
+     *
+     * И только если ничего не играет: человек, вернувшийся в раздел посреди
+     * песни, уже ответил на этот вопрос — переспрашивать значило бы предлагать
+     * ему прервать самого себя.
+     */
+    LaunchedEffect(opening, granted, tracks, echoSettings.askOnStart, state.track) {
+        if (asked || opening || !granted || !echoSettings.askOnStart) return@LaunchedEffect
+        if (state.track != null) {
+            asked = true
+            return@LaunchedEffect
+        }
+        val found = tracks ?: return@LaunchedEffect
+        asked = true
+        start = found.isNotEmpty()
+    }
+
     EchoTheme {
         NightSystemBars()
 
@@ -240,10 +287,7 @@ fun EchoScreen(onLeave: () -> Unit) {
                     scaleX = fold
                     scaleY = fold
                 },
-                // Полоски меню заменены цветком: знак приложения на входе в
-                // раздел и на выходе из него — одно и то же лицо.
                 onNavigationClick = { closing = true },
-                navigationIcon = R.drawable.ic_flower,
                 navigationLabel = "Закрыть раздел",
                 actions = {
                     // Очередь — только когда она есть: пустая кнопка «что
@@ -263,12 +307,10 @@ fun EchoScreen(onLeave: () -> Unit) {
                 },
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    SectionButtons(
+                    LabLink(
                         // Раздел без разрешения показал бы пустые списки —
                         // проще сразу попросить доступ, чем открывать пустоту.
-                        onOpen = { chosen ->
-                            if (granted) section = chosen else ask.launch(audioPermission())
-                        },
+                        onOpen = { if (granted) lab = true else ask.launch(audioPermission()) },
                     )
 
                     if (!granted) {
@@ -334,6 +376,12 @@ fun EchoScreen(onLeave: () -> Unit) {
                     // Эквалайзер открывается поверх настроек, а не вместо них:
                     // «назад» из него возвращает туда, откуда его позвали.
                     onEqualizer = { equalizer = true },
+                    // Лаборатория, наоборот, настройки закрывает: она сама во
+                    // весь экран, и оставлять карточку под ней незачем.
+                    onLab = {
+                        settings = false
+                        lab = true
+                    },
                 )
             }
 
@@ -373,6 +421,45 @@ fun EchoScreen(onLeave: () -> Unit) {
                 )
             }
 
+            if (lab) {
+                EchoLabCard(
+                    library = tracks,
+                    onClose = { lab = false },
+                    onChanged = { reread++ },
+                    // Выбрал песню — лаборатория закрывается: сюда приходят за
+                    // тем, чтобы что-нибудь заиграло, и держать список поверх
+                    // заигравшего значило бы прятать его от того, кто выбрал.
+                    onPlay = { queue, track ->
+                        player.play(queue, track)
+                        lab = false
+                    },
+                )
+            }
+
+            // Вопрос стоит над плеером, но под занавесом: церемония входа
+            // идёт первой, а спрашивают уже у того, кто вошёл.
+            if (start) {
+                EchoStartCard(
+                    library = tracks,
+                    last = lastTrack,
+                    onResume = {
+                        // Плееру нечего продолжать — карточка «Продолжить»
+                        // тогда и не показывается, но состояние могло
+                        // устареть, пока карточка была открыта.
+                        player.resume()
+                    },
+                    onPlay = { queue, track ->
+                        player.play(queue, track)
+                        start = false
+                    },
+                    onSection = { chosen ->
+                        section = chosen
+                        start = false
+                    },
+                    onDismiss = { start = false },
+                )
+            }
+
             // Занавес последний в стопке: он закрывает собой и списки, и
             // эквалайзер, если раздел закрывают из них.
             if (opening) {
@@ -385,7 +472,14 @@ fun EchoScreen(onLeave: () -> Unit) {
     }
 }
 
-/** Разделы, которые открываются кнопками под шапкой. */
+/**
+ * Списки музыки, открывающиеся поверх плеера.
+ *
+ * Кнопок под шапкой у них больше нет — там теперь одна дверь, Lab. Сами
+ * разделы остались: ими открывается [EchoSectionLayer], и зовёт его карточка
+ * входа («Плейлист», «Папка»), где выбор — это выбор того, что сейчас
+ * заиграет, а не работа с файлами.
+ */
 enum class EchoSection(val label: String, val icon: ImageVector) {
     ALL_MUSIC("Вся музыка", Icons.Outlined.LibraryMusic),
     PLAYLISTS("Плейлисты", Icons.Outlined.QueueMusic),
@@ -393,42 +487,53 @@ enum class EchoSection(val label: String, val icon: ImageVector) {
 }
 
 /**
- * Три кнопки под шапкой. Прокручиваются вбок, а не сжимаются: названия
- * разделов — слова, и переносить их по слогам ради узкого телефона хуже, чем
- * дать сдвинуть ряд пальцем.
+ * Единственная кнопка под шапкой — дверь в лабораторию.
+ *
+ * Прежде их было три: «Вся музыка», «Плейлисты», «Папки». Три двери в один и
+ * тот же дом — за всеми лежит музыка телефона, разложенная по-разному, — и,
+ * что хуже, за каждой можно было только включить песню: всё остальное, что с
+ * ней делают, жило в отдельной комнате, о которой надо было знать. Теперь
+ * дверь одна, а те три стали её страницами ([EchoLabCard]).
+ *
+ * Слово английское и короткое, как имена самих разделов: Scroll, Echo, Ledger,
+ * Lab. «Лаборатория» кириллицей и во всю ширину читалась бы вывеской на
+ * заводе, а это дверь.
+ *
+ * Подпись рядом — не украшение: за словом Lab не угадать, что там музыка,
+ * списки и папки, а строка под ним говорит это прямо и один раз.
  */
 @Composable
-private fun SectionButtons(onOpen: (EchoSection) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        EchoSection.entries.forEach { section ->
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, NightBorder, RoundedCornerShape(14.dp))
-                    .background(NightPanel)
-                    .clickable { onOpen(section) }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = section.icon,
-                    contentDescription = null,
-                    tint = Sunset,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    text = section.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = NightInk,
-                )
-            }
+private fun LabLink(onOpen: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, NightBorder, RoundedCornerShape(14.dp))
+                .background(NightPanel)
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Science,
+                contentDescription = null,
+                tint = Sunset,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = "Lab",
+                fontFamily = FontFamily.Serif,
+                fontSize = 18.sp,
+                color = NightInk,
+            )
+            Text(
+                text = "вся музыка, плейлисты, папки",
+                style = MaterialTheme.typography.bodySmall,
+                color = NightMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -553,7 +658,7 @@ private fun Player(
                         onSeek = seek,
                         // Слово-полоса написано пером и тянуться под ширину не
                         // может: на боку оно берётся мельче, а не шире.
-                        wordHeight = 44.dp,
+                        wordHeight = 28.dp,
                         modifier = Modifier.padding(top = 12.dp),
                     )
                     Controls(
@@ -658,7 +763,7 @@ private fun TrackTitles(
                 .padding(horizontal = 12.dp, vertical = 2.dp),
         )
         Text(
-            text = track?.artist ?: "Выбери песню в разделе выше",
+            text = track?.artist ?: "Выбери песню в Lab",
             style = MaterialTheme.typography.bodyMedium,
             color = NightMuted,
             textAlign = TextAlign.Center,
@@ -682,15 +787,15 @@ private fun Controls(
         modifier = modifier.fillMaxWidth().padding(top = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Control("Back", "Прошлая", onPrevious, Modifier.weight(1f))
-        Control(
+        EchoControl("Back", "Прошлая", onPrevious, Modifier.weight(1f))
+        EchoControl(
             text = if (playing) "Pause" else "Play",
             label = if (playing) "Пауза" else "Играть",
             onClick = onToggle,
             modifier = Modifier.weight(1f),
             accent = true,
         )
-        Control("Next", "Следующая", onNext, Modifier.weight(1f))
+        EchoControl("Next", "Следующая", onNext, Modifier.weight(1f))
     }
 }
 
@@ -704,8 +809,8 @@ private fun Modes(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier.fillMaxWidth().padding(top = 2.dp)) {
-        Mode("Shuffle", "Вперемешку", shuffle, onShuffle, Modifier.weight(1f))
-        Mode(
+        EchoMode("Shuffle", "Вперемешку", shuffle, onShuffle, Modifier.weight(1f))
+        EchoMode(
             text = repeat.caption(),
             label = repeat.next().spoken(),
             on = repeat != EchoRepeat.OFF,
@@ -718,6 +823,13 @@ private fun Modes(
 /**
  * Стрелка вверх — то, что тянут снизу: эквалайзер выезжает оттуда же, куда она
  * показывает.
+ *
+ * Подпись — «EQ», а не «Эквалайзер»: слово в одиннадцать букв стоит под самой
+ * нижней кнопкой экрана, где место меряется на глаз, и в узком телефоне оно
+ * растягивало ряд под собой. «EQ» на панели плеера читается всеми, кто вообще
+ * знает, что такое эквалайзер, — теми же двумя буквами он подписан и в
+ * магнитоле, и в самом VLC. Полное слово осталось там, где его слышат, а не
+ * видят: в подписи для чтения с экрана.
  */
 @Composable
 private fun EqualizerButton(onEqualizer: () -> Unit, modifier: Modifier = Modifier) {
@@ -735,7 +847,7 @@ private fun EqualizerButton(onEqualizer: () -> Unit, modifier: Modifier = Modifi
             modifier = Modifier.size(28.dp),
         )
         Text(
-            text = "Эквалайзер",
+            text = "EQ",
             style = MaterialTheme.typography.labelSmall,
             color = NightMuted,
         )
@@ -753,9 +865,19 @@ private fun EqualizerButton(onEqualizer: () -> Unit, modifier: Modifier = Modifi
  * Слово одно и то же и на лепестке цветка при входе, и здесь: раздел
  * представился именем, и это же имя теперь отсчитывает время.
  *
- * Высота задана, ширина считается по ней: каллиграфию нельзя тянуть под
- * ширину экрана — растянутое перо перестаёт быть пером. Подписи времени
- * держатся той же ширины, что и слово: они подписывают его, а не экран.
+ * ## Мельче и шире, чем написано пером
+ *
+ * Прежде высота была вдвое больше, а ширина считалась по ней один в один:
+ * слово стояло под обложкой плотным чёрным бруском и спорило с ней за
+ * внимание — а мерить время должно то, на что смотрят вторым взглядом, а не
+ * первым. Теперь оно ниже и растянуто вдоль экрана [stretch]: перо в мелком
+ * кегле, вытянутое по горизонтали, читается росчерком — тем самым, каким
+ * подписывают, а не вывеской.
+ *
+ * Растяжение задано числом, а не «во всю ширину»: перо, растянутое насколько
+ * попало, перестаёт быть пером — на широком экране слово доходит до края и
+ * дальше не тянется. Подписи времени держатся той же ширины, что и слово: они
+ * подписывают его, а не экран.
  *
  * Перемотка — касанием в нужное место и протяжкой; ползунка нет, потому что
  * место в песне показывает граница цвета, и хватать пальцем нужно её.
@@ -768,13 +890,17 @@ internal fun EchoProgress(
     onScrub: (Float) -> Unit,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
-    wordHeight: Dp = 56.dp,
+    wordHeight: Dp = 34.dp,
+    stretch: Float = 1.6f,
 ) {
     val word = painterResource(R.drawable.ic_wordmark_echo)
     val height = wordHeight
-    val width: Dp = height * (word.intrinsicSize.width / word.intrinsicSize.height)
+    val width: Dp = height * (word.intrinsicSize.width / word.intrinsicSize.height) * stretch
 
-    Column(modifier = modifier.width(width), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier.widthIn(max = width).fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -843,43 +969,6 @@ internal fun EchoProgress(
 }
 
 /**
- * Кнопка плеера — слово, а не значок.
- *
- * Треугольник, две палки и стрелки с чёрточками — язык магнитофона, и на
- * экране, где название раздела написано пером, они выглядят наклейками с
- * чужой панели. Слово читается сразу и набрано тем же шрифтом, что заголовок
- * и имя дорожки.
- *
- * «Play» и «Pause» — одна кнопка: она называет не то, что происходит сейчас,
- * а то, что случится по нажатию.
- *
- * Ряд делится на три равные доли, и слово стоит посреди своей: иначе «Pause»,
- * которое шире «Play», раздвигало бы «Back» и «Next» на каждом нажатии.
- * Нажимается доля целиком — по слову в 22 кегля пальцем не попасть.
- */
-@Composable
-private fun Control(
-    text: String,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    accent: Boolean = false,
-) {
-    Text(
-        text = text,
-        fontFamily = FontFamily.Serif,
-        fontSize = if (accent) 34.sp else 22.sp,
-        color = if (accent) Sunset else NightInk,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick, onClickLabel = label)
-            .padding(vertical = 10.dp),
-    )
-}
-
-/**
  * Надпись на кнопке повтора: она называет режим, который сейчас стоит.
  *
  * Выключенный повтор подписан просто «Repeat» — словом, а не «Repeat Off»:
@@ -900,40 +989,6 @@ private fun EchoRepeat.spoken(): String = when (this) {
     EchoRepeat.OFF -> "Без повтора"
     EchoRepeat.QUEUE -> "Повторять список"
     EchoRepeat.TRACK -> "Повторять дорожку"
-}
-
-/**
- * Режим воспроизведения: перемешать очередь или крутить дорожку по кругу.
- *
- * Включённый режим горит закатом и подчёркнут: одного цвета мало — черта под
- * словом видна и краем глаза, и по ней режим читается, не вглядываясь. Какой
- * именно повтор включён, сказано самой надписью ([caption]): значок с двумя
- * стрелками и единицей внутри требует, чтобы его один раз кому-то объяснили.
- *
- * Мельче кнопок плеера намеренно: режим ставят раз за вечер, а «дальше»
- * нажимают каждые три минуты, и одинаковый вес путал бы редкое с частым.
- */
-@Composable
-private fun Mode(
-    text: String,
-    label: String,
-    on: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = text,
-        fontFamily = FontFamily.Serif,
-        fontSize = 17.sp,
-        color = if (on) Sunset else NightMuted,
-        textDecoration = if (on) TextDecoration.Underline else null,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick, onClickLabel = label)
-            .padding(vertical = 8.dp),
-    )
 }
 
 /**

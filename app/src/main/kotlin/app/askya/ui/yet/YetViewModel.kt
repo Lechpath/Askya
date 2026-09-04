@@ -53,8 +53,16 @@ class YetViewModel(private val yet: YetRepository) : ViewModel() {
         viewModelScope.launch { yet.toggle(item) }
     }
 
-    fun deleteItem(id: Long) {
-        viewModelScope.launch { yet.deleteItem(id) }
+    /**
+     * Убрать строку — в корзину на сутки, а не из базы вон. Подтверждения
+     * поэтому и нет: возврат отменяет ошибку, а вопрос её только перекладывал.
+     */
+    fun removeItem(id: Long) {
+        viewModelScope.launch { yet.removeItem(id) }
+    }
+
+    fun restoreItem(id: Long) {
+        viewModelScope.launch { yet.restoreItem(id) }
     }
 
     fun clearDone(listId: Long) {

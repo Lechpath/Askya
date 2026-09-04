@@ -1,85 +1,91 @@
 package app.askya.ui.scroll
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.askya.R
 import app.askya.app.appContainer
 import app.askya.data.entity.Note
+import app.askya.data.entity.ScrollTopic
+import app.askya.data.entity.YetItem
+import app.askya.data.entity.YetList
 import app.askya.ui.components.ScreenScaffold
-import app.askya.ui.theme.Accent
-import app.askya.ui.theme.AccentInk
-import app.askya.ui.theme.AccentSoft
-import app.askya.ui.theme.Cream
-import app.askya.ui.yet.countLine
-import kotlinx.coroutines.launch
-import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import app.askya.ui.components.fadingEdges
 
 /**
- * Scroll — оглавление записанного. Три подраздела, каждый открывается
- * отдельным экраном.
+ * Scroll — оглавление записанного, собранное разговором.
  *
- * Хаб, а не один длинный список: изображения смотрят сеткой, книги и файлы
- * читают с полки, списки отмечают. Свалить это в один экран значило бы
- * выбрать одну раскладку из трёх и испортить две.
+ * ## Почему лента, а не хаб из четырёх окон
  *
- * Книги и файлы были двумя подразделами и стали одним — «Библиотекой»: и то и
- * другое читают, а лежит запись в книге или сама по себе, человек на входе не
- * помнит и искал в двух местах подряд.
+ * До этого раздел был хабом: четыре окна во весь рост, одно на экран, выбор
+ * прокруткой, и в каждом окне знак, название и три карточки в лицо. Окно
+ * отвечало на вопрос «что это за подраздел», но не на тот, с которым в Scroll
+ * приходят, — «где то, что я записал». Чтобы увидеть картинки и книги разом,
+ * приходилось листать; чтобы дойти до голоса — листать четыре раза.
  *
- * Подразделы — окна во весь рост, одно на экран, выбор прокруткой. Внутри окна
- * не подпись «6 записей», а последние три записи в лицо: цифра говорит, сколько
- * там всего, а карточки — что именно. Стрелки сверху и снизу говорят, что окно
- * не единственное, а список названий в правом верхнем углу — какие они всего и
- * на котором сейчас находишься: у полноэкранной страницы нет иного способа об
- * этом сказать.
+ * Теперь то же самое читается сверху вниз одной лентой, устроенной как
+ * разговор. С одной стороны — названия разделов, как сообщения человека: он
+ * спрашивает «Галерея», «Библиотека». С другой — то, что в разделе лежит, как
+ * ответ приложения. Ничего не выбирая, человек видит всё записанное разом, а
+ * ответ приложения — не подпись «6 записей», а сами записи в лицо.
+ *
+ * Разговор здесь не украшение и не новый приём: в Askya записывают именно
+ * разговором — карточка заметки, строка списка, трата в Ledger добавляются
+ * сообщением в окно внизу (см. [app.askya.ui.components.Composer]). Scroll был
+ * единственным местом, где записанное потом **читали** иначе, чем писали.
+ *
+ * ## Что показывает ответ
+ *
+ * У каждого раздела свой способ показать своё, и это не прихоть раскладки:
+ * картинку узнают в лицо, книгу — по цвету корешка, список — по тому, что в
+ * нём осталось, голос — по длине.
+ *
+ * - «Галерея» — миниатюры, повторяющие формат снимка: у лежачего лежачая, у
+ *   стоячего стоячая (см. [rememberImageAspects]). Одинаковые квадратики
+ *   резали бы ровно то, по чему картинку и узнают.
+ * - «Библиотека» — книги цветом корешка и названием, записи — названием и
+ *   первыми словами.
+ * - «Списки» — карточки разной высоты: в карточку вписаны первые пункты, и
+ *   высота идёт от того, сколько их.
+ * - «Голос» — плашки воспроизведения разной длины: длина плашки — длина
+ *   записи, как у голосового сообщения в переписке.
+ *
+ * Карточки лежат в два столбца и разной высоты, поэтому ряды не выравниваются
+ * (см. [spread]). Это нарочно: ровная сетка читается как таблица, которую
+ * просматривают по столбцам, а лента — как то, по чему скользят глазами.
+ *
+ * ## Строка внизу
+ *
+ * Та же, в которую в Askya пишут, только пишут в неё поиск. Ищется по словам и
+ * по тегам (слово с решёткой — тег), сразу по всему записанному: по названиям,
+ * по тексту, по пунктам списков. Найденным лента пересобирается — те же
+ * разделы, но в них только то, что нашлось; в чём не нашлось ничего, того в
+ * ленте нет вовсе.
+ *
+ * Теги живут в самой записи ([app.askya.ui.components.TagsLine]): книга — это
+ * место, где запись лежит, а тег — слово, по которому её ищут, и таких слов у
+ * записи бывает сколько угодно.
  */
 @Composable
 fun ScrollScreen(
@@ -87,510 +93,306 @@ fun ScrollScreen(
     onOpenImages: () -> Unit,
     onOpenLibrary: () -> Unit,
     onOpenLists: () -> Unit,
+    onOpenVoice: () -> Unit,
+    onOpenBook: (Long) -> Unit,
+    onOpenNote: (Long) -> Unit,
+    onViewFile: (Long) -> Unit,
+    onViewImage: (Long) -> Unit,
+    onOpenList: (Long) -> Unit,
 ) {
-    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(appContainer()))
+    val container = appContainer()
+    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(container))
+
     val images by viewModel.images.collectAsStateWithLifecycle()
     val loose by viewModel.loose.collectAsStateWithLifecycle()
-    val topics by viewModel.topics.collectAsStateWithLifecycle()
+    val shelf by viewModel.shelf.collectAsStateWithLifecycle()
+    val books by viewModel.topics.collectAsStateWithLifecycle()
     val lists by viewModel.lists.collectAsStateWithLifecycle()
-    val remaining by viewModel.remaining.collectAsStateWithLifecycle()
-    val listSizes by viewModel.listSizes.collectAsStateWithLifecycle()
+    val listItems by viewModel.listItems.collectAsStateWithLifecycle()
+    val voices by viewModel.voices.collectAsStateWithLifecycle()
+
+    // Что звучит сейчас: плашка играющей заметки показывает пуск паузой.
+    val aside by container.echoAside.state.collectAsStateWithLifecycle()
+
+    var draft by remember { mutableStateOf(TextFieldValue()) }
+    val ask = remember(draft.text) { askOf(draft.text) }
+    val searching = !ask.empty
+
+    val feed = rememberLazyListState()
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalFocusManager.current
+
+    // Найденное показывается сверху: лента пересобралась, и смотреть на её
+    // старую середину незачем. Прокрутка мгновенная, а не плавная: под
+    // набираемым словом лента меняется на каждой букве, и поехавший экран
+    // читался бы как дрожь.
+    LaunchedEffect(searching) { feed.scrollToItem(0) }
+
+    /** «Галерея» — только найденное; вне поиска первые несколько снимков. */
+    val shownImages = if (searching) images.filter { it.matches(ask) } else images
+    // В поиске ищется и то, что убрано в книги: человек помнит название
+    // записи, а не книгу, в которую он её положил. Вне поиска показываются
+    // лежащие отдельно — книги стоят рядом своими карточками.
+    val shownRecords = if (searching) {
+        shelf.filterNot { it.voice }.filter { it.matches(ask) }
+    } else {
+        loose
+    }
+    val shownBooks = if (searching) books.filter { it.matches(ask) } else books
+    val shownLists = if (searching) {
+        lists.filter { list -> matches(list, listItems[list.id].orEmpty(), ask) }
+    } else {
+        lists
+    }
+    val shownVoices = if (searching) voices.filter { it.matches(ask) } else voices
 
     val sections = listOf(
-        ScrollSection(
+        Section(
             icon = R.drawable.ic_scroll_images,
-            title = "Изображения",
-            about = "Все картинки разом, а рядом альбомы, по которым их разложили.",
-            count = countOf(images.size, "картинка", "картинки", "картинок"),
-            preview = if (images.isEmpty()) Preview.Empty else Preview.Images(images.take(3)),
+            title = "Галерея",
+            empty = "Пока пусто. Здесь появятся картинки, которые вы сюда положите.",
+            total = shownImages.size,
+            shown = if (searching) FOUND else GALLERY_SHOWN,
             onOpen = onOpenImages,
+            answer = { limit ->
+                GalleryAnswer(
+                    notes = shownImages.take(limit),
+                    onOpen = onViewImage,
+                )
+            },
         ),
-        ScrollSection(
+        Section(
             icon = R.drawable.ic_scroll_library,
             title = "Библиотека",
-            about = "Книги — папки на полке; под ними файлы, ни к одной не приписанные.",
-            count = shelfCount(books = topics.size, files = loose.size),
-            preview = if (topics.isEmpty() && loose.isEmpty()) {
-                Preview.Empty
-            } else {
-                // Книги вперёд — на полке они и стоят сверху. Но одно место
-                // из трёх оставлено файлу, если файлы есть: окно должно
-                // показывать обе половины раздела, а не только верхнюю.
-                Preview.Library(
-                    books = topics.take(if (loose.isEmpty()) SLOTS else SLOTS - 1)
-                        .map { it.title },
-                    files = loose.take(SLOTS),
+            empty = "Пока пусто. Здесь встанут книги и записи, которые в них лежат.",
+            total = shownBooks.size + shownRecords.size,
+            shown = if (searching) FOUND else SHELF_SHOWN,
+            onOpen = onOpenLibrary,
+            answer = { limit ->
+                LibraryAnswer(
+                    items = shelfOf(shownBooks, shownRecords, limit),
+                    onOpenBook = onOpenBook,
+                    onOpenNote = onOpenNote,
+                    onViewFile = onViewFile,
                 )
             },
-            onOpen = onOpenLibrary,
         ),
-        ScrollSection(
+        Section(
             icon = R.drawable.ic_scroll_lists,
             title = "Списки",
-            about = "Всё, что ещё предстоит: ещё купить, ещё посмотреть, ещё не забыть.",
-            count = countOf(lists.size, "список", "списка", "списков"),
-            preview = if (lists.isEmpty()) {
-                Preview.Empty
-            } else {
-                Preview.Lists(
-                    lists.take(3).map { list ->
-                        ListPreview(
-                            title = list.title,
-                            left = remaining[list.id] ?: 0,
-                            total = listSizes[list.id] ?: 0,
-                        )
-                    },
+            empty = "Пока пусто. Здесь будет то, что ещё предстоит.",
+            total = shownLists.size,
+            shown = if (searching) FOUND else LISTS_SHOWN,
+            onOpen = onOpenLists,
+            answer = { limit ->
+                ListsAnswer(
+                    lists = shownLists.take(limit),
+                    items = listItems,
+                    words = ask.words,
+                    onOpen = onOpenList,
                 )
             },
-            onOpen = onOpenLists,
+        ),
+        Section(
+            icon = R.drawable.ic_scroll_voice,
+            title = "Голос",
+            empty = "Пока пусто. Здесь лягут заметки, которые проще сказать, чем набрать.",
+            total = shownVoices.size,
+            shown = if (searching) FOUND else VOICE_SHOWN,
+            onOpen = onOpenVoice,
+            answer = { limit ->
+                VoiceAnswer(
+                    notes = shownVoices.take(limit),
+                    sounding = aside?.noteId,
+                    playing = aside?.playing == true,
+                    onPlay = { note -> container.echoAside.play(note) },
+                )
+            },
         ),
     )
 
-    val pager = rememberPagerState(pageCount = { sections.size })
-    val scope = rememberCoroutineScope()
+    // В поиске пустые разделы из ленты уходят: «Галерея — ничего» четырьмя
+    // строками подряд не ответ, а список того, чего не спрашивали.
+    val visible = if (searching) sections.filter { it.total > 0 } else sections
 
     ScreenScaffold(title = "Scroll", onNavigationClick = onOpenMenu) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            VerticalPager(
-                state = pager,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 56.dp),
-                pageSpacing = 12.dp,
-            ) { page ->
-                SectionWindow(
-                    section = sections[page],
-                    // Отступ от центра считается во время отрисовки, а не в
-                    // композиции: чтение состояния снаружи `graphicsLayer`
-                    // пересобирало бы страницу на каждом кадре прокрутки.
-                    offset = {
-                        ((pager.currentPage - page) + pager.currentPageOffsetFraction)
-                            .absoluteValue
-                            .coerceIn(0f, 1f)
-                    },
-                )
+        Column(modifier = Modifier.fillMaxSize().imePadding()) {
+            LazyColumn(
+                state = feed,
+                modifier = Modifier.fillMaxWidth().weight(1f).fadingEdges(feed),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (searching) {
+                    // Спрошенное — сообщением человека: оно и есть тот вопрос,
+                    // на который лента ниже отвечает.
+                    item(key = "asked") {
+                        AskedBubble(
+                            text = draft.text.trim(),
+                            onClear = { draft = TextFieldValue() },
+                        )
+                    }
+                }
+
+                if (searching && visible.isEmpty()) {
+                    item(key = "nothing") { NothingFound() }
+                }
+
+                visible.forEach { section ->
+                    if (!searching) {
+                        item(key = "ask-${section.title}") {
+                            SectionBubble(
+                                icon = section.icon,
+                                title = section.title,
+                                onClick = section.onOpen,
+                            )
+                        }
+                    }
+                    item(key = "answer-${section.title}") {
+                        SectionAnswer(
+                            section = section,
+                            // В поиске раздел не спрашивали — его название
+                            // стоит подписью над найденным, на стороне
+                            // отвечающего, а не сообщением человека.
+                            labelled = searching,
+                        )
+                    }
+                }
+
+                // Место под строкой: последний ответ не должен упираться в неё.
+                item(key = "tail") { Box(modifier = Modifier.padding(bottom = 6.dp)) }
             }
 
-            // Стрелки говорят, что за краем экрана есть ещё окна: соседнее
-            // выглядывает лишь краем, и без стрелки страница выглядит
-            // единственной.
-            Arrow(
-                icon = Icons.Outlined.KeyboardArrowUp,
-                visible = pager.currentPage > 0,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
-            Arrow(
-                icon = Icons.Outlined.KeyboardArrowDown,
-                visible = pager.currentPage < sections.lastIndex,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
-
-            SectionMarks(
-                titles = sections.map { it.title },
-                pager = pager,
-                onSelect = { page -> scope.launch { pager.animateScrollToPage(page) } },
-                modifier = Modifier.align(Alignment.TopEnd),
+            SearchLine(
+                draft = draft,
+                onDraftChange = { draft = it },
+                onSend = { keyboard.clearFocus() },
+                onClear = { draft = TextFieldValue() },
+                focusRequester = focus,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
     }
 }
 
 /**
- * Названия подразделов столбиком в правом верхнем углу: сколько их всего и на
- * котором ты сейчас.
+ * Раздел в ленте: чем он подписан и чем отвечает.
  *
- * Стрелка говорит только «есть ещё одно», и на четырёх окнах по ней не понять
- * ни сколько их, ни куда ты уже дошёл. Названия отвечают на оба вопроса разом
- * и стоят там, где не спорят с содержимым окна: середина занята знаком,
- * названием и карточками, верх и низ — стрелками.
+ * [shown] — сколько записей влезает в ответ. Ответ не должен быть самим
+ * разделом: он показывает, что там лежит, а не всё, что там лежит, — иначе
+ * лента из четырёх разделов становится четырьмя разделами подряд, и до голоса
+ * не докрутить.
  *
- * Выделенным считается ближайшее к середине окно, а не осевшее: отметка должна
- * переезжать в тот же миг, когда окно переваливает середину экрана, а не после
- * того, как прокрутка остановится.
+ * [answer] получает этот потолок, а не готовый срез, потому что «Библиотека»
+ * делит его между книгами и записями сама.
+ */
+private class Section(
+    @DrawableRes val icon: Int,
+    val title: String,
+    val empty: String,
+    val total: Int,
+    val shown: Int,
+    val onOpen: () -> Unit,
+    val answer: @Composable (limit: Int) -> Unit,
+)
+
+/** Сколько записей показывает ответ раздела. */
+private const val GALLERY_SHOWN = 6
+private const val SHELF_SHOWN = 6
+private const val LISTS_SHOWN = 4
+private const val VOICE_SHOWN = 4
+
+/**
+ * Сколько показывает найденное.
  *
- * Прозрачность считается во время отрисовки по тому же отступу от центра, что
- * и у самих окон (см. fadeByOffset): в композиции это пересобирало бы столбец
- * на каждом кадре прокрутки, а так подписи гаснут заодно со своим окном.
+ * Больше, чем обычный ответ: найденное — это и есть то, за чем пришли, и
+ * прятать его за «ещё 8» значило бы искать дважды.
+ */
+private const val FOUND = 12
+
+/**
+ * Ответ раздела: подпись (в поиске), содержимое и подножие.
+ *
+ * Подножие говорит две вещи: что показанное не всё («ещё 12») и что раздел
+ * открывается целиком (стрелка). Многоточием, а не одним числом: три точки на
+ * краю ответа — это то, чем в переписке обозначают недосказанное, и читаются
+ * они раньше, чем прочитано число.
  */
 @Composable
-private fun SectionMarks(
-    titles: List<String>,
-    pager: PagerState,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val current by remember(pager) {
-        derivedStateOf { (pager.currentPage + pager.currentPageOffsetFraction).roundToInt() }
-    }
+private fun SectionAnswer(section: Section, labelled: Boolean) {
+    AnswerPanel {
+        if (labelled) {
+            AnswerLabel(
+                icon = section.icon,
+                title = section.title,
+                count = section.total,
+                onClick = section.onOpen,
+            )
+        }
 
-    Column(
-        modifier = modifier.padding(top = 8.dp, end = 12.dp),
-        horizontalAlignment = Alignment.End,
-    ) {
-        titles.forEachIndexed { index, title ->
-            val active = index == current
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    // Без indication: подпись мелкая, рябь под ней выглядит
-                    // крупнее самой подписи.
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onSelect(index) },
-                    )
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-                    .graphicsLayer {
-                        val away = ((pager.currentPage + pager.currentPageOffsetFraction) - index)
-                            .absoluteValue
-                            .coerceIn(0f, 1f)
-                        alpha = 1f - 0.55f * away
-                    },
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    // Начертание одно на все подписи: от смены жирности
-                    // подпись меняет ширину, и столбец дёргался бы посреди
-                    // прокрутки. Выделяют цвет и точка.
-                    fontWeight = FontWeight.Medium,
-                    color = if (active) AccentInk else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(if (active) Accent else Color.Transparent),
-                )
-            }
+        if (section.total == 0) {
+            AnswerEmpty(section.empty)
+        } else {
+            section.answer(section.shown)
+            AnswerFoot(
+                more = section.total - section.shown,
+                onOpen = section.onOpen,
+            )
         }
     }
 }
 
-@Composable
-private fun Arrow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    visible: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = Accent,
-        modifier = modifier
-            .padding(vertical = 6.dp)
-            .size(28.dp)
-            .graphicsLayer { alpha = if (visible) 0.75f else 0f },
+/**
+ * Что спросили и что нашлось — вопрос человека, разобранный на слова и теги.
+ *
+ * Слово с решёткой — тег: так их пишут везде, и объяснять это отдельной
+ * кнопкой «искать по тегу» не нужно. Остальные слова ищутся по всему, что у
+ * записи есть буквами, теги в том числе: набравший «дача» без решётки имел в
+ * виду и запись про дачу, и запись, помеченную «дача».
+ *
+ * Слова требуются все: два слова в строке — это уточнение, а не «или».
+ */
+private class Ask(val words: List<String>, val tags: List<String>) {
+    val empty: Boolean get() = words.isEmpty() && tags.isEmpty()
+}
+
+private fun askOf(query: String): Ask {
+    val parts = query.trim().split(WHITESPACE).filter { it.isNotBlank() }
+    return Ask(
+        words = parts.filterNot { it.startsWith("#") }.map { it.lowercase() },
+        tags = parts.filter { it.startsWith("#") && it.length > 1 }
+            .map { it.drop(1).lowercase() },
     )
 }
 
-private fun countOf(size: Int, one: String, few: String, many: String): String =
-    if (size == 0) "Пока пусто" else "$size ${plural(size, one, few, many)}"
+private val WHITESPACE = Regex("\\s+")
 
-/**
- * Сколько на полке. Книги и файлы считаются порознь: «8 записей» не сказало бы,
- * восемь это книг или лежащих отдельно файлов, а ищут именно то или другое.
- */
-private fun shelfCount(books: Int, files: Int): String {
-    val shelf = countOf(books, "книга", "книги", "книг")
-    val loose = countOf(files, "файл", "файла", "файлов")
-    return when {
-        books == 0 && files == 0 -> "Пока пусто"
-        books == 0 -> loose
-        files == 0 -> shelf
-        else -> "$shelf · $loose"
+/** Запись подходит, если в ней нашлось каждое слово и каждый тег. */
+private fun Note.matches(ask: Ask): Boolean {
+    val hay = buildString {
+        append(title.lowercase())
+        append('\n')
+        append(body.lowercase())
+        append('\n')
+        append(tags.joinToString(" ").lowercase())
     }
-}
-
-/** Что показать внутри окна подраздела. */
-/** Список в окне подраздела: название и сколько в нём осталось из скольких. */
-private data class ListPreview(val title: String, val left: Int, val total: Int)
-
-private sealed interface Preview {
-    data object Empty : Preview
-    data class Images(val notes: List<Note>) : Preview
-    data class Library(val books: List<String>, val files: List<Note>) : Preview
-    data class Lists(val lists: List<ListPreview>) : Preview
-}
-
-private data class ScrollSection(
-    @DrawableRes val icon: Int,
-    val title: String,
-    val about: String,
-    val count: String,
-    val preview: Preview,
-    val onOpen: () -> Unit,
-)
-
-/**
- * Окно подраздела: знак, название, о чём он и последние записи.
- *
- * Подложка растворяется к верхнему и нижнему краю — тем же приёмом, что окно
- * вопроса в разговоре: резкая рамка читалась бы как чужая карточка, а плавная
- * — как проявленное место на странице.
- *
- * Соседние окна бледнеют и мельчают по отступу от центра. Приём тот же, что в
- * «AskyaKnewClaude»: выбранное — то, что в середине, и это видно без подписи.
- */
-@Composable
-private fun SectionWindow(section: ScrollSection, offset: () -> Float) {
-    val panel = AccentSoft.copy(alpha = 0.55f)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .fadeByOffset(offset)
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.14f to panel,
-                    0.86f to panel,
-                    1f to Color.Transparent,
-                ),
-            )
-            // Без indication: рябь во весь экран выглядела бы дико.
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = section.onOpen,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                painter = painterResource(section.icon),
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = section.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center,
-            )
-            PreviewView(section.preview)
-        }
-    }
+    if (!ask.words.all { hay.contains(it) }) return false
+    return ask.tags.all { needle -> tags.any { it.lowercase().contains(needle) } }
 }
 
 /**
- * Последние записи подраздела — карточками, тремя в ряд.
- *
- * Карточки те же, что у дел в AskyaDay: тот же радиус, та же тень, та же
- * ширина на троих. Раздел и день должны выглядеть одним приложением, а не
- * двумя разными списками.
- *
- * Пустые места добираются пустыми карточками: ряд из двух растянутых карточек
- * читался бы как другой раздел, а не как «здесь пока две записи».
+ * Книга подходит по названию. Тегов у книги нет и не будет: тег — свойство
+ * записи, а книга — место, куда её положили, и помечать словами саму полку
+ * значило бы завести второй способ делать то же самое.
  */
-@Composable
-private fun PreviewView(preview: Preview) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-    ) {
-        val cards: List<(@Composable () -> Unit)?> = when (preview) {
-            Preview.Empty -> emptyList()
-            is Preview.Images -> preview.notes.map { note -> { ImageCard(note) } }
-            is Preview.Library -> buildList {
-                preview.books.forEach { title -> add { BookCard(title) } }
-                preview.files.forEach { note -> add { RecordCard(note) } }
-            }
-            is Preview.Lists -> preview.lists.map { list -> { ListCard(list) } }
-        }
+private fun ScrollTopic.matches(ask: Ask): Boolean =
+    ask.tags.isEmpty() && ask.words.all { title.lowercase().contains(it) }
 
-        repeat(SLOTS) { index ->
-            PreviewSlot(modifier = Modifier.weight(1f), content = cards.getOrNull(index))
-        }
-    }
-}
-
-/** Сколько карточек в ряду. */
-private const val SLOTS = 3
-
-/**
- * Место под карточку. Пустое — тоже карточка, только приглушённая: так виден
- * ряд целиком и понятно, что записей меньше трёх.
- */
-@Composable
-private fun PreviewSlot(modifier: Modifier, content: (@Composable () -> Unit)?) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (content == null) {
-                Cream.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (content == null) 0.dp else 6.dp,
-        ),
-        modifier = modifier.height(148.dp),
-    ) {
-        if (content != null) {
-            Box(modifier = Modifier.fillMaxSize()) { content() }
-        }
-    }
-}
-
-/** Картинка во всю карточку: её узнают по виду, а не по имени файла. */
-@Composable
-private fun ImageCard(note: Note) {
-    Thumb(note)
-}
-
-/**
- * Карточка записи: метка формата и то, что в записи видно с первого взгляда.
- *
- * У файла метка — расширение: `MD` и `PDF` человек различает мгновенно, а
- * «файл» не говорит ничего. У заметки метка не нужна, за неё говорит текст. У
- * ссылки показывается сама ссылка: заголовок «Статья» без адреса не помогает
- * вспомнить, что за статья.
- */
-@Composable
-private fun RecordCard(note: Note) {
-    Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
-        formatOf(note)?.let { badge ->
-            Text(
-                text = badge,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = AccentInk,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(AccentSoft)
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            )
-        }
-        Text(
-            text = note.title.ifBlank { "Без названия" },
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        glanceOf(note)?.let { line ->
-            Text(
-                text = line,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
-    }
-}
-
-/**
- * Книга: знак сверху, название под ним.
- *
- * Обложки у книги больше нет. Раньше ею была первая лежащая в книге картинка —
- * единственное, ради чего картинку вообще клали в книгу, хотя в её списке она
- * не показывалась. Теперь картинки живут своим разделом с альбомами, и книга
- * снова про то, что в ней читают.
- */
-@Composable
-private fun BookCard(title: String) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).background(Cream),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_scroll_books),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-        Text(
-            text = title.ifBlank { "Без названия" },
-            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun ListCard(list: ListPreview) {
-    Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
-        Text(
-            text = list.title.ifBlank { "Без названия" },
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            // Та же строка, что под названием списка на его полке: «3 из 12».
-            text = countLine(left = list.left, total = list.total),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (list.left == 0) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.primary
-            },
-        )
-    }
-}
-
-/** Превью картинки. Читается в фоне и сразу уменьшается — как в сетке. */
-@Composable
-private fun Thumb(note: Note) {
-    val uri = note.uri
-    val bitmap = if (uri != null) rememberThumbnail(uri, targetPx = 256) else null
-
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-    } else {
-        // Доступ к документу могли отозвать: имя файла честнее пустого квадрата.
-        Text(
-            text = note.title.ifBlank { "Файл" },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(4.dp),
-        )
-    }
-}
-
-/** Строка «что внутри»: адрес у ссылки, первая строка у заметки. */
-private fun glanceOf(note: Note): String? {
-    val body = note.body.trim()
-    if (body.isEmpty()) return null
-    val link = LINK.find(body)?.value
-    return link ?: body.lineSequence().first { it.isNotBlank() }
-}
-
-private val LINK = Regex("""https?://\S+""")
-
-/** Бледнеет и мельчает по мере ухода от середины экрана. */
-private fun Modifier.fadeByOffset(offset: () -> Float): Modifier = graphicsLayer {
-    val away = offset()
-    alpha = 1f - 0.6f * away
-    scaleX = 1f - 0.08f * away
-    scaleY = scaleX
+/** Список подходит по названию или по любому своему пункту. */
+private fun matches(list: YetList, items: List<YetItem>, ask: Ask): Boolean {
+    if (ask.tags.isNotEmpty()) return false
+    val hay = (list.title + "\n" + items.joinToString("\n") { it.text }).lowercase()
+    return ask.words.all { hay.contains(it) }
 }
 
 /** Русское число словом: «1 книга», «3 книги», «5 книг». */

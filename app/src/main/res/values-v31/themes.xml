@@ -10,11 +10,17 @@
         приложения (`ui/launch/AskyaSplash.kt`): системная снимается ровно
         тогда, когда своя нарисовалась, и переход между ними не читается как
         смена экрана — цветок дышит с первого мгновения и не замирает на нём.
+
+        Цветок берётся покрашенный темой (`ic_flower_splash.xml`), а не
+        закатный: краску заставки выбирают в настройках, и рисунок читает её
+        отсюда — из `askyaFlowerInk`. Тема с другой краской подставляется на
+        следующий запуск (`values/themes.xml`, Theme.Askya.Splash.*).
     -->
     <style name="Theme.Askya" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="askyaFlowerInk">@color/flower_sunset</item>
         <item name="android:windowSplashScreenBackground">@color/window_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_flower_breathing</item>
         <!-- Дольше секунды система показывать анимацию значка не берётся. -->

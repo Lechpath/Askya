@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.MicNone
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.Composer
 import app.askya.ui.components.MarkdownTask
+import app.askya.data.repository.Trash
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.rememberDictation
 
@@ -64,13 +65,13 @@ import app.askya.ui.components.rememberDictation
  */
 @Composable
 fun YetListScreen(listId: Long, onBack: () -> Unit) {
+    val trash = appContainer().trash
     val viewModel: YetViewModel = viewModel(factory = YetViewModel.factory(appContainer()))
     val list by remember(listId) { viewModel.list(listId) }
         .collectAsStateWithLifecycle(initialValue = null)
     val items by remember(listId) { viewModel.items(listId) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var removing by remember { mutableStateOf<YetItem?>(null) }
     var draft by remember(listId) { mutableStateOf(TextFieldValue()) }
     var notice by remember { mutableStateOf<String?>(null) }
 
@@ -144,7 +145,10 @@ fun YetListScreen(listId: Long, onBack: () -> Unit) {
                         item = item,
                         mark = list?.mark ?: ListMark.SQUARE,
                         onClick = { viewModel.toggle(item) },
-                        onLongClick = { removing = item },
+                        onLongClick = {
+                            viewModel.removeItem(item.id)
+                            trash.remembered(Trash.Kind.YET_ROW, item.id)
+                        },
                     )
                 }
             }
@@ -169,16 +173,6 @@ fun YetListScreen(listId: Long, onBack: () -> Unit) {
         }
     }
 
-    removing?.let { item ->
-        RemoveRowDialog(
-            text = item.text,
-            onDismiss = { removing = null },
-            onRemove = {
-                viewModel.deleteItem(item.id)
-                removing = null
-            },
-        )
-    }
 
     notice?.let { text ->
         AskyaNotice(

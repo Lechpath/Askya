@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    «Голос» — микрофон со звуковой волной по бокам.
+
+    Волна, а не одна капсула микрофона: капсула сама по себе читается как
+    «записать», а раздел не про запись, а про записанное, — и полоски рядом
+    говорят, что здесь лежит звучащее.
+
+    Обводкой и той же толщины (1.7), что у остальных знаков подразделов: они
+    стоят рядом в одном списке, и знак, набранный другим весом, выглядел бы
+    взятым из чужого набора.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Капсула микрофона. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,3.2 A2.6,2.6 0 0 1 14.6,5.8 V11.4 A2.6,2.6 0 0 1 12,14 A2.6,2.6 0 0 1 9.4,11.4 V5.8 A2.6,2.6 0 0 1 12,3.2 Z" />
+
+    <!-- Дужка, на которой капсула висит, и ножка под ней. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M6.6,10.6 A5.4,5.4 0 0 0 17.4,10.6" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,16 V20.4" />
+
+    <!-- Волна: две коротких черты слева и справа. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M3.2,8.2 V11.4" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M20.8,8.2 V11.4" />
+
+</vector>

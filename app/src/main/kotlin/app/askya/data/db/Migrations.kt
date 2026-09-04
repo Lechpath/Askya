@@ -534,3 +534,533 @@ val MIGRATION_19_20 = object : Migration(19, 20) {
         db.execSQL("ALTER TABLE `reminders` ADD COLUMN `soundTitle` TEXT DEFAULT NULL")
     }
 }
+
+/**
+ * 20 → 21: раздел «Тренировки».
+ *
+ * Три таблицы: сама тренировка, её подходы и наблюдение за состоянием.
+ * Подходы лежат отдельно, потому что их у тренировки сколько угодно, а
+ * наблюдения — потому что они бывают и в дни без тренировок (и чаще всего
+ * именно тогда и важны).
+ *
+ * У наблюдений дата уникальна: по записи на день. Уникальность задаётся здесь
+ * же индексом — иначе второе взвешивание за сутки завело бы вторую строку, и
+ * на вопрос «сколько я вешу сегодня» нашлось бы два ответа.
+ */
+val MIGRATION_20_21 = object : Migration(20, 21) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `workouts` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`minutes` INTEGER NOT NULL, " +
+                "`meters` INTEGER NOT NULL, " +
+                "`pulseAvg` INTEGER NOT NULL, " +
+                "`pulseMax` INTEGER NOT NULL, " +
+                "`effort` INTEGER NOT NULL, " +
+                "`note` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_workouts_date` ON `workouts` (`date`)")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `workout_sets` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`workoutId` INTEGER NOT NULL, " +
+                "`exercise` TEXT NOT NULL, " +
+                "`grams` INTEGER NOT NULL, " +
+                "`reps` INTEGER NOT NULL, " +
+                "`seconds` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_workout_sets_workoutId` " +
+                "ON `workout_sets` (`workoutId`)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `body_checks` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`grams` INTEGER NOT NULL, " +
+                "`restingPulse` INTEGER NOT NULL, " +
+                "`sleepMinutes` INTEGER NOT NULL, " +
+                "`feeling` INTEGER NOT NULL, " +
+                "`note` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_body_checks_date` " +
+                "ON `body_checks` (`date`)",
+        )
+    }
+}
+
+/**
+ * Двадцать вторая: день движения.
+ *
+ * Одна таблица на всё, что меряют приборы, — шаги, метры, минуты движения,
+ * калории, пульс покоя и сон. Дата уникальна: «сколько я прошёл сегодня» —
+ * вопрос с одним ответом, и вторая строка на тот же день означала бы два.
+ */
+val MIGRATION_21_22 = object : Migration(21, 22) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `activity_days` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`steps` INTEGER NOT NULL, " +
+                "`meters` INTEGER NOT NULL, " +
+                "`activeMinutes` INTEGER NOT NULL, " +
+                "`kcal` INTEGER NOT NULL, " +
+                "`restingPulse` INTEGER NOT NULL, " +
+                "`sleepMinutes` INTEGER NOT NULL, " +
+                "`fromWatch` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_activity_days_date` " +
+                "ON `activity_days` (`date`)",
+        )
+    }
+}
+
+/**
+ * Двадцать третья: плейлисты AskyaV.
+ *
+ * Две таблицы, как у Echo: сам плейлист и строки в нём. Подписи и размеры
+ * лежат в строке рядом со ссылкой — плейлист должен читаться и после того, как
+ * файл с телефона убрали.
+ */
+val MIGRATION_22_23 = object : Migration(22, 23) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `video_playlists` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `video_playlist_clips` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`playlistId` INTEGER NOT NULL, " +
+                "`uri` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`durationMs` INTEGER NOT NULL, " +
+                "`sizeBytes` INTEGER NOT NULL, " +
+                "`width` INTEGER NOT NULL, " +
+                "`height` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_video_playlist_clips_playlistId` " +
+                "ON `video_playlist_clips` (`playlistId`)",
+        )
+    }
+}
+
+/**
+ * Двадцать четвёртая: сносит `check_ins` и `practice_logs`.
+ *
+ * Единственная миграция в проекте, которая не добавляет, а убирает, и потому
+ * ей нужно объяснение. Правило «убрать функцию из приложения и стереть чужой
+ * текст — разные решения» здесь не нарушено: в обеих таблицах не лежало
+ * ничего. Экраны чек-ина и практик были заглушками и ни разу не записали ни
+ * одной строки — сносится пустая форма, а не чей-то рассказ. Таблицы разговора
+ * с моделью (`profile_sections`, `interview_messages`, `self_answers`) поэтому
+ * и остаются на месте: в них человек говорил.
+ */
+val MIGRATION_23_24 = object : Migration(23, 24) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `check_ins`")
+        db.execSQL("DROP TABLE IF EXISTS `practice_logs`")
+    }
+}
+
+/**
+ * Двадцать пятая: привязка — чем делается дело.
+ *
+ * По колонке у дела дня и у строки списка дел. Пара «вид + адрес» одной
+ * строкой (`book:12`), а не номер на каждый вид: видов будет прибавляться, и
+ * следующий из них внешний — «Мост» в другое приложение телефона.
+ *
+ * ALTER'ом, а не пересозданием таблицы: колонка необязательная, и Room сверяет
+ * у неё ровно тип, обязательность и ключ.
+ */
+val MIGRATION_24_25 = object : Migration(24, 25) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `schedule_items` ADD COLUMN `link` TEXT")
+        db.execSQL("ALTER TABLE `routine_items` ADD COLUMN `link` TEXT")
+    }
+}
+
+/**
+ * Двадцать шестая: мосты — связи Askya с приложениями телефона.
+ *
+ * Одна таблица: название, куда мост ведёт, чем он оканчивается (приложение или
+ * ссылка), к какому знаку дела подключён и когда им пользовались в последний
+ * раз. Имён чужих приложений в схеме нет и быть не может: что подключено к
+ * мосту, решает человек, а не Askya.
+ *
+ * `icon` без уникального ключа намеренно: одному знаку — один мост, но следит
+ * за этим сам экран мостов, а не база. Уникальный ключ на необязательной
+ * колонке в SQLite считает NULL разными значениями, и правило «один знак — один
+ * мост» он всё равно бы не выразил без ухищрений, зато сломал бы вставку
+ * второго моста без знака.
+ */
+val MIGRATION_25_26 = object : Migration(25, 26) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `bridges` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`target` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`icon` TEXT, " +
+                "`usedAt` INTEGER NOT NULL)",
+        )
+    }
+}
+
+/**
+ * Двадцать седьмая: справочник упражнений — то, что человек написал сам.
+ *
+ * Готовые описания в базу не кладутся: они живут в коде
+ * (`domain/model/Exercises.kt`), и обновление приложения должно приносить новые,
+ * не затирая написанное человеком. Здесь — только его строки: переписанные шаги,
+ * своё «на что смотреть», своё видео.
+ *
+ * Уникальный ключ по названию, потому что название и есть связь с дневником:
+ * `workout_sets.exercise` — обычная строка, и два описания одного упражнения
+ * означали бы, что историю подходов не к чему привязать.
+ */
+val MIGRATION_26_27 = object : Migration(26, 27) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `exercises` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`area` TEXT NOT NULL, " +
+                "`sort` TEXT NOT NULL, " +
+                "`steps` TEXT NOT NULL, " +
+                "`watch` TEXT NOT NULL, " +
+                "`videoUri` TEXT)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_exercises_name` ON `exercises` (`name`)",
+        )
+    }
+}
+
+/**
+ * Двадцать восьмая: корзина на сутки вместо подтверждений.
+ *
+ * По колонке `removedAt` у дела дня, записи и строки Yet. Убранное не исчезает,
+ * а помечается и живёт двадцать четыре часа; снизу на несколько секунд
+ * появляется «Вернуть», и вопрос «вы уверены?» снимается вовсе.
+ *
+ * Так честнее: подтверждение не отменяет ошибку, оно перекладывает её на
+ * человека, который торопится, — и через месяц жмётся не читая. Возврат
+ * отменяет ошибку по-настоящему.
+ *
+ * ALTER'ом: колонка необязательная, и Room сверяет у неё тип, обязательность и
+ * ключ. Прошлые записи остаются с NULL, то есть «на месте», — как и должно.
+ */
+val MIGRATION_27_28 = object : Migration(27, 28) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `schedule_items` ADD COLUMN `removedAt` TEXT")
+        db.execSQL("ALTER TABLE `notes` ADD COLUMN `removedAt` TEXT")
+        db.execSQL("ALTER TABLE `yet_items` ADD COLUMN `removedAt` TEXT")
+    }
+}
+
+/**
+ * Двадцать девятая: Ledger — расходная книга.
+ *
+ * Три таблицы: счета, статьи и сами записи. Начальных строк миграция не
+ * кладёт: статьи и первый счёт заводятся при первом входе в раздел
+ * (`LedgerRepository.ensureStarted`), а не при обновлении приложения. Тот, кто
+ * в раздел не зайдёт, не должен получить в базе «Еду» и «Кошелёк», которых не
+ * заводил.
+ *
+ * Суммы — целыми копейками (`INTEGER`), а не дробью: см. `domain/model/Money`.
+ * `REAL` в книге, где складывают сотни строк, к концу месяца расходится сам с
+ * собой, и найти эту копейку потом невозможно.
+ *
+ * Внешних ключей нет — как и везде в Askya: связность держит репозиторий.
+ * Закрытый счёт остаётся строкой, убранная статья отвязывается от записей
+ * явным `UPDATE`, а каскад из базы снёс бы вместе со статьёй и прошлогодние
+ * траты по ней.
+ */
+val MIGRATION_28_29 = object : Migration(28, 29) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_accounts` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`opening` INTEGER NOT NULL, " +
+                "`closed` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_categories` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`limit` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_entries` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`amount` INTEGER NOT NULL, " +
+                "`accountId` INTEGER NOT NULL, " +
+                "`toAccountId` INTEGER, " +
+                "`categoryId` INTEGER, " +
+                "`note` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`removedAt` TEXT)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_date` " +
+                "ON `ledger_entries` (`date`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_accountId` " +
+                "ON `ledger_entries` (`accountId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_categoryId` " +
+                "ON `ledger_entries` (`categoryId`)",
+        )
+    }
+}
+
+/**
+ * Тридцатая: путь пробежки.
+ *
+ * Одна таблица — точки маршрута. Тренировкам она ничего не меняет: пробежка
+ * остаётся обычной записью в `workouts`, с километрами и минутами, — просто у
+ * записанной телефоном есть ещё и путь, а у вписанной руками нет. Поэтому и
+ * отдельной таблицей, а не колонкой: колонка «путь» стояла бы пустой у всего
+ * дневника, а список тренировок читал бы её при каждом открытии раздела.
+ *
+ * Градусы целыми миллионными долями (`INTEGER`), как метры метрами и деньги
+ * копейками, — см. `data/entity/RunPoint`.
+ *
+ * Внешнего ключа нет, как и у подходов: путь удалялся вместе с тренировкой
+ * явно, кодом раздела Active — того самого, который убран миграцией 31 → 32.
+ */
+val MIGRATION_29_30 = object : Migration(29, 30) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `run_points` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`workoutId` INTEGER NOT NULL, " +
+                "`latE6` INTEGER NOT NULL, " +
+                "`lonE6` INTEGER NOT NULL, " +
+                "`seconds` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_run_points_workoutId` " +
+                "ON `run_points` (`workoutId`)",
+        )
+    }
+}
+
+/**
+ * Тридцать первая: кредитный лимит у счёта и длина голосовой заметки.
+ *
+ * Две колонки в две разные таблицы, и одной миграцией они идут не потому, что
+ * связаны, а потому, что вышли одним обновлением: миграция — это шаг версии, а
+ * не смысловая единица.
+ *
+ * **Лимит** — потолок, до которого банк даёт занимать. Нужен он одному виду
+ * счёта (`AccountKind.CREDIT`), и у всех прочих стоит нулём, но колонкой, а не
+ * отдельной таблицей: это одно число, и живёт оно ровно столько же, сколько
+ * сам счёт. Таблица «кредиты» из одной строки на счёт была бы join-ом ради
+ * `Long`. Долга здесь нет намеренно: он не хранится, а складывается из
+ * записей — как и всякий остаток в этой книге (см. `LedgerAccount`).
+ * Записанным он был бы вторым источником правды, и первая же правка задним
+ * числом развела бы их.
+ *
+ * **Длина** — сколько звучит голосовая заметка. Тоже колонкой и по тому же
+ * правилу, что `isImage`: узнать её можно, только открыв файл, а стоит она в
+ * каждой строке списка.
+ *
+ * `limit` — слово SQL, поэтому имя в кавычках; так же оно стоит и у статьи,
+ * где эта колонка появилась раньше.
+ */
+val MIGRATION_30_31 = object : Migration(30, 31) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `ledger_accounts` ADD COLUMN `limit` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "ALTER TABLE `notes` ADD COLUMN `durationMs` INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}
+
+/**
+ * Тридцать вторая: раздел Active убран, а записанное им — оставлено.
+ *
+ * Шаг версии без единого `DROP`, и это не забывчивость. Экранов Active больше
+ * нет, и Room про таблицы `workouts`, `workout_sets`, `run_points`,
+ * `body_checks`, `activity_days` и `exercises` теперь не знает — но в них
+ * лежат тренировки, замеры и пути пробежек, которые человек записал сам.
+ * Правило то же, по которому остались `profile_sections` (см. `AppDatabase`):
+ * убрать функцию и стереть чужие записи — разные решения, и второе за человека
+ * не принимают. Лишние таблицы Room не сверяет, места они занимают столько же,
+ * сколько занимали, а «Слепок» их больше не открывает.
+ *
+ * Если однажды понадобится стереть их совсем — это будет отдельная миграция и
+ * отдельное решение, а не побочный итог уборки экранов.
+ */
+val MIGRATION_31_32 = object : Migration(31, 32) {
+
+    override fun migrate(db: SupportSQLiteDatabase) = Unit
+}
+
+/**
+ * Тридцать третья: таблицы Active стёрты совсем.
+ *
+ * Продолжение тридцать второй и её же вторая половина. Та убрала раздел и
+ * оставила записанное им лежать в файле базы — по правилу «убрать функцию и
+ * стереть чужие записи — разные решения». Правило не нарушено и здесь: второе
+ * решение принял сам человек, отдельной просьбой и после того, как первое было
+ * сделано. Две миграции, а не одна, потому что и решений было два, и между ними
+ * стояла установленная сборка.
+ *
+ * Уходят все шесть: `workouts` и `workout_sets` — тренировки с подходами,
+ * `run_points` — пути пробежек, `body_checks` — наблюдения за собой,
+ * `activity_days` — дни шагомера, `exercises` — свои упражнения. Порядок
+ * `DROP`-ов ничего не значит: внешних ключей между ними не было ни одного,
+ * подходы и точки удалялись кодом раздела, а раздела больше нет.
+ *
+ * Своих видео к упражнениям это не касается — они лежат файлами в папке Askya,
+ * а не в базе. Ссылки на них уходят вместе с `exercises`; сами файлы человек
+ * убирает сам, как всякое своё в общей папке телефона.
+ */
+val MIGRATION_32_33 = object : Migration(32, 33) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `workout_sets`")
+        db.execSQL("DROP TABLE IF EXISTS `run_points`")
+        db.execSQL("DROP TABLE IF EXISTS `workouts`")
+        db.execSQL("DROP TABLE IF EXISTS `body_checks`")
+        db.execSQL("DROP TABLE IF EXISTS `activity_days`")
+        db.execSQL("DROP TABLE IF EXISTS `exercises`")
+    }
+}
+
+/**
+ * Тридцать четвёртая: у счетов и статей появилась краска, у долга — ставка.
+ *
+ * Краска (`color`) — та же восьмицветная палитра, которой покрашены корешки
+ * книг в Scroll, и колонка её хранит так же: именем константы, пусто значит
+ * «не выбирали». Пустой она и остаётся у всех заведённых прежде счетов —
+ * покрасить их за человека нельзя, но и серыми они не выглядят: цвет, которого
+ * не выбирали, выводится из названия и потому есть у каждого счёта с первого
+ * же взгляда.
+ *
+ * Ставка (`rate`) — сотые доли процента годовых, ноль значит «процентов нет».
+ * Ноль по умолчанию и есть верный ответ для всех старых записей: книга до сих
+ * пор про проценты не спрашивала, и придумывать их задним числом она не
+ * станет. План погашения при нулевой ставке считает платёж и не считает
+ * переплату — и честно об этом говорит.
+ */
+val MIGRATION_33_34 = object : Migration(33, 34) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE ledger_accounts ADD COLUMN rate INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE ledger_accounts ADD COLUMN color TEXT")
+        db.execSQL("ALTER TABLE ledger_categories ADD COLUMN color TEXT")
+    }
+}
+
+/**
+ * Тридцать пятая: у дела появился свой список.
+ *
+ * Между заметкой и списком Yet не было ничего. Заметка у дела одна и сплошная:
+ * в неё пишут «взять пропуск, позвонить в банк», и отметить в ней сделанное
+ * нельзя — только переписать строку. Список Yet отмечается, но живёт своей
+ * жизнью и никакому дню не принадлежит. Дело с четырьмя задачами на сегодня
+ * не было ни тем, ни другим.
+ *
+ * Таблица новая, а не колонка в `schedule_items`: строк у дела сколько угодно,
+ * и каждая отмечается порознь. Склеенные в одну колонку, они переписывались бы
+ * целиком на каждую галочку — и вместе с ними переписывалось бы само дело, за
+ * которым следит и виджет, и шторка.
+ *
+ * Внешнего ключа нет — как у строк Scroll и Yet: удаление дела убирает строки
+ * явно, в репозитории. Каскад молча сработал бы и на мягком удалении, а
+ * убранное дело живёт сутки и возвращается со списком.
+ *
+ * Ничего не переносится: до этой версии таких списков не существовало, и
+ * догадываться, что в заметке было списком, а что предложением, — не дело
+ * миграции.
+ */
+val MIGRATION_34_35 = object : Migration(34, 35) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `deed_tasks` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`deedId` INTEGER NOT NULL, " +
+                "`text` TEXT NOT NULL, " +
+                "`done` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`removedAt` TEXT)",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_deed_tasks_deedId` ON `deed_tasks` (`deedId`)")
+    }
+}
+
+/**
+ * Тридцать шестая: у счёта появилось место в сетке.
+ *
+ * До сих пор счета шли по дате появления — тем порядком, в каком их однажды
+ * завели. Порядок этот ничего не значит: смотрят на сетку счетов каждый день, и
+ * первым человек хочет видеть тот счёт, которым платит, а не тот, что завёл
+ * раньше всех. Сортировать по остатку нельзя тем более — карточки менялись бы
+ * местами после каждой покупки хлеба.
+ *
+ * Колонкой у счёта, а не отдельной таблицей порядка: это одно число, и живёт
+ * оно ровно столько же, сколько сам счёт.
+ *
+ * Номера расставляются по тому порядку, который человек видел вчера, — по дате
+ * появления. Ноль у всех был бы честным «порядка ещё нет», но в первый же день
+ * после обновления сетка перетасовалась бы сама собой, и виноватым оказалось бы
+ * обновление.
+ */
+val MIGRATION_35_36 = object : Migration(35, 36) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE ledger_accounts ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            "UPDATE ledger_accounts SET position = (" +
+                "SELECT COUNT(*) FROM ledger_accounts AS earlier " +
+                "WHERE earlier.createdAt < ledger_accounts.createdAt " +
+                "OR (earlier.createdAt = ledger_accounts.createdAt " +
+                "AND earlier.id < ledger_accounts.id))",
+        )
+    }
+}

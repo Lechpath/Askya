@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -78,6 +80,13 @@ import app.askya.ui.theme.Sunset
  * Размер задаётся снаружи ([width], [height] — доли экрана): «Вся музыка» —
  * большая карточка со списком, плейлисты и папки — поменьше. Это не прихоть
  * оформления: величина карточки говорит, сколько за ней стоит.
+ *
+ * [height] = `null` — «по написанному»: карточка ровно такой высоты, сколько
+ * заняло содержимое, но не выше [FIT_SHARE] экрана. Так открываются карточки
+ * с рядом действий: шесть строк, растянутые на четыре пятых экрана, — это
+ * половина пустого листа под ними, а в Askya раскрытое всегда по размеру того,
+ * что раскрыли. Доля остаётся у списков: им место нужно всегда, и карточка,
+ * прыгающая по высоте вслед за числом найденных песен, читалась бы как сбой.
  */
 @Composable
 fun EchoCard(
@@ -86,7 +95,7 @@ fun EchoCard(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     width: Float = 0.94f,
-    height: Float = 0.9f,
+    height: Float? = 0.9f,
     back: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
@@ -122,10 +131,17 @@ fun EchoCard(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        // Потолок для карточки «по написанному»: выше него содержимое
+        // прокручивается внутри карточки, а не выезжает за края экрана.
+        val fit = (LocalConfiguration.current.screenHeightDp * FIT_SHARE).dp
+
         Column(
             modifier = Modifier
                 .fillMaxWidth(width)
-                .fillMaxHeight(height)
+                .then(
+                    if (height != null) Modifier.fillMaxHeight(height)
+                    else Modifier.heightIn(max = fit),
+                )
                 .graphicsLayer {
                     scaleX = grow
                     scaleY = grow
@@ -188,6 +204,9 @@ fun EchoCard(
         }
     }
 }
+
+/** Выше этого карточка «по написанному» не растёт — дальше она прокручивается. */
+private const val FIT_SHARE = 0.9f
 
 /**
  * Маленькое окно Echo: вопрос или одно поле, без списка.

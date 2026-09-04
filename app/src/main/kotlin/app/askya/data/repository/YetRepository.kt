@@ -7,6 +7,7 @@ import app.askya.domain.model.ListMark
 import app.askya.domain.markdown.ListInput
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDateTime
 
 class YetRepository(private val dao: YetDao) {
 
@@ -23,6 +24,21 @@ class YetRepository(private val dao: YetDao) {
     /** Сколько в каждом списке строк всего — вторая половина той же цифры. */
     fun sizes(): Flow<Map<Long, Int>> = dao.observeAllItems()
         .map { all -> all.groupingBy { it.listId }.eachCount() }
+
+    /**
+     * Строки всех списков разом, разложенные по списку.
+     *
+     * Нужны ленте Scroll: в карточку списка вписаны его первые пункты, и
+     * спрашивать их подпиской на каждый список значило бы завести по подписке
+     * на карточку. Порядок тот же, что на экране самого списка ([items]):
+     * сделанное вниз, остальное по времени.
+     */
+    fun itemsByList(): Flow<Map<Long, List<YetItem>>> = dao.observeAllItems()
+        .map { all ->
+            all.groupBy { it.listId }.mapValues { (_, lines) ->
+                lines.sortedWith(compareBy({ it.done }, { it.createdAt }, { it.id }))
+            }
+        }
 
     suspend fun addList(title: String, mark: ListMark): Long =
         dao.insertList(YetList(title = title.trim(), mark = mark))
@@ -57,6 +73,13 @@ class YetRepository(private val dao: YetDao) {
     }
 
     suspend fun toggle(item: YetItem) = dao.updateItem(item.copy(done = !item.done))
+
+    /** Убрать строку — в корзину на сутки. См. [ScheduleRepository.remove]. */
+    suspend fun removeItem(id: Long) = dao.setItemRemoved(id, LocalDateTime.now())
+
+    suspend fun restoreItem(id: Long) = dao.setItemRemoved(id, null)
+
+    suspend fun purgeTrash() = dao.purgeItems(LocalDateTime.now().minusDays(1))
 
     suspend fun deleteItem(id: Long) = dao.deleteItemById(id)
 

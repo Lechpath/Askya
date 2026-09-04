@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.MoveToInbox
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,20 +50,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.askya.app.appContainer
 import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
-import app.askya.domain.model.BookColor
+import app.askya.domain.model.MarkColor
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.AskyaAsk
 import app.askya.ui.components.AskyaDialog
+import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.DialogBadge
 import app.askya.ui.components.DialogButtons
 import app.askya.ui.components.DialogCaption
 import app.askya.ui.components.DialogChoice
+import app.askya.ui.components.DialogText
+import app.askya.ui.components.DialogTitle
 import app.askya.ui.components.EditableLine
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.NewButton
 import app.askya.ui.components.SHELF_COLUMNS
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.TileRow
+import app.askya.ui.components.fadingEdges
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
 
@@ -118,6 +124,20 @@ fun LibraryScreen(
     // лежало в списке в момент тапа.
     var opened by remember { mutableStateOf<Long?>(null) }
 
+    // Перенос: идёт ли он сейчас и чем кончился. Два состояния, а не одно:
+    // между «выбрали файл» и «готово» проходят секунды, и экран, ничего не
+    // говорящий всё это время, читается как не заметивший нажатия.
+    var importing by remember { mutableStateOf(false) }
+    var imported by remember { mutableStateOf<ImportOutcome?>(null) }
+
+    val importNotes = rememberNoteImport(
+        onStarted = { importing = true },
+        onDone = { outcome ->
+            importing = false
+            imported = outcome
+        },
+    )
+
     val searching = query.isNotBlank()
     val shownBooks = if (searching) {
         books.filter { it.title.contains(query.trim(), ignoreCase = true) }
@@ -160,8 +180,10 @@ fun LibraryScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
 
+            val shelf = rememberLazyListState()
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                state = shelf,
+                modifier = Modifier.fillMaxSize().fadingEdges(shelf),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
@@ -298,6 +320,41 @@ fun LibraryScreen(
                 adding = false
                 creating = true
             },
+            onImport = {
+                adding = false
+                importNotes()
+            },
+        )
+    }
+
+    if (importing) {
+        // Окно без ответа: закрывать нечего, пока перенос идёт, а «отмена»
+        // посреди него оставила бы половину заметок перенесённой и половину
+        // нет — состояние, из которого человеку нечем выбраться.
+        AskyaDialog(onDismiss = {}, badge = { DialogBadge(Icons.Outlined.MoveToInbox) }) {
+            DialogTitle("Переношу")
+            DialogText(
+                "Читаю выгрузку. Большой архив разбирается с полминуты — заметки " +
+                    "появятся на полке сами.",
+            )
+        }
+    }
+
+    imported?.let { outcome ->
+        AskyaNotice(
+            title = if (outcome.notes > 0) "Перенесено" else "Заметок не нашлось",
+            text = if (outcome.notes > 0) {
+                "${notesWord(outcome.notes)} из ${filesWord(outcome.files)}. " +
+                    "Все легли в Библиотеку — разложить их по книгам можно " +
+                    "обычным способом."
+            } else {
+                "В принесённом не нашлось ни одной заметки. Askya читает выгрузки " +
+                    "текстом (txt, md), Evernote (enex), Google Keep (json) и " +
+                    "страницами (html) — в том числе внутри архива zip. Картинки и " +
+                    "вложения она не переносит."
+            },
+            icon = Icons.Outlined.MoveToInbox,
+            onDismiss = { imported = null },
         )
     }
 
@@ -349,6 +406,30 @@ fun LibraryScreen(
 }
 
 /** Заголовок половины полки. */
+/** «12 заметок» — падеж по числу. */
+private fun notesWord(count: Int): String {
+    val hundred = count % 100
+    val ten = count % 10
+    return when {
+        hundred in 11..14 -> "$count заметок"
+        ten == 1 -> "$count заметка"
+        ten in 2..4 -> "$count заметки"
+        else -> "$count заметок"
+    }
+}
+
+/** «3 файлов» — он же для принесённого. */
+private fun filesWord(count: Int): String {
+    val hundred = count % 100
+    val ten = count % 10
+    return when {
+        hundred in 11..14 -> "$count файлов"
+        ten == 1 -> "$count файла"
+        ten in 2..4 -> "$count файлов"
+        else -> "$count файлов"
+    }
+}
+
 @Composable
 internal fun ShelfTitle(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -360,10 +441,13 @@ internal fun ShelfTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Что заводим: заметку, файл с телефона или книгу.
+ * Что заводим: заметку, файл с телефона, книгу или перенос из чужого блокнота.
  *
  * Порядок по частоте: пишут чаще, чем приносят, и приносят чаще, чем заводят
- * новую полку.
+ * новую полку. Перенос стоит последним и по той же мерке — его делают один раз
+ * в жизни, в первый день. Но стоит он именно здесь, а не в настройках: в
+ * первый день человек ищет не настройки, а кнопку «добавить», и не найдя
+ * переноса в ней, решает, что переноса нет вовсе.
  */
 @Composable
 internal fun AddDialog(
@@ -371,6 +455,7 @@ internal fun AddDialog(
     onNote: () -> Unit,
     onFile: () -> Unit,
     onBook: (() -> Unit)? = null,
+    onImport: (() -> Unit)? = null,
 ) {
     AskyaDialog(onDismiss = onDismiss, badge = { DialogBadge(Icons.Outlined.Add) }) {
         DialogCaption("Что заводим?")
@@ -379,6 +464,14 @@ internal fun AddDialog(
         DialogChoice(Icons.Outlined.AttachFile, "Файл", "Принести с телефона", onFile)
         onBook?.let {
             DialogChoice(Icons.Outlined.MenuBook, "Книгу", "Завести новую полку", it)
+        }
+        onImport?.let {
+            DialogChoice(
+                Icons.Outlined.MoveToInbox,
+                "Перенести заметки",
+                "Из выгрузки другого блокнота",
+                it,
+            )
         }
 
         // Ответа внизу нет: строка сама и есть выбор, и «ОК» под ней означал бы,
@@ -401,7 +494,7 @@ private fun BookDialog(
     heading: String,
     book: ScrollTopic?,
     onDismiss: () -> Unit,
-    onConfirm: (String, BookColor?) -> Unit,
+    onConfirm: (String, MarkColor?) -> Unit,
     onDelete: (() -> Unit)? = null,
 ) {
     var draft by remember(book) { mutableStateOf(book?.title.orEmpty()) }
@@ -481,14 +574,14 @@ private fun BookDialog(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SpinePalette(chosen: BookColor?, onPick: (BookColor) -> Unit) {
+private fun SpinePalette(chosen: MarkColor?, onPick: (MarkColor) -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         maxItemsInEachRow = 4,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        BookColor.entries.forEach { option ->
+        MarkColor.entries.forEach { option ->
             val picked = option == chosen
             Box(
                 contentAlignment = Alignment.Center,

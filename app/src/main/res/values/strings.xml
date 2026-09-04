@@ -3,4 +3,19 @@
     <string name="app_name">Askya</string>
     <string name="widget_name">Askya: день</string>
     <string name="widget_description">Что идёт сейчас и что дальше</string>
+    <string name="widget_weather_name">Askya: погода</string>
+    <string name="widget_weather_description">Сколько градусов и что за окном</string>
+    <string name="widget_voice_name">Askya: голос</string>
+    <string name="widget_voice_description">Наговорить заметку с рабочего стола</string>
+    <string name="widget_voice_say">Сказать</string>
+    <string name="widget_voice_sample">Последняя: список на завтра · 0:24</string>
+
+    <!--
+        Что стоит в макете до того, как виджет наполнят настоящей погодой:
+        по этим значениям система рисует картинку в списке виджетов. Пустой
+        прямоугольник в выборе не говорит о виджете ничего.
+    -->
+    <string name="widget_weather_sample_mark">☀</string>
+    <string name="widget_weather_sample_degrees">+21°</string>
+    <string name="widget_weather_sample_words">Ясно · ощущается +19°</string>
 </resources>

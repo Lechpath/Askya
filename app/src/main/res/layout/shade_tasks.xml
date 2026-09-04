@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Карточка дела в шторке уведомлений: время, название и список задач
+    галочками.
+
+    Своя вёрстка, потому что готового стиля уведомления со списком отмечаемых
+    строк нет: `InboxStyle` показывает строки, но нажать в нём можно только всё
+    уведомление целиком, а отмечать надо каждую.
+
+    Строки не перечислены здесь по одной, а добавляются на месте
+    (`RemoteViews.addView`): сколько их у дела, заранее неизвестно, а полтора
+    десятка заготовок с `visibility=gone` — это то же самое, только длиннее и с
+    потолком.
+
+    Заголовок уведомления (имя приложения, время, стрелка «развернуть») рисует
+    система: `DecoratedCustomViewStyle` ставит эту разметку под своей шапкой, и
+    второй раз называть приложение здесь не надо.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:id="@+id/shade_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <TextView
+        android:id="@+id/shade_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:paddingBottom="4dp"
+        android:textSize="13sp"
+        android:textColor="?android:attr/textColorSecondary" />
+
+    <LinearLayout
+        android:id="@+id/shade_rows"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/shade_more"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:paddingTop="4dp"
+        android:textSize="13sp"
+        android:textColor="?android:attr/textColorSecondary" />
+
+</LinearLayout>

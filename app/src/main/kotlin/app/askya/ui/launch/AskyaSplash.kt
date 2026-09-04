@@ -23,6 +23,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.askya.app.appContainer
+import app.askya.data.preferences.SplashWhen
 import app.askya.domain.model.Greeting
 import app.askya.ui.components.ASKYA_SHARE
 import app.askya.ui.components.FLOWER_RADIUS
@@ -31,6 +33,7 @@ import app.askya.ui.components.FlowerWord
 import app.askya.ui.components.breathingScale
 import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.Cream
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -70,7 +73,43 @@ fun AskyaSplash(onGreeted: () -> Unit, onDone: () -> Unit) {
 
     // Время спрашивается один раз: заставка живёт секунды, и пересчитывать
     // приветствие на каждой перерисовке незачем.
-    val greeting = remember { Greeting.now() }
+    //
+    // Сперва берётся первая фраза поры — само приветствие: набор перебирается
+    // по счётчику из DataStore, а тот читается с диска, и пока он не пришёл,
+    // на экране должно стоять что-то верное, а не пустое место. Подмена
+    // успевает случиться задолго до того, как приветствие проступит: письмо
+    // имени идёт почти секунду, а чтение счётчика — миллисекунды.
+    val settings = appContainer().settings
+    var greeting by remember { mutableStateOf(Greeting.now()) }
+    LaunchedEffect(Unit) { greeting = Greeting.now(settings.advanceGreeting()) }
+
+    // Краска цветка на заставке — своя, если её выбрали, и общая, если нет.
+    //
+    // Заставка единственное место, где цветок стоит один и во весь экран: там
+    // он не знак раздела, а картинка, и выбирать её порознь осмысленно ровно
+    // поэтому. Системная заставка Android 12+ красится той же настройкой, но
+    // не отсюда — темой, и со следующего запуска (`MainActivity`).
+    val chosen by settings.settings.collectAsStateWithLifecycle(
+        initialValue = settings.state.value,
+    )
+    val flower = (chosen.splashFlower ?: chosen.flower).color
+
+    // Заставка пропускается тем же путём, что и касанием, — насовсем её не
+    // убирает ни одно состояние: начинать запуск пустым кремовым листом хуже,
+    // чем секунда цветка.
+    //
+    // «Раз в день» спрашивает у диска, был ли уже сегодня заход, и потому
+    // решается не сразу. Пока диск молчит, церемония идёт: полсекунды письма
+    // имени человек всё равно увидит, а пропуск догонит её раньше, чем
+    // проступит приветствие. Обратный порядок — сперва пусто, потом «а, надо
+    // было показать» — читался бы как сбой.
+    LaunchedEffect(Unit) {
+        skip = when (settings.state.value.splash) {
+            SplashWhen.NEVER -> true
+            SplashWhen.ALWAYS -> false
+            SplashWhen.DAILY -> !settings.splashDueToday()
+        }
+    }
 
     // Пропуск — это перезапуск сценария с другой ветки: касание отменяет
     // текущий шаг вместе со всем, что за ним стояло, и досказывать анимацию
@@ -128,6 +167,7 @@ fun AskyaSplash(onGreeted: () -> Unit, onDone: () -> Unit) {
             // Дописывается ровно имя приложения: дальше в той же картинке
             // идёт «Echo», и оно принадлежит разделу, а не заставке.
             shown = ASKYA_SHARE * written.value,
+            flowerTint = flower,
             modifier = Modifier.scale(breathingScale()),
             contentDescription = "Askya",
         )

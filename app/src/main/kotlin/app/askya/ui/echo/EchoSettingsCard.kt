@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -71,7 +72,7 @@ import kotlin.math.roundToInt
  * производителя свой, и мёртвый ползунок хуже отсутствующего.
  */
 @Composable
-fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit) {
+fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit, onLab: () -> Unit) {
     val container = appContainer()
     val preferences = container.echoPreferences
     val effects = container.echoEffects
@@ -107,9 +108,12 @@ fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit) {
         width = 0.94f,
         height = 0.86f,
     ) {
+        // Прокрутка забирает себе то, что осталось от карточки, а не всё:
+        // ниже стоит панель играющего, и без доли ей не досталось бы места.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -223,6 +227,46 @@ fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit) {
                     on = settings.resumeLast,
                     onToggle = { preferences.setResumeLast(!settings.resumeLast) },
                 )
+                Switch(
+                    label = "Спрашивать на входе",
+                    about = "Карточки: продолжить, плейлист, папка, исполнитель, альбом, жанр",
+                    on = settings.askOnStart,
+                    onToggle = { preferences.setAskOnStart(!settings.askOnStart) },
+                )
+            }
+
+            // Лаборатория — единственное место в Echo, где файл меняется, а не
+            // читается, и потому она стоит последней и отдельной строкой, а не
+            // среди выключателей звука. Главный вход у неё другой — долгое
+            // нажатие на вкладку; здесь она на случай, если о нём не знают.
+            EchoGroup("Файлы") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(onClick = onLab)
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Science,
+                        contentDescription = null,
+                        tint = Sunset,
+                        modifier = Modifier.width(24.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(
+                            text = "Лаборатория",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = NightInk,
+                        )
+                        Text(
+                            text = "Переименовать, перенести, обрезать, склеить",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NightMuted,
+                        )
+                    }
+                }
             }
 
             EchoGroup("Обложка") {
@@ -261,6 +305,11 @@ fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit) {
                 )
             }
         }
+
+        // Играющее — последней строкой карточки, под прокруткой, а не поверх
+        // неё: настройки правят на слух, и то, на чём их слышно, должно быть
+        // под рукой, ничего собой не закрывая. См. [EchoBar].
+        EchoBar()
     }
 }
 

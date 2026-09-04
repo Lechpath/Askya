@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    updatePeriodMillis — раз в полчаса: чаще система всё равно не будит, а
+    погоде и не нужно чаще. Своего будильника, как у виджета дня, здесь нет:
+    тот показывает, что идёт **сейчас**, и обязан меняться ровно на границе
+    дела; погода получасовой давности — это погода.
+
+    Обновляется он и помимо этого — всякий раз, когда приложение само сходило
+    за погодой (см. WeatherWidgetProvider.refresh).
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="80dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_weather"
+    android:previewLayout="@layout/widget_weather"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_weather_description" />

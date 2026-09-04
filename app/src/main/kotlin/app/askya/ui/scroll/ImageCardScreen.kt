@@ -45,6 +45,7 @@ import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
+import app.askya.ui.theme.cardEdge
 
 /**
  * Карточка картинки: подпись сверху, сама картинка посередине, альбом снизу.
@@ -221,6 +222,7 @@ private fun Preview(uri: String?) {
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = Modifier
             .padding(top = 20.dp)
+            .cardEdge(RoundedCornerShape(20.dp))
             .then(
                 when {
                     // Лежачая карточка: ширина во весь экран, высота по снимку.

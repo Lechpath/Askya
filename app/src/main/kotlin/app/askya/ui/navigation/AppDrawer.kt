@@ -35,6 +35,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.askya.R
 import app.askya.data.entity.Note
 
@@ -59,6 +60,8 @@ fun AppDrawer(
     onOpenNote: (Long) -> Unit,
     onQuickNote: () -> Unit,
     onPlay: () -> Unit,
+    weather: WeatherLine? = null,
+    onWeather: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -73,16 +76,51 @@ fun AppDrawer(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        // Название — не текст, а обведённая в кривые каллиграфия: тот же рисунок,
-        // что на иконке. Тонируется цветом темы.
-        Icon(
-            painter = painterResource(R.drawable.ic_wordmark),
-            contentDescription = "Askya",
-            tint = MaterialTheme.colorScheme.onBackground,
-            // Размер намеренно не задан: берётся из самого ресурса, поэтому при
-            // перегенерации вордмарка пропорции не разъезжаются с кодом.
-            modifier = Modifier.padding(start = 24.dp, top = 28.dp, bottom = 20.dp),
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 12.dp, top = 28.dp, bottom = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Название — не текст, а обведённая в кривые каллиграфия: тот же
+            // рисунок, что на иконке. Тонируется цветом темы.
+            Icon(
+                painter = painterResource(R.drawable.ic_wordmark),
+                contentDescription = "Askya",
+                tint = MaterialTheme.colorScheme.onBackground,
+                // Размер намеренно не задан: берётся из самого ресурса, поэтому
+                // при перегенерации вордмарка пропорции не разъезжаются с кодом.
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            // Погода стоит рядом с именем приложения, а не строчкой в списке
+            // разделов: на неё смотрят мельком, открывая меню за чем-то другим,
+            // — и ради этого взгляда её и вынесли наверх. Нажатие уводит в
+            // раздел, где та же погода расписана по часам и по дням.
+            if (weather != null) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(onClick = onWeather)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (weather.mark.isNotEmpty()) {
+                        Text(text = weather.mark, fontSize = 18.sp)
+                    }
+                    Text(
+                        text = weather.degrees,
+                        style = MaterialTheme.typography.titleMedium,
+                        // Неизвестная погода стоит приглушённой: это ещё не
+                        // сведения, а приглашение за ними сходить.
+                        color = if (weather.known) MaterialTheme.colorScheme.onBackground
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -144,6 +182,24 @@ fun AppDrawer(
         )
     }
 }
+
+/**
+ * Погода строкой: знак и градусы.
+ *
+ * Именно два коротких слова, а не карточка с прогнозом: в шапке меню место
+ * ровно на взгляд, а всё остальное живёт в разделе.
+ *
+ * [known] = false означает «погоды ещё нет» — не спрашивали, не дали доступ к
+ * месту, не было сети. Тогда на месте градусов стоит слово «погода», и оно
+ * ведёт туда же.
+ *
+ * Убирать строку в этом случае нельзя, хотя поначалу так и было сделано: вход в
+ * раздел погоды один — сама эта строка, — и без неё раздел оказывался
+ * недостижим ровно тогда, когда в него и надо попасть (доступ к месту
+ * спрашивается уже внутри). Приглашение вместо прочерка — не украшение, а
+ * единственная дверь.
+ */
+data class WeatherLine(val mark: String, val degrees: String, val known: Boolean = true)
 
 /**
  * Три кнопки внизу меню: заметка, музыка, настройки.

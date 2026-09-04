@@ -41,6 +41,16 @@ interface EchoDao {
     @Query("SELECT * FROM echo_playlist_tracks")
     fun observeAllTracks(): Flow<List<EchoPlaylistTrack>>
 
+    /**
+     * Переставить строку плейлиста на другое место.
+     *
+     * Отдельным запросом на каждую строку, а не одним на список: порядок в
+     * плейлисте меняют по одной перестановке за раз, и строк там десятки, а не
+     * тысячи. Собственный SQL ради этого был бы дороже, чем сам порядок.
+     */
+    @Query("UPDATE echo_playlist_tracks SET position = :position WHERE id = :id")
+    suspend fun setPosition(id: Long, position: Int)
+
     /** Куда класть следующую: в конец, а не в начало. */
     @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM echo_playlist_tracks WHERE playlistId = :playlistId")
     suspend fun nextPosition(playlistId: Long): Int

@@ -5,8 +5,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import app.askya.ui.theme.AccentInk
-import app.askya.ui.theme.AccentSoft
+import app.askya.ui.theme.CoralInk
+import app.askya.ui.theme.CoralSoft
 
 /**
  * Что подсвечивать в набранном тексте — то, что сейчас ищут.
@@ -82,8 +82,11 @@ private fun matches(text: String, query: String): List<Pair<Int, Int>> {
     return found
 }
 
+// Сами краски, а не роли темы: маркер собирается один раз на файл, вне
+// разметки, и прочитать выбранную гамму отсюда нечем. На плашке подсветки это
+// заметно меньше всего — она и должна отличаться от всего вокруг.
 private val MARKER = SpanStyle(
-    background = AccentSoft,
-    color = AccentInk,
+    background = CoralSoft,
+    color = CoralInk,
     fontWeight = FontWeight.SemiBold,
 )

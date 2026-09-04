@@ -19,6 +19,11 @@ import java.time.LocalTime
  *
  * [icon] пуст почти всегда: знак угадывается по названию, а колонка хранит
  * только то, что человек выбрал руками вопреки догадке.
+ *
+ * [link] — чем это дело делается (см. [app.askya.domain.model.DeedLink]).
+ * Привязка стоит и здесь, а не только у дела в дне, потому что повторяющееся
+ * дело делается одним и тем же: сказав это один раз в списке, человек не
+ * повторяет выбор в каждом дне.
  */
 @Entity(tableName = "routine_items")
 data class RoutineItem(
@@ -29,4 +34,5 @@ data class RoutineItem(
     val priority: Priority = Priority.NORMAL,
     val enabled: Boolean = true,
     val icon: BlockIcon? = null,
+    val link: String? = null,
 )

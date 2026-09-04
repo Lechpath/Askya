@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    То же, что в `data_extraction_rules.xml`, но для Android 11 и старше: там
+    система читает этот файл, а тот не понимает вовсе. Списки исключений должны
+    совпадать — почему исключено именно это, написано там.
+-->
+<full-backup-content>
+    <exclude domain="file" path="datastore/weather.preferences_pb" />
+    <exclude domain="external" path="." />
+</full-backup-content>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Тот же цветок, что и в ic_flower.xml, но покрашенный темой.
+
+    Пользуется им одно место — системная заставка Android 12+. Краску цветка
+    на ней человек выбирает в настройках, а рисунок не умеет читать настройки:
+    её передаёт тема (`?attr/askyaFlowerInk`), а тему выбирает MainActivity
+    (`splashScreen.setSplashScreenTheme`).
+
+    Почему второй файл, а не краска в ic_flower.xml: тот же вектор
+    разворачивают лаунчер (виджеты дня) и SystemUI (значок уведомлений), и
+    нашей темы там нет — `?attr` в ней не разрешился бы. Поэтому у ic_flower.xml
+    краска зашита и остаётся закатной, а тему читает эта копия.
+
+    Копия не поддерживается руками: файл генерируется вместе с ic_flower.xml —
+    tools\make-icon.ps1. Правка лепестков доходит до обоих.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:name="breath"
+        android:pivotX="54"
+        android:pivotY="54">
+
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="18">
+        <path
+            android:fillColor="?attr/askyaFlowerInk"
+            android:pathData="M54,54 C40,47 37,30 54,20 C71,30 68,47 54,54 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="90">
+        <path
+            android:fillColor="?attr/askyaFlowerInk"
+            android:pathData="M54,54 C40,47 37,30 54,20 C71,30 68,47 54,54 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="162">
+        <path
+            android:fillColor="?attr/askyaFlowerInk"
+            android:pathData="M54,54 C40,47 37,30 54,20 C71,30 68,47 54,54 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="234">
+        <path
+            android:fillColor="?attr/askyaFlowerInk"
+            android:pathData="M54,54 C40,47 37,30 54,20 C71,30 68,47 54,54 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="306">
+        <path
+            android:fillColor="?attr/askyaFlowerInk"
+            android:pathData="M54,54 C40,47 37,30 54,20 C71,30 68,47 54,54 Z" />
+    </group>
+
+    </group>
+
+</vector>

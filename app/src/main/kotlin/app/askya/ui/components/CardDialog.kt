@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,7 +38,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Notifications
@@ -79,6 +82,7 @@ import app.askya.reminders.ReminderSoundPreview
 import app.askya.reminders.ReminderSounds
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
+import app.askya.ui.theme.cardEdge
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -107,6 +111,8 @@ data class CardContent(
     val done: Boolean = false,
     val icon: BlockIcon? = null,
     val priority: Priority = Priority.NORMAL,
+    /** Чем дело делается — как записано в колонке (`book:12`). */
+    val link: String? = null,
 )
 
 /** Что человек написал и выбрал в карточке. */
@@ -124,6 +130,8 @@ data class CardDraft(
     /** Ссылка на мелодию. Пусто — обычный звук напоминания. */
     val sound: String? = null,
     val soundTitle: String? = null,
+    /** Чем дело делается. Пусто — привязки нет или её сняли. */
+    val link: String? = null,
 )
 
 /**
@@ -164,6 +172,11 @@ data class CardAction(
  * важности, [withDate] = true — дату (у дела в дне она уже есть, а у
  * напоминания её надо назвать), [withRemind] = true — строку напоминания,
  * [onToggleDone], [onDelete] и [extra] = null убирают своё действие.
+ *
+ * Привязка — «чем делается дело» — приходит списком готовых строк
+ * ([linkChoices]), а не запросом в базу: карточка о базе ничего не знает и не
+ * должна, иначе один и тот же диалог пришлось бы учить пяти разделам. Пустой
+ * список убирает строку привязки вовсе — у напоминания её нет.
  */
 @Composable
 fun CardDialog(
@@ -172,6 +185,7 @@ fun CardDialog(
     onSave: (CardDraft) -> Unit,
     startAtNote: Boolean = false,
     startAtRemind: Boolean = false,
+    startAtList: Boolean = false,
     withNote: Boolean = true,
     withPriority: Boolean = false,
     withDate: Boolean = false,
@@ -179,6 +193,28 @@ fun CardDialog(
     onToggleDone: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     extra: CardAction? = null,
+    linkChoices: List<LinkChoice> = emptyList(),
+    onOpenLink: ((String) -> Unit)? = null,
+    /**
+     * Список задач внутри дела. `null` — «у этого экрана списков нет»: у дела
+     * в распорядке и у напоминания их и не бывает. Пустой список — это «список
+     * есть, но в нём пусто», и строка [TaskLine] в карточке уже стоит.
+     */
+    tasks: List<CardTask>? = null,
+    onToggleTask: (CardTask) -> Unit = {},
+    onRemoveTask: (CardTask) -> Unit = {},
+    onClearDoneTasks: () -> Unit = {},
+    onAddTasks: (String) -> Unit = {},
+    /**
+     * Карточка занимает весь экран.
+     *
+     * Так открывается дело со списком: список — это то, ради чего в дело и
+     * заходят, и показывать его в трети экрана значит просить открыть его ещё
+     * раз. [onCollapse] сворачивает карточку обратно к расписанию; пусто —
+     * сворачивать некуда, и действие не показывается.
+     */
+    fullScreen: Boolean = false,
+    onCollapse: (() -> Unit)? = null,
 ) {
     // Первое место правки: у напоминания это дата, у дела в дне — время.
     val firstStep = if (withDate) CardStep.DATE else CardStep.TIME
@@ -207,6 +243,7 @@ fun CardDialog(
     var soundTitle by remember { mutableStateOf(card?.soundTitle) }
     var icon by remember { mutableStateOf(card?.icon) }
     var priority by remember { mutableStateOf(card?.priority ?: Priority.NORMAL) }
+    var link by remember { mutableStateOf(card?.link) }
 
     // Выбор знака — не шаг правки, а отступление в сторону: он занимает
     // карточку целиком и возвращает обратно туда же, откуда его открыли.
@@ -216,11 +253,27 @@ fun CardDialog(
     // и строкой в карточке он не помещается.
     var pickingSound by remember { mutableStateOf(false) }
 
+    // И выбор привязки: книг и заметок бывает под сотню.
+    var pickingLink by remember { mutableStateOf(false) }
+
+    // Открыт ли список задач. Он занимает карточку так же, как выбор знака, —
+    // и по той же причине: строки в нём отмечают и дописывают, и делать это в
+    // щель под заметкой было бы работой в замочную скважину.
+    //
+    // На весь экран карточку открывают ради него, поэтому там он открыт сразу.
+    var listing by remember { mutableStateOf(tasks != null && (startAtList || fullScreen)) }
+
     BackHandler(
         onBack = {
             when {
                 pickingSound -> pickingSound = false
+                pickingLink -> pickingLink = false
                 picking -> picking = false
+                // На весь экран карточку открыли ради списка: закрывать в ней
+                // сперва список, а потом карточку значило бы два «назад» там,
+                // где человек ждёт одного.
+                listing && !fullScreen -> listing = false
+                onCollapse != null -> onCollapse()
                 else -> onDismiss()
             }
         },
@@ -269,6 +322,7 @@ fun CardDialog(
                 silent = silent,
                 sound = sound,
                 soundTitle = soundTitle,
+                link = link,
             ),
         )
     }
@@ -334,23 +388,43 @@ fun CardDialog(
             .imePadding(),
         contentAlignment = Alignment.Center,
     ) {
+        // Во весь экран карточка со списком становится страницей, и углы у неё
+        // прямые: скруглённый прямоугольник, упирающийся в края экрана,
+        // читается как неудачно растянутая карточка, а не как раскрытая.
+        val corners = RoundedCornerShape(if (fullScreen) 0.dp else 28.dp)
         Card(
-            shape = RoundedCornerShape(28.dp),
+            shape = corners,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (fullScreen) 0.dp else 6.dp),
             modifier = Modifier
-                // Вытянутая вниз, но не во весь экран: карточка должна
-                // читаться как поднятая над расписанием, а не как отдельная
-                // страница. Полтора к одному — те же пропорции, что у
-                // маленькой карточки в дне.
-                .fillMaxWidth(0.82f)
-                // Со строкой напоминания карточка выше: иначе она отъедала бы
-                // высоту у названия, а название в карточке главное.
-                .fillMaxHeight(if (withRemind) 0.60f else 0.52f)
+                .then(
+                    if (fullScreen) {
+                        Modifier.fillMaxSize()
+                    } else {
+                        // Вытянутая вниз, но не во весь экран: карточка должна
+                        // читаться как поднятая над расписанием, а не как
+                        // отдельная страница. Полтора к одному — те же
+                        // пропорции, что у маленькой карточки в дне.
+                        Modifier
+                            .fillMaxWidth(0.82f)
+                            // Со строкой напоминания карточка выше: иначе она
+                            // отъедала бы высоту у названия, а название в
+                            // карточке главное. Со списком — тоже: строки в
+                            // щель на две штуки не читаются.
+                            .fillMaxHeight(
+                                when {
+                                    listing -> 0.72f
+                                    withRemind -> 0.60f
+                                    else -> 0.52f
+                                },
+                            )
+                    },
+                )
                 .graphicsLayer {
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(corners)
                 // Тап по самой карточке не закрывает её: иначе правка
                 // обрывалась бы от промаха мимо строки.
                 .clickable(
@@ -359,7 +433,16 @@ fun CardDialog(
                     onClick = {},
                 ),
         ) {
-            Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Во весь экран карточка кладётся под часы и под кнопки
+                    // системы, и это верно: лист должен доходить до краёв.
+                    // Отступ берёт содержимое — иначе знак дела встал бы
+                    // ровно на час в углу.
+                    .then(if (fullScreen) Modifier.systemBarsPadding() else Modifier)
+                    .padding(24.dp),
+            ) {
                 // Знак нажимается всегда — и в просмотре, и посреди правки:
                 // промах догадки виден сразу, как только написано название.
                 Box(
@@ -387,6 +470,20 @@ fun CardDialog(
                         onGuess = {
                             icon = null
                             picking = false
+                            keepChoice()
+                        },
+                        modifier = Modifier.weight(1f).padding(top = 12.dp),
+                    )
+                    return@Column
+                }
+
+                if (pickingLink) {
+                    LinkPalette(
+                        chosen = link,
+                        choices = linkChoices,
+                        onPick = { picked ->
+                            link = picked
+                            pickingLink = false
                             keepChoice()
                         },
                         modifier = Modifier.weight(1f).padding(top = 12.dp),
@@ -468,52 +565,123 @@ fun CardDialog(
                     )
                 }
 
-                // Заметка показывается, когда она есть или когда до неё дошли:
-                // пустая строка под каждым делом только занимала бы место.
-                if (withNote && (note.isNotBlank() || step == CardStep.NOTE)) {
-                    EditableLine(
-                        value = note,
-                        onValueChange = { note = it },
-                        active = step == CardStep.NOTE,
-                        dimmed = step != CardStep.VIEW && step != CardStep.NOTE,
-                        hint = "Заметка, если нужна",
-                        fontSize = 19.sp,
-                        weight = FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        multiline = true,
-                        onDone = ::next,
-                        modifier = Modifier.padding(top = 14.dp),
+                // Список занимает карточку целиком — как выбор знака и выбор
+                // привязки: строки в нём отмечают и дописывают, и делать это в
+                // щель под заметкой было бы работой в замочную скважину.
+                //
+                // Заметка, привязка и напоминание на это время уходят: они
+                // никуда не денутся, а показанные вместе со списком превратили
+                // бы карточку дела в анкету.
+                if (listing && tasks != null) {
+                    CardTaskList(
+                        tasks = tasks,
+                        onToggle = onToggleTask,
+                        onRemove = onRemoveTask,
+                        onClearDone = onClearDoneTasks,
+                        onAdd = onAddTasks,
+                        modifier = Modifier.weight(1f).padding(top = 12.dp),
                     )
+                } else {
+                    // Заметка показывается, когда она есть или когда до неё дошли:
+                    // пустая строка под каждым делом только занимала бы место.
+                    if (withNote && (note.isNotBlank() || step == CardStep.NOTE)) {
+                        EditableLine(
+                            value = note,
+                            onValueChange = { note = it },
+                            active = step == CardStep.NOTE,
+                            dimmed = step != CardStep.VIEW && step != CardStep.NOTE,
+                            hint = "Заметка, если нужна",
+                            fontSize = 19.sp,
+                            weight = FontWeight.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            multiline = true,
+                            onDone = ::next,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
+                    }
+
+                    // Привязка — под названием и над заметкой: «чем делается» —
+                    // это про само дело, а заметка и напоминание уже про то, как
+                    // с ним обойтись.
+                    if (linkChoices.isNotEmpty()) {
+                        LinkLine(
+                            label = linkChoices.firstOrNull { it.value == link }?.title.orEmpty(),
+                            dimmed = step != CardStep.VIEW,
+                            onPick = { pickingLink = true },
+                            onOpen = link
+                                ?.takeIf { chosen -> onOpenLink != null && linkChoices.any { it.value == chosen } }
+                                ?.let { chosen -> { onOpenLink?.invoke(chosen) } },
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
+
+                    // Напоминание — такая же строка карточки, как время и заметка,
+                    // а не отдельный разговор поверх экрана: о том, когда напомнить,
+                    // думают там же, где о самом деле.
+                    if (withRemind && (remindText.isNotBlank() || step == CardStep.REMIND)) {
+                        RemindLine(
+                            value = remindText,
+                            onValueChange = { remindText = it },
+                            active = step == CardStep.REMIND,
+                            dimmed = step != CardStep.VIEW && step != CardStep.REMIND,
+                            set = remind != null,
+                            silent = silent,
+                            soundTitle = soundTitle,
+                            onPickSound = { pickingSound = true },
+                            onDone = ::next,
+                        )
+                    }
+
+                    // Список — рядом с заметкой и привязкой: это всё «что у
+                    // этого дела есть». Показывается только там, где списки
+                    // вообще бывают, — в дне; у дела в распорядке и у
+                    // напоминания [tasks] пусто.
+                    if (tasks != null) {
+                        TaskLine(
+                            tasks = tasks,
+                            dimmed = step != CardStep.VIEW,
+                            onOpen = { listing = true },
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+
+                    // Действия прижаты к низу карточки: они относятся ко всему
+                    // делу, а не к последней строке над ними.
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
-                // Напоминание — такая же строка карточки, как время и заметка,
-                // а не отдельный разговор поверх экрана: о том, когда напомнить,
-                // думают там же, где о самом деле.
-                if (withRemind && (remindText.isNotBlank() || step == CardStep.REMIND)) {
-                    RemindLine(
-                        value = remindText,
-                        onValueChange = { remindText = it },
-                        active = step == CardStep.REMIND,
-                        dimmed = step != CardStep.VIEW && step != CardStep.REMIND,
-                        set = remind != null,
-                        silent = silent,
-                        soundTitle = soundTitle,
-                        onPickSound = { pickingSound = true },
-                        onDone = ::next,
-                    )
-                }
-
-                // Действия прижаты к низу карточки: они относятся ко всему
-                // делу, а не к последней строке над ними.
-                Spacer(modifier = Modifier.weight(1f))
 
                 if (step == CardStep.VIEW) {
                     ViewActions(
                         done = card?.done == true,
-                        onEdit = { step = CardStep.TIME },
+                        // Правка закрывает список: её строки — дата, время,
+                        // название, заметка, — а список на их месте показывал
+                        // бы правку, в которой половины правимого не видно.
+                        onEdit = {
+                            listing = false
+                            step = CardStep.TIME
+                        },
                         onToggleDone = onToggleDone,
                         onDelete = onDelete,
                         extra = extra,
+                        // Выход из списка — первым действием, слева: это то,
+                        // чем из него и выходят, и искать его среди «удалить»
+                        // человек не должен.
+                        leading = when {
+                            fullScreen && onCollapse != null -> CardAction(
+                                icon = Icons.Outlined.ExpandMore,
+                                label = "Свернуть",
+                                onClick = onCollapse,
+                            )
+
+                            listing -> CardAction(
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                label = "К делу",
+                                onClick = { listing = false },
+                            )
+
+                            else -> null
+                        },
                     )
                 } else {
                     // Одна галочка на всю правку: она и переводит на следующее
@@ -794,6 +962,8 @@ private fun ViewActions(
     onToggleDone: (() -> Unit)?,
     onDelete: (() -> Unit)?,
     extra: CardAction?,
+    /** Выход из того, что сейчас открыто, — свернуть карточку или закрыть список. */
+    leading: CardAction? = null,
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
@@ -801,6 +971,14 @@ private fun ViewActions(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         maxItemsInEachRow = 3,
     ) {
+        leading?.let { action ->
+            ActionButton(
+                icon = action.icon,
+                label = action.label,
+                accent = action.accent,
+                onClick = action.onClick,
+            )
+        }
         ActionButton(
             icon = Icons.Outlined.EditNote,
             label = "Редактировать",

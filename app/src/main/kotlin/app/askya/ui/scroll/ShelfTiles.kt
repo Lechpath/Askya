@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
@@ -47,6 +49,7 @@ import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 
 /** Высота карточки книги. Ниже карточки дела: на полке их куда больше. */
 private val BOOK_HEIGHT = 132.dp
@@ -85,6 +88,7 @@ internal fun BookTile(
         // Та же тень, что у карточки дела: полка и день — один слой над страницей.
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         modifier = modifier
+            .cardEdge(RoundedCornerShape(18.dp))
             .height(BOOK_HEIGHT)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
@@ -146,6 +150,7 @@ internal fun FileTile(
         // выглядели бы подложенной книгой.
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = modifier
+            .cardEdge(RoundedCornerShape(14.dp))
             .height(FILE_HEIGHT)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
@@ -171,6 +176,85 @@ internal fun FileTile(
             )
             Text(
                 text = formatRussianDate(note.updatedAt.toLocalDate()),
+                style = MaterialTheme.typography.labelSmall,
+                color = Muted,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/**
+ * Голосовая заметка карточкой — той же, что и запись рядом с ней.
+ *
+ * Голос лежал строкой во всю ширину, когда всё остальное в Scroll лежало
+ * карточками, и читался из-за этого как чужой список: полоса от края до края —
+ * форма списка дел, а не полки. Теперь он выложен той же сеткой ([TileRow]),
+ * той же высоты ([FILE_HEIGHT]) и с теми же полями, что файл: заметка голосом —
+ * такая же запись, и отличать её видом карточки не за что.
+ *
+ * Отличается она одним — кружком «играть» на месте метки формата: у файла там
+ * стоит слово «PDF», а здесь главное действие карточки. Звучащая заметка
+ * держит кружок закрашенным и меняет знак на паузу — по нему и видно, которая
+ * из них сейчас играет, даже если карточку плеера отвели глазами.
+ *
+ * Тап играет, долгое нажатие открывает карточку заметки — там её называют и
+ * оттуда убирают. Ровно так же разложены действия у файла на полке: частое —
+ * на тап, редкое — на долгое нажатие, и отдельной кнопки на карточке нет.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun VoiceTile(
+    note: Note,
+    sounding: Boolean,
+    playing: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = modifier
+            .cardEdge(RoundedCornerShape(14.dp))
+            .height(FILE_HEIGHT)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(if (sounding) Accent else AccentSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playing) "Пауза" else "Слушать",
+                        tint = if (sounding) MaterialTheme.colorScheme.surface else AccentInk,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Text(
+                    text = formatClock(note.durationMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Muted,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f).padding(start = 6.dp),
+                )
+            }
+            Text(
+                text = note.title.ifBlank { "Голос" },
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 3.dp).weight(1f),
+            )
+            Text(
+                text = formatRussianDate(note.createdAt.toLocalDate()),
                 style = MaterialTheme.typography.labelSmall,
                 color = Muted,
                 maxLines = 1,
@@ -210,6 +294,7 @@ internal fun SearchResultRow(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = modifier
+            .cardEdge(RoundedCornerShape(14.dp))
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {

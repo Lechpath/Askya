@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import app.askya.R
+import app.askya.ui.theme.FlowerInk
 
 /**
  * Цветок Askya со словом вдоль правого лепестка — тот же кадр, что на иконке
@@ -52,6 +53,12 @@ fun FlowerWord(
     // Белым, как на иконке: слово лежит на оранжевом лепестке, и белое
     // читается на нём и на любом листе, куда лепесток не достаёт.
     tint: Color = Color.White,
+    /**
+     * Краска самого цветка. По умолчанию та, что выбрана знаку приложения; своя
+     * нужна одной заставке — её цветок красят отдельно от остальных
+     * (`AppSettings.splashFlower`).
+     */
+    flowerTint: Color = FlowerInk,
     contentDescription: String? = null,
 ) {
     val word = painterResource(R.drawable.ic_wordmark_echo)
@@ -59,8 +66,8 @@ fun FlowerWord(
     val wordHeight = wordWidth * (word.intrinsicSize.height / word.intrinsicSize.width)
 
     Box(modifier = modifier.size(side).rotate(spin)) {
-        Image(
-            painter = painterResource(R.drawable.ic_flower),
+        AskyaFlower(
+            tint = flowerTint,
             contentDescription = contentDescription,
             modifier = Modifier.fillMaxSize(),
         )

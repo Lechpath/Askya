@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Знак настроек — не шестерня, а солнце с лучами: шестерни в приложении нет
-    больше нигде, а восемь коротких лучей вокруг кружка держат ту же линию, что
-    и остальные знаки меню.
+    Знак настроек — три ползунка на рейках, каждый сдвинут по-своему.
+
+    Солнце с лучами, стоявшее здесь раньше, читалось погодой: в шапке того же
+    меню погода и живёт, и два солнца на одном экране означали разное. Ползунок
+    же и есть то, что человек делает в настройках, — двигает по одному.
+
+    Не шестерня: шестерни в приложении нет больше нигде, а рейка с кружком
+    держит ту же линию обводки, что и остальные знаки меню.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -10,68 +15,70 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
 
+    <!-- Верхняя рейка: ползунок правее середины. -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="1.7"
         android:strokeLineCap="round"
+        android:pathData="M3.8,7 H12.4" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M17.6,7 H20.2" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
         android:strokeLineJoin="round"
-        android:pathData="M12,15.1 A3.1,3.1 0 1 1 12,8.9 A3.1,3.1 0 0 1 12,15.1 Z" />
+        android:pathData="M15,9.2 A2.2,2.2 0 1 1 15,4.8 A2.2,2.2 0 0 1 15,9.2 Z" />
+
+    <!-- Средняя: ползунок слева. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M3.8,12 H6.4" />
 
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="1.7"
         android:strokeLineCap="round"
-        android:pathData="M12,3.2 V6" />
+        android:pathData="M11.6,12 H20.2" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round"
+        android:pathData="M9,14.2 A2.2,2.2 0 1 1 9,9.8 A2.2,2.2 0 0 1 9,14.2 Z" />
+
+    <!-- Нижняя: ползунок посередине. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M3.8,17 H10.4" />
 
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="1.7"
         android:strokeLineCap="round"
-        android:pathData="M12,18 V20.8" />
+        android:pathData="M15.6,17 H20.2" />
 
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M3.2,12 H6" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M18,12 H20.8" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M5.8,5.8 L7.8,7.8" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M16.2,16.2 L18.2,18.2" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M18.2,5.8 L16.2,7.8" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.7"
-        android:strokeLineCap="round"
-        android:pathData="M7.8,16.2 L5.8,18.2" />
+        android:strokeLineJoin="round"
+        android:pathData="M13,19.2 A2.2,2.2 0 1 1 13,14.8 A2.2,2.2 0 0 1 13,19.2 Z" />
 
 </vector>

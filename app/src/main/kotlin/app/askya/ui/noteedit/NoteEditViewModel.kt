@@ -21,11 +21,36 @@ class NoteEditViewModel(private val notes: NoteRepository) : ViewModel() {
 
     fun note(id: Long): Flow<Note?> = notes.note(id)
 
+    /**
+     * Полка, на которой лежит запись, — одними номерами и по порядку. По ней
+     * карточка листается смахиванием. Спрашивается разом, а не потоком: см.
+     * [NoteRepository.shelfOf].
+     */
+    suspend fun shelfOf(id: Long): List<Long> = notes.shelfOf(id)
+
     fun save(note: Note) {
         viewModelScope.launch { notes.save(note) }
     }
 
-    fun delete(note: Note) {
+    /**
+     * Убрать запись — в корзину на сутки, а не из базы вон. Подтверждения
+     * поэтому и нет: возврат отменяет ошибку, а вопрос её только перекладывал.
+     */
+    fun remove(note: Note) {
+        viewModelScope.launch { notes.remove(note.id) }
+    }
+
+    fun restore(id: Long) {
+        viewModelScope.launch { notes.restore(id) }
+    }
+
+    /**
+     * Стереть совсем — так уходит карточка, которую завели и закрыли пустой.
+     *
+     * Не в корзину: возвращать там нечего, а «Запись убрана · Вернуть» под
+     * пустой карточкой выглядело бы сообщением о потере того, чего не было.
+     */
+    fun discard(note: Note) {
         viewModelScope.launch { notes.delete(note) }
     }
 

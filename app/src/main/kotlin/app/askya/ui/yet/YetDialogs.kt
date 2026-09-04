@@ -57,6 +57,7 @@ import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 
 /**
  * Карточка списка: как назвать и чем отмечать.
@@ -135,6 +136,7 @@ fun ListDialog(
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(RoundedCornerShape(28.dp))
                 // Тап по самой карточке её не закрывает: иначе выбор знака
                 // обрывался бы от промаха мимо кружка.
                 .clickable(
@@ -243,70 +245,6 @@ private fun MarkPalette(chosen: ListMark, onPick: (ListMark) -> Unit) {
                     .clickable { onPick(option) },
             ) {
                 MarkView(mark = option, done = true)
-            }
-        }
-    }
-}
-
-/**
- * Убрать строку?
- *
- * Тем же вопросом во весь экран, что и остальные необратимые: строку убирают
- * редко, а вернуть её нечем.
- */
-@Composable
-fun RemoveRowDialog(text: String, onDismiss: () -> Unit, onRemove: () -> Unit) {
-    BackHandler(onBack = onDismiss)
-
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val scrim by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(200),
-        label = "scrim",
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .alpha(scrim)
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.96f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 32.dp),
-        ) {
-            // Строка вставлена в вопрос, а не спрятана: спрашивать «убрать?» и
-            // не показать что — значит заставить вспоминать, на что нажал.
-            Text(
-                text = "Убрать «$text»?",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 26.sp,
-                ),
-                color = Ink,
-            )
-            Row(
-                modifier = Modifier.padding(top = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ActionButton(
-                    icon = Icons.Outlined.DeleteOutline,
-                    label = "Убрать",
-                    color = MaterialTheme.colorScheme.error,
-                    onClick = onRemove,
-                )
-                ActionButton(
-                    icon = Icons.Outlined.Check,
-                    label = "Оставить",
-                    onClick = onDismiss,
-                )
             }
         }
     }

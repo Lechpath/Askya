@@ -56,6 +56,8 @@ import app.askya.echo.Track
 import app.askya.ui.theme.Night
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
+import app.askya.ui.components.AskyaFlower
+import app.askya.ui.theme.FlowerInk
 import app.askya.ui.theme.Sunset
 import kotlinx.coroutines.delay
 
@@ -227,7 +229,7 @@ fun EchoFullCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = track?.artist ?: "Выбери песню в разделе выше",
+                        text = track?.artist ?: "Выбери песню в Lab",
                         style = MaterialTheme.typography.bodyMedium,
                         color = NightMuted,
                         textAlign = TextAlign.Center,
@@ -252,7 +254,7 @@ fun EchoFullCard(
                         onSeek((it * durationMs).toLong())
                         dragging = false
                     },
-                    wordHeight = if (sideways) 40.dp else 52.dp,
+                    wordHeight = if (sideways) 26.dp else 32.dp,
                 )
 
                 OneRowControls(
@@ -290,10 +292,8 @@ private fun Backdrop(blurred: androidx.compose.ui.graphics.ImageBitmap?) {
             Box(modifier = Modifier.fillMaxSize().sunsetBackground(), contentAlignment = Alignment.Center) {
                 // Заставка раздела: тот же цветок и тот же вордмарк, которыми
                 // Echo открывается, — только крупно и вполсилы.
-                Image(
-                    painter = painterResource(R.drawable.ic_flower),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(Sunset.copy(alpha = 0.16f)),
+                AskyaFlower(
+                    tint = FlowerInk.copy(alpha = 0.16f),
                     modifier = Modifier.fillMaxWidth(0.9f).alpha(0.9f),
                 )
             }

@@ -1,8 +1,11 @@
 package app.askya.ui.noteedit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +54,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -67,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.askya.app.appContainer
+import app.askya.data.repository.Trash
 import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
 import app.askya.ui.components.AskyaAsk
@@ -79,6 +84,8 @@ import app.askya.ui.components.HeaderIcon
 import app.askya.ui.components.MarkdownBlocks
 import app.askya.ui.components.NOTE_TITLE
 import app.askya.ui.components.ScreenHeader
+import app.askya.ui.components.TagsDialog
+import app.askya.ui.components.TagsLine
 import app.askya.ui.components.rememberDictation
 import app.askya.ui.scroll.ShareNoteDialog
 import app.askya.ui.scroll.formatOf
@@ -88,8 +95,11 @@ import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
+import app.askya.ui.theme.Danger
 import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
+import kotlinx.coroutines.launch
 
 /**
  * Заметка — карточкой, какой она станет, когда будет дописана.
@@ -120,31 +130,79 @@ import app.askya.ui.theme.Muted
  *
  * Сохраняется по ходу дела — после каждой отправки, — а не одним разом в
  * конце: карточку дописывают неделями, и «сохранить» в такой работе лишний шаг.
+ *
+ * ## Соседние листаются смахиванием
+ *
+ * Карточка редко бывает одна: в книге их десяток, и читают их подряд —
+ * «а что я писал в предыдущей». Раньше за соседней приходилось выходить на
+ * полку и открывать её оттуда, то есть проделывать два шага ради движения на
+ * один шаг вбок.
+ *
+ * Теперь лист смахивают: влево — следующая запись полки, вправо — предыдущая.
+ * Полка та же, с которой карточку открыли (книга или «Библиотека»), и в том же
+ * порядке — см. [NoteEditViewModel.shelfOf]. У крайней карточки лист не
+ * сдвигается вовсе: пустота под уехавшим листом обещала бы соседа, которого
+ * нет.
+ *
+ * Меняется при этом лист, а не экран: смахивание не кладёт карточку в стопку
+ * «назад», и выход из пятой подряд стоит одного нажатия, а не пяти. Уходящая
+ * карточка перед сменой убирается со стола — записывается или, если её так и
+ * не начали, выбрасывается ([put]).
  */
 @Composable
 fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
-    val viewModel: NoteEditViewModel = viewModel(factory = NoteEditViewModel.factory(appContainer()))
-    val note by remember(noteId) { viewModel.note(noteId) }
+    val container = appContainer()
+    val viewModel: NoteEditViewModel = viewModel(factory = NoteEditViewModel.factory(container))
+
+    // Какая карточка сейчас на столе. Не всегда та, с которой вошли: соседние
+    // листаются смахиванием, и меняется при этом лист, а не экран. Экраном
+    // это делать нельзя — тогда каждое смахивание клало бы в стопку «назад»
+    // ещё одну карточку, и выход из книги на пятой записи стоил бы пяти
+    // нажатий.
+    var shown by remember(noteId) { mutableStateOf(noteId) }
+
+    val note by remember(shown) { viewModel.note(shown) }
         .collectAsStateWithLifecycle(initialValue = null)
     val topics by viewModel.topics.collectAsStateWithLifecycle()
+
+    // Полка, по которой листают: номера соседей по порядку. Спрашивается один
+    // раз за вход и не перечитывается на каждом смахивании — иначе порядок
+    // ехал бы под пальцем: сохранение двигает запись в начало списка по
+    // времени правки, и «назад» приводило бы не туда, откуда пришли.
+    var shelf by remember(noteId) { mutableStateOf<List<Long>>(emptyList()) }
+    LaunchedEffect(noteId) { shelf = viewModel.shelfOf(noteId) }
+
+    // Насколько карточка сдвинута пальцем. Живёт дольше самой карточки —
+    // ключа у неё нет намеренно: смена листа происходит посреди движения, и
+    // сброс сдвига оборвал бы его на полпути.
+    val turn = remember { Animatable(0f) }
 
     // Черновик подхватывается один раз, когда база ответила: перечитывать его
     // значило бы затирать набранное каждым обновлением потока — а поток
     // обновляется теперь после каждой отправки.
-    var loaded by remember(noteId) { mutableStateOf(false) }
-    var title by remember(noteId) { mutableStateOf("") }
-    var body by remember(noteId) { mutableStateOf("") }
-    var topicId by remember(noteId) { mutableStateOf<Long?>(null) }
+    var loaded by remember(shown) { mutableStateOf(false) }
+    var title by remember(shown) { mutableStateOf("") }
+    var body by remember(shown) { mutableStateOf("") }
+    var topicId by remember(shown) { mutableStateOf<Long?>(null) }
+    // Чем запись помечена. Не там же, где книга: книга — одно место, в которое
+    // запись положили, а теги — слова, по которым её потом ищут, и их бывает
+    // сколько угодно.
+    var tags by remember(shown) { mutableStateOf<List<String>>(emptyList()) }
     // Черновик окна с курсором: поднятый на правку абзац должен открываться
     // курсором в конце, а не в начале — иначе набранное лезет перед текстом.
-    var draft by remember(noteId) { mutableStateOf(TextFieldValue()) }
+    var draft by remember(shown) { mutableStateOf(TextFieldValue()) }
     // Какой абзац сейчас поднят в окно на правку. `null` — пишется новый.
-    var editing by remember(noteId) { mutableStateOf<Int?>(null) }
+    var editing by remember(shown) { mutableStateOf<Int?>(null) }
+
+    // Абзац, который просят убрать. Хранится номером, а не флагом: пока висит
+    // вопрос, править можно и дальше, и «удалить» должно относиться к тому
+    // абзацу, о котором спросили.
+    var dropping by remember(shown) { mutableStateOf<Int?>(null) }
 
     var attaching by remember { mutableStateOf(false) }
     var linking by remember { mutableStateOf(false) }
     var choosingBook by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf(false) }
+    var tagging by remember { mutableStateOf(false) }
     // Отправка наружу: чем именно — спрашивает окно, а «некуда» говорит
     // отдельная записка.
     var sharing by remember { mutableStateOf(false) }
@@ -154,7 +212,7 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
     // Что было в окне до начала надиктовки: услышанное дописывается к нему, а
     // не затирает набранное руками. Промежуточный текст распознаватель
     // уточняет по ходу фразы, поэтому пишется он всегда поверх этой опоры.
-    var beforeVoice by remember(noteId) { mutableStateOf("") }
+    var beforeVoice by remember(shown) { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -175,6 +233,7 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
         title = current.title
         body = current.body
         topicId = current.topicId
+        tags = current.tags
     }
 
     /**
@@ -188,10 +247,16 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
     fun save() {
         if (!loaded) return
         val current = note ?: return
-        val next = current.copy(title = title.trim(), body = body.trim(), topicId = topicId)
+        val next = current.copy(
+            title = title.trim(),
+            body = body.trim(),
+            topicId = topicId,
+            tags = tags,
+        )
         if (next.title == current.title &&
             next.body == current.body &&
-            next.topicId == current.topicId
+            next.topicId == current.topicId &&
+            next.tags == current.tags
         ) {
             return
         }
@@ -199,28 +264,71 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
     }
 
     /**
-     * Выход. Пустая карточка при этом удаляется: её завели в базе ещё до
-     * открытия экрана, и без уборки каждый передуманный «плюс» оставлял бы в
-     * Scroll строку без названия и текста. У файла так нельзя — он существует
-     * и без единой буквы.
+     * Убрать карточку со стола: записать написанное, а пустую — выбросить.
+     *
+     * Пустая удаляется, потому что её завели в базе ещё до открытия экрана, и
+     * без уборки каждый передуманный «плюс» оставлял бы в Scroll строку без
+     * названия и текста. У файла так нельзя — он существует и без единой буквы.
      *
      * Пустой считается только та карточка, которую успели прочитать из базы.
      * Без этой оговорки «назад», нажатое в первое мгновение после открытия,
      * снесло бы непустую запись: поля экрана в этот миг ещё пусты.
+     *
+     * Отвечает, выбросило ли: со стола карточку убирают и выходом, и
+     * смахиванием к соседней, а выброшенной на полке делать нечего.
      */
-    fun close() {
+    fun put(): Boolean {
         val current = note
-        when {
+        return when {
             // Запись ещё не прочитана — трогать её нечем: пустые поля экрана
             // не значат «карточка пуста», они значат «мы её ещё не видели».
-            !loaded || current == null -> Unit
-            current.uri == null && title.isBlank() && body.isBlank() -> viewModel.delete(current)
-            else -> save()
+            !loaded || current == null -> false
+            current.uri == null && title.isBlank() && body.isBlank() -> {
+                viewModel.discard(current)
+                true
+            }
+
+            else -> {
+                save()
+                false
+            }
         }
+    }
+
+    /** Выход: та же уборка и наружу. */
+    fun close() {
+        put()
         onBack()
     }
 
     BackHandler(onBack = ::close)
+
+    /**
+     * Соседняя карточка на полке: [step] = 1 — следующая, −1 — предыдущая.
+     * Нет соседа — нет и значения: у крайней карточки листать некуда, и
+     * молчаливый `null` здесь честнее, чем возврат к самой себе.
+     */
+    fun neighbour(step: Int): Long? {
+        val index = shelf.indexOf(shown)
+        if (index < 0) return null
+        return shelf.getOrNull(index + step)
+    }
+
+    /**
+     * Перелистнуть к соседней карточке: увести нынешнюю за край, сменить лист
+     * и внести соседнюю с другой стороны.
+     *
+     * Сперва уборка, потом смена: написанное в уходящей карточке должно быть
+     * записано до того, как экран начнёт читать следующую.
+     */
+    suspend fun turnTo(id: Long, away: Float) {
+        turn.animateTo(away, tween(140))
+        val leaving = shown
+        if (put()) shelf = shelf.filterNot { it == leaving }
+        shown = id
+        turn.snapTo(-away)
+        turn.animateTo(0f, tween(200))
+    }
 
     /** Дописать в карточку абзац — тем же движением и текст, и картинка. */
     fun append(text: String) {
@@ -282,7 +390,7 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
             .imePadding()
             // Тап мимо текста убирает системную вкладку выделения: сама она
             // висит поверх страницы, пока не выделишь что-нибудь другое.
-            .pointerInput(noteId) {
+            .pointerInput(shown) {
                 detectTapGestures {
                     toolbar.hide()
                     focusManager.clearFocus()
@@ -303,7 +411,7 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
                         HeaderIcon(
                             icon = Icons.Outlined.Visibility,
                             contentDescription = "Смотреть",
-                            onClick = { onView(noteId) },
+                            onClick = { onView(shown) },
                         )
                     }
                     /*
@@ -337,10 +445,19 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
                             },
                         )
                     }
+                    // Без подтверждения: убранное живёт сутки, и снизу
+                    // предлагается вернуть его (`Trash`, `UndoBar`). Вопрос
+                    // «вы уверены?» не отменял ошибку, а перекладывал её.
                     HeaderIcon(
                         icon = Icons.Outlined.DeleteOutline,
-                        contentDescription = "Удалить",
-                        onClick = { deleting = true },
+                        contentDescription = "Убрать",
+                        onClick = {
+                            note?.let { current ->
+                                viewModel.remove(current)
+                                container.trash.remembered(Trash.Kind.NOTE, current.id)
+                            }
+                            onBack()
+                        },
                     )
                 },
             )
@@ -354,7 +471,11 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                    // Карточка едет за пальцем целиком — вместе с названием,
+                    // книгой и текстом: листают лист, а не его середину.
+                    .graphicsLayer { translationX = turn.value }
+                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                    .cardEdge(RoundedCornerShape(28.dp)),
             ) {
                 Column(
                     modifier = Modifier
@@ -375,9 +496,74 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
                         )
                     }
 
-                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    // Теги — под книгой: то и другое про то, где запись потом
+                    // искать, только книга это место, а теги — слова. Картинке
+                    // теги не нужны: её ищут в своём разделе и узнают в лицо.
+                    if (!isImage) {
+                        TagsLine(
+                            tags = tags,
+                            onClick = { tagging = true },
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            /*
+                             * Смахивание по тексту листает полку: влево —
+                             * следующая карточка, вправо — предыдущая. Тем же
+                             * движением, каким листают день в AskyaDay и
+                             * картинки в просмотре.
+                             *
+                             * Жест живёт на тексте, а не на всей карточке:
+                             * ниже стоит строка, куда пишут, и увозить лист от
+                             * промаха по ней мимо буквы — значит терять
+                             * набранное. Заглавие правят пальцем в строке, и
+                             * его тоже трогать нечем.
+                             *
+                             * Вертикальная прокрутка внутри остаётся при своём:
+                             * она заявляет о себе первой на вертикальном
+                             * движении, а горизонтальное ей не нужно вовсе.
+                             */
+                            .pointerInput(shown, shelf) {
+                                val edge = size.width * 0.22f
+                                val away = size.width.toFloat()
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        val moved = turn.value
+                                        val step = when {
+                                            moved <= -edge -> 1
+                                            moved >= edge -> -1
+                                            else -> 0
+                                        }
+                                        val next = if (step == 0) null else neighbour(step)
+                                        scope.launch {
+                                            if (next == null) {
+                                                turn.animateTo(0f, tween(160))
+                                            } else {
+                                                turnTo(next, if (step > 0) -away else away)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        scope.launch { turn.animateTo(0f, tween(160)) }
+                                    },
+                                ) { change, delta ->
+                                    // За край полки карточка не сдвигается
+                                    // вовсе: пустое место под сдвинутым листом
+                                    // обещало бы соседа, которого нет.
+                                    val moved = turn.value + delta
+                                    val blocked = moved < 0 && neighbour(1) == null ||
+                                        moved > 0 && neighbour(-1) == null
+                                    scope.launch { turn.snapTo(if (blocked) 0f else moved) }
+                                    change.consume()
+                                }
+                            },
+                    ) {
                         if (isFile) {
-                            FileNote(note, onView = { onView(noteId) })
+                            FileNote(note, onView = { onView(shown) })
                         } else {
                             WrittenNote(
                                 paragraphs = paragraphsOf(body),
@@ -392,8 +578,9 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
                     }
 
                     if (!isFile) {
-                        if (editing != null) {
+                        editing?.let { index ->
                             EditingLine(
+                                onDelete = { dropping = index },
                                 onCancel = {
                                     editing = null
                                     draft = TextFieldValue()
@@ -469,22 +656,32 @@ fun NoteEditScreen(noteId: Long, onBack: () -> Unit, onView: (Long) -> Unit) {
         )
     }
 
-    if (deleting) {
-        AskyaAsk(
-            title = "Удалить запись?",
-            text = if (isFile) {
-                // Важно сказать прямо: в Scroll лежит ссылка, а не копия.
-                "Ссылка на файл будет убрана из Scroll. Сам файл на телефоне останется."
-            } else {
-                "Карточка будет стёрта. Вернуть не получится."
+    if (tagging) {
+        TagsDialog(
+            tags = tags,
+            onDismiss = { tagging = false },
+            onSave = { picked ->
+                tags = picked
+                tagging = false
+                save()
             },
+        )
+    }
+
+
+    dropping?.let { index ->
+        AskyaAsk(
+            title = "Удалить абзац?",
+            text = "Абзац исчезнет из карточки. Остальное останется на месте.",
             confirm = "Удалить",
             onConfirm = {
-                deleting = false
-                note?.let(viewModel::delete)
-                onBack()
+                dropping = null
+                replace(index, "")
+                editing = null
+                draft = TextFieldValue()
+                focusManager.clearFocus()
             },
-            onDismiss = { deleting = false },
+            onDismiss = { dropping = null },
         )
     }
 
@@ -693,9 +890,22 @@ private fun WrittenNote(
     }
 }
 
-/** Что сейчас правится и как из этого выйти, ничего не тронув. */
+/**
+ * Что сейчас правится, как это убрать и как выйти, ничего не тронув.
+ *
+ * «Удалить» стоит рядом потому, что убрать абзац — такая же часть правки, как
+ * переписать его. Раньше это делалось молча: стереть строку в окне и отправить
+ * пустоту, — и об этом говорила только подсказка в самом окне, которую видит
+ * лишь тот, кто уже начал стирать. Способ остался, кнопка его не отменяет:
+ * пустая отправка по-прежнему убирает абзац, и вопросом её не переспрашивают —
+ * стереть строку целиком труднее, чем промахнуться пальцем.
+ *
+ * Порядок слов — от безобидного к необратимому, и «удалить» стоит **не** у
+ * правого края, где палец бывает чаще всего: там «Отмена». То же правило, что
+ * в окнах Askya, — промах по необратимому стоит дороже промаха по отказу.
+ */
 @Composable
-private fun EditingLine(onCancel: () -> Unit) {
+private fun EditingLine(onDelete: () -> Unit, onCancel: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -705,6 +915,15 @@ private fun EditingLine(onCancel: () -> Unit) {
             style = MaterialTheme.typography.labelMedium,
             color = AccentInk,
             modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "Удалить",
+            style = MaterialTheme.typography.labelMedium,
+            color = Danger,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onDelete)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         )
         Text(
             text = "Отмена",

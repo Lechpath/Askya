@@ -22,9 +22,6 @@ interface RoutineDao {
     @Query("DELETE FROM routine_items WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("DELETE FROM routine_items")
-    suspend fun clear()
-
     @Query("SELECT * FROM routine_items ORDER BY startTime, id")
     fun observeAll(): Flow<List<RoutineItem>>
 

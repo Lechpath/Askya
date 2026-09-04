@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Пустой знак строки списка в шторке уведомлений.
+
+    Тот же скруглённый квадрат, что у строки списка внутри приложения
+    (`ui/components/MarkdownDocument.kt`, MarkView): человек, отметивший строку
+    в шторке, должен узнать её в карточке дела.
+
+    Цвет зашит, а не берётся из темы: шторку рисует система своим набором
+    красок, и `?attr` там указывал бы на чужую тему. Серый выбран так, чтобы
+    читаться и на светлой шторке, и на тёмной.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="20"
+    android:viewportHeight="20">
+    <path
+        android:pathData="M4,1.5 L16,1.5 A2.5,2.5 0 0 1 18.5,4 L18.5,16 A2.5,2.5 0 0 1 16,18.5 L4,18.5 A2.5,2.5 0 0 1 1.5,16 L1.5,4 A2.5,2.5 0 0 1 4,1.5 Z"
+        android:strokeColor="#FF9A9A9A"
+        android:strokeWidth="1.6"
+        android:fillColor="#00000000" />
+</vector>

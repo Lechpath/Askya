@@ -48,6 +48,16 @@ data class EchoSettings(
     val pauseOnUnplug: Boolean = true,
     /** Возвращаться к тому, что играло, при следующем запуске. */
     val resumeLast: Boolean = true,
+    /**
+     * Спрашивать на входе в раздел, что поставить.
+     *
+     * Включено по умолчанию: молчащий плеер с кнопкой «играть» — это вопрос
+     * без вариантов ответа, и любой из ответов человек всё равно ищет в
+     * списках. Выключатель нужен тому, кто входит в Echo ради одной кнопки
+     * «продолжить»: ему шесть карточек — турникет, ровно как заставка на
+     * двадцатом заходе.
+     */
+    val askOnStart: Boolean = true,
     /** Полосы эквалайзера, миллибелами через запятую. */
     val bands: String = "",
     /** Имя выбранной заготовки эквалайзера; пустое — своя настройка. */
@@ -123,6 +133,8 @@ class EchoPreferences(private val context: Context) {
 
     fun setResumeLast(value: Boolean) = put { it[KEY_RESUME] = value }
 
+    fun setAskOnStart(value: Boolean) = put { it[KEY_ASK] = value }
+
     fun setPulse(value: Boolean) = put { it[KEY_PULSE] = value }
 
     /** Эквалайзер целиком: включён ли он, чем набран и как называется. */
@@ -171,6 +183,7 @@ class EchoPreferences(private val context: Context) {
         fade = this[KEY_FADE] ?: true,
         pauseOnUnplug = this[KEY_UNPLUG] ?: true,
         resumeLast = this[KEY_RESUME] ?: true,
+        askOnStart = this[KEY_ASK] ?: true,
         bands = this[KEY_EQ_BANDS].orEmpty(),
         preset = this[KEY_EQ_PRESET].orEmpty(),
         equalizer = this[KEY_EQ_ON] ?: false,
@@ -198,6 +211,7 @@ class EchoPreferences(private val context: Context) {
         val KEY_FADE = booleanPreferencesKey("fade")
         val KEY_UNPLUG = booleanPreferencesKey("pause_on_unplug")
         val KEY_RESUME = booleanPreferencesKey("resume_last")
+        val KEY_ASK = booleanPreferencesKey("ask_on_start")
         val KEY_PULSE = booleanPreferencesKey("cover_pulse")
         val KEY_EQ_ON = booleanPreferencesKey("equalizer_on")
         val KEY_EQ_BANDS = stringPreferencesKey("equalizer_bands")

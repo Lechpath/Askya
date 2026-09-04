@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -45,17 +46,28 @@ import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
 
 /**
- * Диалоговое окно внизу страницы: слева плюс, посередине строка, справа отправка.
+ * Диалоговое окно внизу страницы: строка во всю ширину, кнопки под ней.
  *
  * Записывают в Askya везде одинаково — не формой и не анкетой, а разговором с
  * тем, что открыто: то, что набрано в строке, уходит в карточку абзацем, а в
  * список — строкой, как сообщение. Поэтому строка стоит внизу и остаётся на
  * месте, пока написанное растёт вверх.
  *
- * Плюс слева приносит то, чего не наберёшь буквами, — картинку или адрес
- * страницы. Он стоит отдельно от строки: это не отправка, а выбор, и попасть в
- * него пальцем нужно не глядя. Приносить нечего — [onAttach] не задан, и плюса
- * нет вовсе: пустая кнопка хуже её отсутствия.
+ * ## Почему кнопки под строкой, а не по её краям
+ *
+ * Кнопки стояли слева и справа от строки, и текст набирался в щель между
+ * ними: три кружка по сорок точек съедали треть ширины окна, и абзац,
+ * умещавшийся в две строки, ложился в четыре. Строка — то, ради чего окно и
+ * открывают, и ширину надо отдавать ей, а не тому, чем её отправляют.
+ *
+ * Под строкой кнопкам не тесно: там пусто, и ряд из трёх кружков занимает
+ * ровно одну свою высоту вместо трети каждой строки текста.
+ *
+ * Плюс остался слева, отправка справа — то же деление, что и было: плюс
+ * приносит то, чего не наберёшь буквами, картинку или адрес страницы, и это
+ * выбор, а не отправка. Класть их рядом значило бы просить целиться. Приносить
+ * нечего — [onAttach] не задан, и плюса нет вовсе: пустая кнопка хуже её
+ * отсутствия.
  *
  * Кнопка отправки гаснет, пока строка пуста: отправлять нечего, и нажатие в
  * пустоту не должно выглядеть поломкой.
@@ -75,28 +87,17 @@ fun Composer(
 ) {
     val ready = draft.text.isNotBlank() || canSendEmpty
 
-    Row(
-        verticalAlignment = Alignment.Bottom,
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(6.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
-        if (onAttach != null) {
-            RoundButton(
-                icon = Icons.Outlined.Add,
-                description = "Добавить к заметке",
-                background = Cream,
-                tint = Ink,
-                onClick = onAttach,
-            )
-        }
-
         Box(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
             if (draft.text.isEmpty()) {
                 Text(
@@ -122,16 +123,36 @@ fun Composer(
             )
         }
 
-        MicButton(listening = listening, onClick = onMic)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (onAttach != null) {
+                RoundButton(
+                    icon = Icons.Outlined.Add,
+                    description = "Добавить к заметке",
+                    background = Cream,
+                    tint = Ink,
+                    onClick = onAttach,
+                )
+            }
 
-        RoundButton(
-            icon = Icons.Outlined.ArrowUpward,
-            description = "Отправить",
-            background = if (ready) Ink else Cream,
-            tint = if (ready) Accent else Muted,
-            enabled = ready,
-            onClick = onSend,
-        )
+            // Пустота между плюсом и отправкой, а не отступ числом: ряд должен
+            // разъезжаться по краям окна на любой ширине экрана.
+            Spacer(modifier = Modifier.weight(1f))
+
+            MicButton(listening = listening, onClick = onMic)
+
+            RoundButton(
+                icon = Icons.Outlined.ArrowUpward,
+                description = "Отправить",
+                background = if (ready) Ink else Cream,
+                tint = if (ready) Accent else Muted,
+                enabled = ready,
+                modifier = Modifier.padding(start = 8.dp),
+                onClick = onSend,
+            )
+        }
     }
 }
 
@@ -178,7 +199,7 @@ private fun MicButton(listening: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** Круглая кнопка диалогового окна — плюс слева и отправка справа. */
+/** Круглая кнопка в ряду под строкой — плюс слева, микрофон и отправка справа. */
 @Composable
 private fun RoundButton(
     icon: ImageVector,

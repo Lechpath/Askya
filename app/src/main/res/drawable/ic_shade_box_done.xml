@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Отмеченный знак строки списка в шторке: залитый квадрат с галочкой.
+
+    Коралловый — тот же цвет «сделано», что и во всём приложении
+    (`@color/widget_accent`, он же Accent в теме). Форма и размер те же, что у
+    пустого знака: строки в шторке должны стоять в одну колонку.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="20"
+    android:viewportHeight="20">
+    <path
+        android:pathData="M4,1 L16,1 A3,3 0 0 1 19,4 L19,16 A3,3 0 0 1 16,19 L4,19 A3,3 0 0 1 1,16 L1,4 A3,3 0 0 1 4,1 Z"
+        android:fillColor="#FFD97757" />
+    <path
+        android:pathData="M5.6,10.2 L8.6,13.2 L14.4,6.9"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

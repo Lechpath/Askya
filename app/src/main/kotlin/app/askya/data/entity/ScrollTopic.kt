@@ -2,7 +2,7 @@ package app.askya.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import app.askya.domain.model.BookColor
+import app.askya.domain.model.MarkColor
 import java.time.LocalDateTime
 
 /**
@@ -19,8 +19,8 @@ data class ScrollTopic(
     val title: String = "",
     /**
      * Цвет корешка. `null` — «не выбирали»: цвет тогда выводится из названия,
-     * и книга всё равно окрашена. См. [BookColor].
+     * и книга всё равно окрашена. См. [MarkColor].
      */
-    val color: BookColor? = null,
+    val color: MarkColor? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
 )

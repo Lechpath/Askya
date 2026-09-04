@@ -6,8 +6,9 @@ import app.askya.data.db.dao.TopicDao
 import app.askya.data.entity.ImageAlbum
 import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
+import app.askya.data.audio.VoiceStore
 import app.askya.data.images.ImageStore
-import app.askya.domain.model.BookColor
+import app.askya.domain.model.MarkColor
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDateTime
 
@@ -20,6 +21,7 @@ class NoteRepository(
     private val topics: TopicDao,
     private val albums: AlbumDao,
     private val images: ImageStore,
+    private val voices: VoiceStore,
 ) {
 
     fun notes(): Flow<List<Note>> = dao.observeAll()
@@ -40,29 +42,94 @@ class NoteRepository(
      * существует только ради этой записи, и без неё его никто не откроет.
      * Чужие документы (старые записи-ссылки) не трогаются — см. ImageStore.
      */
+    /** Убрать запись — в корзину на сутки. См. [ScheduleRepository.remove]. */
+    suspend fun remove(id: Long) = dao.setRemoved(id, LocalDateTime.now())
+
+    suspend fun restore(id: Long) = dao.setRemoved(id, null)
+
+    /**
+     * Выбросить пролежавшее в корзине сутки.
+     *
+     * По одной, а не одним `DELETE`: у картинки в папке Askya лежит файл, и
+     * убрать его надо вместе со строкой — иначе в папке копится то, на что уже
+     * ничего не ссылается.
+     */
+    suspend fun purgeTrash() {
+        dao.expired(LocalDateTime.now().minusDays(1)).forEach { note -> delete(note) }
+    }
+
+    /**
+     * Стереть запись вместе с её файлом.
+     *
+     * Файл убирается тот, который Askya клала сама: копию картинки — из папки
+     * с картинками, голос — из папки с голосом. Обе проверки по записи, а не
+     * по папке: чужой документ (pdf, положенный ссылкой) не трогается ни той,
+     * ни другой, и правильно — его правят снаружи, и он никуда не девался.
+     */
     suspend fun delete(note: Note) {
         dao.delete(note)
-        images.delete(note.uri)
+        if (note.voice) voices.remove(note.uri) else images.delete(note.uri)
     }
 
     fun images(): Flow<List<Note>> = dao.observeImages()
 
     fun loose(): Flow<List<Note>> = dao.observeLoose()
 
+    /** Полка голосовых заметок — подраздел Scroll «Голос». */
+    fun voices(): Flow<List<Note>> = dao.observeVoices()
+
+    /**
+     * Записать наговорённое отдельной записью Scroll.
+     *
+     * Заголовок ставится сразу и днём с часом: заметку наговаривают на бегу, и
+     * останавливать человека вопросом «как её назвать» — значит терять ту
+     * мысль, ради которой он и нажал кнопку. Переименовать её можно потом, а
+     * неназванная она всё равно находится — по времени.
+     */
+    suspend fun addVoice(uri: String, title: String, durationMs: Long): Long = dao.insert(
+        Note(
+            title = title,
+            uri = uri,
+            mime = VoiceStore.MIME,
+            durationMs = durationMs,
+        )
+    )
+
     fun inTopic(topicId: Long): Flow<List<Note>> = dao.observeInTopic(topicId)
+
+    /**
+     * Соседи записи по полке — то, что листается смахиванием в карточке.
+     *
+     * Полка та же, на которой запись лежит: у записи в книге соседи — записи
+     * той же книги, у отдельной — «Библиотека». Листать из книги в чужие
+     * записи человек не ждёт: он видел полку глазами и помнит, что было рядом.
+     *
+     * Разовым списком, а не потоком: полка нужна в тот момент, когда карточку
+     * открыли, а подписка перестраивала бы порядок под пальцем — каждая правка
+     * двигает запись в начало списка по времени.
+     *
+     * У картинки соседей здесь нет: её листают в просмотре и по своему срезу —
+     * альбому или всей сетке.
+     */
+    suspend fun shelfOf(id: Long): List<Long> {
+        val note = dao.getById(id) ?: return emptyList()
+        if (note.isImage) return emptyList()
+        val topicId = note.topicId
+        return if (topicId == null) dao.looseIds() else dao.idsInTopic(topicId)
+    }
 
     fun topics(): Flow<List<ScrollTopic>> = topics.observeAll()
 
     fun topic(id: Long): Flow<ScrollTopic?> = topics.observeById(id)
 
-    suspend fun addTopic(title: String, color: BookColor? = null): Long =
+    suspend fun addTopic(title: String, color: MarkColor? = null): Long =
         topics.insert(ScrollTopic(title = title.trim(), color = color))
 
     /**
      * Название и цвет корешка правятся одним разом: в карточке книги их и
      * выбирают вместе, а две записи в базу мигали бы полкой дважды.
      */
-    suspend fun updateTopic(topic: ScrollTopic, title: String, color: BookColor?) =
+    suspend fun updateTopic(topic: ScrollTopic, title: String, color: MarkColor?) =
         topics.update(topic.copy(title = title.trim(), color = color))
 
     /**

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import app.askya.app.appContainer
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 import kotlinx.coroutines.launch
 
 /**
@@ -139,6 +140,7 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(RoundedCornerShape(28.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

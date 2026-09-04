@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Кружок под микрофоном. Коралловый и залитый — единственное залитое пятно
+    во всех трёх виджетах Askya, и это нарочно: у соседей нажатие открывает
+    раздел, а здесь оно начинает запись. Действие, которое случается сразу,
+    должно и выглядеть кнопкой, а не текстом.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/widget_accent" />
+</shape>

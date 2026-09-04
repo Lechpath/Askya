@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,9 +63,11 @@ import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.HeaderIcon
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.fadingEdges
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Ink
+import app.askya.ui.theme.cardShade
 
 /**
  * «Изображения» — все картинки Scroll сеткой и альбомы, по которым их
@@ -259,9 +262,11 @@ fun ImagesScreen(
             }
         },
     ) {
+        val grid = rememberLazyGridState()
         LazyVerticalGrid(
+            state = grid,
             columns = GridCells.Fixed(3),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().fadingEdges(grid),
             // Снизу столько, чтобы последний ряд картинок выходил из-под
             // кнопки: она висит над сеткой, а не стоит в ней.
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
@@ -500,6 +505,7 @@ private fun AlbumCard(
         Box(
             modifier = Modifier
                 .size(ALBUM_WIDTH)
+                .cardShade(RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
                 // Не Cream: он совпадает с фоном экрана, и пустой альбом
                 // выглядел бы значком в воздухе, а не карточкой.
@@ -600,6 +606,7 @@ private fun Thumb(
     Box(
         modifier = Modifier
             .aspectRatio(1f)
+            .cardShade(RoundedCornerShape(6.dp))
             .clip(RoundedCornerShape(6.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),

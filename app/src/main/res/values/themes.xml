@@ -5,5 +5,58 @@
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <!--
+            Краска цветка на системной заставке. Здесь она закатная — та же,
+            какой цветок нарисован в ic_flower.xml: до появления выбора он был
+            только таким, и обновление не должно перекрашивать знак приложения
+            без спроса. Выбравшему другую подставляется одна из тем ниже.
+
+            Само свойство объявлено и на старых Android, где системной заставки
+            нет вовсе: ic_flower_splash.xml ссылается на него, а неразрешённое
+            свойство темы — это падение при развороте рисунка, а не пустой цвет.
+        -->
+        <item name="askyaFlowerInk">@color/flower_sunset</item>
+    </style>
+
+    <!--
+        Восемь тем под восемь красок цветка — и ровно ради одного мгновения:
+        системная заставка Android 12+ показывается до первого кадра Compose,
+        и краску туда можно передать только темой (`attrs.xml`).
+
+        Тему следующего запуска выбирает MainActivity
+        (`splashScreen.setSplashScreenTheme`) — потому «следующего»: заставка
+        уже нарисована к тому времени, когда приложение получает управление, и
+        новая краска встаёт со второго запуска. Так это и написано в подсказке
+        настройки: выбор виден на своей заставке сразу, на системной — со
+        следующего раза.
+
+        Родитель у всех — Theme.Askya, и на Android 12+ им оказывается её
+        версия из `values-v31`: всё, что относится к заставке, объявлено там
+        один раз, а здесь у каждой темы своя одна строка. Явный parent, а не
+        точка в имени: Theme.Askya.Splash отдельной темой не заводится.
+
+        Девятой темы, закатной, нет: закат — это сама Theme.Askya.
+    -->
+    <style name="Theme.Askya.Splash.Coral" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_coral</item>
+    </style>
+    <style name="Theme.Askya.Splash.Rose" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_rose</item>
+    </style>
+    <style name="Theme.Askya.Splash.Forest" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_forest</item>
+    </style>
+    <style name="Theme.Askya.Splash.Sea" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_sea</item>
+    </style>
+    <style name="Theme.Askya.Splash.Plum" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_plum</item>
+    </style>
+    <style name="Theme.Askya.Splash.Amber" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_amber</item>
+    </style>
+    <style name="Theme.Askya.Splash.Graphite" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_graphite</item>
     </style>
 </resources>

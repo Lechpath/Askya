@@ -59,6 +59,7 @@ import app.askya.ui.components.rememberDictation
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 
 /**
  * Список, раскрытый карточкой почти во весь экран.
@@ -154,6 +155,7 @@ fun YetCard(
                     scaleX = grow
                     scaleY = grow
                 }
+                .cardEdge(RoundedCornerShape(28.dp))
                 // Тап по самой карточке её не закрывает: иначе список
                 // захлопывался бы от промаха мимо строки.
                 .clickable(

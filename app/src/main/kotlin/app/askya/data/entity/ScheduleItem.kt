@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import app.askya.domain.model.BlockIcon
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /**
@@ -19,6 +20,12 @@ import java.time.LocalTime
  *
  * [icon] пуст почти всегда: знак угадывается по названию, а колонка хранит
  * только то, что человек выбрал руками вопреки догадке.
+ *
+ * [link] — чем это дело делается: книга, список, заметка, раздел
+ * (см. [app.askya.domain.model.DeedLink]). Пусто почти всегда, и это нормально:
+ * привязка нужна там, где дело и правда чем-то делается, а «Завтрак» ничем не
+ * делается. Одной строкой «вид:адрес», а не колонкой на каждый вид: видов
+ * будет прибавляться.
  */
 @Entity(tableName = "schedule_items", indices = [Index("date")])
 data class ScheduleItem(
@@ -30,4 +37,15 @@ data class ScheduleItem(
     val note: String = "",
     val done: Boolean = false,
     val icon: BlockIcon? = null,
+    val link: String? = null,
+    /**
+     * Когда дело убрали. `null` — на месте.
+     *
+     * Мягкое удаление, а не строка из базы вон: подтверждение «вы уверены?» не
+     * отменяет ошибку, оно перекладывает её на человека, который торопится, — и
+     * через месяц жмётся не читая. Убранное живёт сутки, снизу на несколько
+     * секунд появляется «Вернуть», и подтверждений не нужно вовсе. Старое
+     * подчищается при запуске приложения, без фоновой службы.
+     */
+    val removedAt: LocalDateTime? = null,
 )

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,21 +20,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.askya.R
+import app.askya.ui.theme.FlowerInk
 
 /**
  * Шапка экрана: слева кнопка меню (или «назад» на детальном экране), затем
  * заголовок засечным шрифтом — той же гарнитурой, что в вордмарке на иконке.
  *
- * Раздел может поставить на место полосок собственный знак ([navigationIcon]):
- * так делает AskyaEcho, где меню открывается цветком Askya. Знак рисуется
- * своими цветами, а не тонируется под текст, — он не значок действия, а лицо
- * приложения, и серым оно было бы чужим.
+ * ## Меню открывается цветком, а не полосками
+ *
+ * Три полоски — знак ничей: он одинаков в банке, в магазине и в почте, и по
+ * нему не узнать, чьё это приложение. Цветок Askya узнаётся: это тот же знак,
+ * что на иконке запуска и на заставке, и меню открывается лицом приложения, а
+ * не значком из чужого набора. Прежде так было в одном AskyaEcho, а с тех пор
+ * стало общим правилом — отсюда он и стоит здесь по умолчанию.
+ *
+ * Знак рисуется своими цветами, а не тонируется под текст: он не значок
+ * действия, а лицо приложения, и серым оно было бы чужим. По той же причине
+ * «назад» остаётся стрелкой — это как раз действие, и лица у него нет.
+ *
+ * Раздел может поставить на место цветка собственный знак ([navigationIcon]).
  */
 @Composable
 fun ScreenHeader(
@@ -53,16 +65,25 @@ fun ScreenHeader(
             .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (navigationIcon != null) {
+        if (navigationIsBack) {
             HeaderIcon(
-                painter = painterResource(navigationIcon),
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Назад",
+                onClick = onNavigationClick,
+            )
+        } else if (navigationIcon == null) {
+            // Цветок — знак приложения, и красится он выбранной краской, а не
+            // той, что зашита в вектор: см. [AskyaFlower].
+            HeaderIcon(
+                painter = painterResource(R.drawable.ic_flower),
                 contentDescription = navigationLabel,
                 onClick = onNavigationClick,
+                tint = FlowerInk,
             )
         } else {
             HeaderIcon(
-                icon = if (navigationIsBack) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Menu,
-                contentDescription = if (navigationIsBack) "Назад" else navigationLabel,
+                painter = painterResource(navigationIcon),
+                contentDescription = navigationLabel,
                 onClick = onNavigationClick,
             )
         }
@@ -112,6 +133,7 @@ fun HeaderIcon(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tint: Color? = null,
 ) {
     Box(
         modifier = modifier
@@ -123,6 +145,7 @@ fun HeaderIcon(
         Image(
             painter = painter,
             contentDescription = contentDescription,
+            colorFilter = tint?.let { ColorFilter.tint(it) },
             modifier = Modifier.size(26.dp),
         )
     }
