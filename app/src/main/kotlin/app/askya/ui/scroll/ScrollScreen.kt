@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +29,8 @@ import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
 import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.ScreenScaffold
-import app.askya.ui.components.fadingEdges
 
 /**
  * Scroll — оглавление записанного, собранное разговором.
@@ -217,9 +216,9 @@ fun ScrollScreen(
 
     ScreenScaffold(title = "Scroll", onNavigationClick = onOpenMenu) {
         Column(modifier = Modifier.fillMaxSize().imePadding()) {
-            LazyColumn(
+            FadingColumn(
                 state = feed,
-                modifier = Modifier.fillMaxWidth().weight(1f).fadingEdges(feed),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {

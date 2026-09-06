@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -44,6 +43,7 @@ import app.askya.domain.model.EntryKind
 import app.askya.domain.model.formatMoney
 import app.askya.ui.components.DayPartTitle
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.formatMonthShort
 import app.askya.ui.components.formatMonthTitle
 import app.askya.ui.theme.AccentInk
@@ -99,7 +99,7 @@ fun StatsPage(stats: LedgerStats, categories: List<LedgerCategory>) {
 
     // fillMaxSize, а не по содержимому: страница пейджера ставит содержимое
     // по середине, и короткий свиток повисал бы посреди пустого экрана.
-    LazyColumn(
+    FadingColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -132,7 +132,7 @@ fun StatsPage(stats: LedgerStats, categories: List<LedgerCategory>) {
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
             }
-            return@LazyColumn
+            return@FadingColumn
         }
 
         item(key = "totals") {

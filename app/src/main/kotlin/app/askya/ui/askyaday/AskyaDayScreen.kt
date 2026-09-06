@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -62,6 +61,7 @@ import app.askya.domain.model.DeedLink
 import app.askya.domain.model.LinkKind
 import app.askya.ui.components.AskyaAsk
 import app.askya.ui.components.BlockCard
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.LinkChoice
 import app.askya.ui.components.rememberLinkChoices
 import app.askya.ui.components.CardAction
@@ -779,7 +779,7 @@ private fun DayContent(
     hasTarget: (ScheduleItem) -> Boolean,
     onCross: (ScheduleItem) -> Unit,
 ) {
-    LazyColumn(
+    FadingColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = 20.dp,
@@ -848,7 +848,7 @@ private fun DayContent(
 
         // Пока база не ответила, под датой не рисуется ничего: пустой экран
         // на долю секунды честнее, чем неверное «блоков нет».
-        if (plan == null) return@LazyColumn
+        if (plan == null) return@FadingColumn
 
         if (plan.schedule.isEmpty()) {
             item {

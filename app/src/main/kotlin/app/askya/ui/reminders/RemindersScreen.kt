@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -44,6 +43,7 @@ import app.askya.ui.components.CardDialog
 import app.askya.ui.components.CardGrid
 import app.askya.ui.components.DayPartTitle
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.blockIconOf
 import app.askya.ui.components.formatRange
@@ -120,7 +120,7 @@ fun RemindersScreen(onBack: () -> Unit) {
             }
         },
     ) {
-        LazyColumn(
+        FadingColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),

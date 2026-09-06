@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -53,6 +52,7 @@ import app.askya.echo.Track
 import app.askya.echo.fingering
 import app.askya.echo.formatDuration
 import app.askya.echo.keysOf
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.theme.Night
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
@@ -166,7 +166,7 @@ fun EchoChordsCard(
             onToggle = onToggle,
         )
 
-        LazyColumn(
+        FadingColumn(
             state = list,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         ) {

@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.askya.app.appContainer
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Cream
@@ -112,7 +111,7 @@ fun ImageCardScreen(noteId: Long, onDone: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .imePadding()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

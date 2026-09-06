@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -58,10 +57,10 @@ import app.askya.ui.components.DialogCaption
 import app.askya.ui.components.DialogField
 import app.askya.ui.components.DialogTitle
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.SHELF_COLUMNS
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.TileRow
-import app.askya.ui.components.fadingEdges
 import app.askya.widget.VoiceWidgetProvider
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
@@ -202,9 +201,8 @@ fun VoiceScreen(
             }
 
             val heard = rememberLazyListState()
-            LazyColumn(
+            FadingColumn(
                 state = heard,
-                modifier = Modifier.fadingEdges(heard),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {

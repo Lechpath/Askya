@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +34,7 @@ import androidx.core.graphics.drawable.toBitmap
 import app.askya.bridges.BridgeApps
 import app.askya.bridges.InstalledApp
 import app.askya.ui.components.AskyaDialog
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.theme.AccentInk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -117,7 +117,7 @@ fun AppPickCard(
             found
         }
 
-        LazyColumn(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        FadingColumn(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
             items(ordered, key = { it.packageName }) { app ->
                 Row(
                     modifier = Modifier

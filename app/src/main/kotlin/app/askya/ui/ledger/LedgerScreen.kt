@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -84,6 +83,7 @@ import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.CardGrid
 import app.askya.ui.components.DayPartTitle
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.formatMonthTitle
 import app.askya.ui.components.formatRussianDate
@@ -190,6 +190,10 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
     var editing by remember { mutableStateOf<LedgerEntry?>(null) }
     var editingAccount by remember { mutableStateOf<LedgerAccount?>(null) }
     var editingCategory by remember { mutableStateOf<LedgerCategory?>(null) }
+    // Раскрытая статья — её записи за открытый месяц. Не то же, что
+    // [editingCategory]: там правят название и предел, здесь смотрят, из чего
+    // статья сложилась.
+    var openCategory by remember { mutableStateOf<LedgerCategory?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     // Словарь статей и первый счёт заводятся при первом входе — см.
@@ -272,7 +276,7 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
                             book = book,
                             accounts = accounts,
                             categories = categories,
-                            onCategory = { editingCategory = it },
+                            onCategory = { openCategory = it },
                             onOpenEntry = { editing = it },
                         )
                     }
@@ -326,6 +330,37 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
                     }
                 }
             },
+        )
+    }
+
+    openCategory?.let { category ->
+        // Записи статьи отбираются из уже загруженного месяца, а не запросом:
+        // месяц целиком и так лежит на экране, и второй поход в базу за теми
+        // же строками отвечал бы на тот же вопрос дважды.
+        //
+        // У расхода берутся и возвраты: они той же статьи и именно они
+        // объясняют, почему её сумма меньше суммы покупок (см. [EntryKind]).
+        val ofCategory = book.entries.filter { entry ->
+            entry.categoryId == category.id &&
+                when (category.kind) {
+                    EntryKind.EARN -> entry.kind == EntryKind.EARN
+                    else -> entry.kind == EntryKind.SPEND || entry.kind == EntryKind.BACK
+                }
+        }
+        CategoryEntriesCard(
+            category = category,
+            month = month,
+            entries = ofCategory,
+            accounts = remember(accounts) { accounts.associate { it.account.id to it.account } },
+            onOpenEntry = { entry ->
+                openCategory = null
+                editing = entry
+            },
+            onEdit = {
+                openCategory = null
+                editingCategory = category
+            },
+            onDismiss = { openCategory = null },
         )
     }
 
@@ -523,7 +558,7 @@ private fun MonthTab(
     val accountById = remember(accounts) { accounts.associate { it.account.id to it.account } }
     val categoryById = remember(categories) { categories.associateBy { it.id } }
 
-    LazyColumn(
+    FadingColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -953,7 +988,7 @@ private fun AccountsTab(
 
     // fillMaxSize по той же причине, что и у прочих страниц: пейджер ставит
     // содержимое страницы по середине, и короткий список висел бы в пустоте.
-    LazyColumn(
+    FadingColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     ) {

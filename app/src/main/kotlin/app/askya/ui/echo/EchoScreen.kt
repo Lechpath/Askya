@@ -28,9 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
@@ -87,6 +85,7 @@ import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.HeaderIcon
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.EchoTheme
 import app.askya.ui.theme.Night
 import app.askya.ui.theme.NightBorder
@@ -645,7 +644,7 @@ private fun Player(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(start = 20.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .fadingVerticalScroll(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {

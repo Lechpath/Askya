@@ -16,10 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +42,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.echo.formatDuration
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoPill
 import app.askya.ui.theme.NightBorder
@@ -150,7 +149,7 @@ fun VideoTrimCard(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             if (whole <= 0) {

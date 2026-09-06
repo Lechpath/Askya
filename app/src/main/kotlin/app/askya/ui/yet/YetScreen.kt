@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,13 +35,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MicNone
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.MarkView
 import app.askya.ui.components.NewButton
 import app.askya.ui.components.SHELF_COLUMNS
 import app.askya.data.repository.Trash
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.TileRow
-import app.askya.ui.components.fadingEdges
 import app.askya.ui.theme.Muted
 import app.askya.ui.theme.cardEdge
 
@@ -81,9 +80,9 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
         floatingActionButton = { NewButton(label = "new list", onClick = { creating = true }) },
     ) {
         val sheets = rememberLazyListState()
-        LazyColumn(
+        FadingColumn(
             state = sheets,
-            modifier = Modifier.fillMaxSize().fadingEdges(sheets),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

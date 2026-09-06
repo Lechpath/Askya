@@ -5,8 +5,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CloudDownload
@@ -30,6 +28,7 @@ import app.askya.ui.components.DialogBadge
 import app.askya.ui.components.DialogButtons
 import app.askya.ui.components.DialogText
 import app.askya.ui.components.DialogTitle
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.update.UpdateState
 
 /**
@@ -122,7 +121,7 @@ fun UpdateGroup(settings: AppSettings) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 10.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .fadingVerticalScroll(),
                 ) {
                     Text(
                         text = now.build.notes,

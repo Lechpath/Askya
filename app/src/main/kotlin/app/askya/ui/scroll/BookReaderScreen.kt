@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,6 +84,7 @@ import app.askya.data.preferences.ReaderStyle
 import app.askya.domain.docs.BookBlock
 import app.askya.domain.docs.BookText
 import app.askya.domain.docs.readBook
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.highlighted
 import app.askya.ui.components.snippet
 import app.askya.ui.theme.CoralAccent
@@ -268,7 +268,7 @@ private fun Reading(
 
     Box(modifier = Modifier.fillMaxSize()) {
         SelectionContainer {
-            LazyColumn(
+            FadingColumn(
                 state = list,
                 modifier = Modifier
                     .fillMaxSize()
@@ -602,7 +602,7 @@ private fun ContentsPanel(
     onDismiss: () -> Unit,
 ) {
     ReaderPanelCard(title = "Оглавление", palette = palette, onDismiss = onDismiss) {
-        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+        FadingColumn(modifier = Modifier.fillMaxWidth()) {
             items(book.chapters.size) { index ->
                 val here = index == chapter
                 Row(
@@ -703,7 +703,7 @@ private fun SearchPanel(
             )
         }
 
-        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+        FadingColumn(modifier = Modifier.fillMaxWidth()) {
             items(found.size) { index ->
                 val place = found[index]
                 Column(

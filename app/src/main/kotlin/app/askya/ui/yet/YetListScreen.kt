@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MicNone
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.Composer
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.MarkdownTask
 import app.askya.data.repository.Trash
 import app.askya.ui.components.ScreenScaffold
@@ -124,7 +124,7 @@ fun YetListScreen(listId: Long, onBack: () -> Unit) {
                 }
             }
 
-            LazyColumn(
+            FadingColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp),
             ) {

@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -58,6 +57,7 @@ import app.askya.app.appContainer
 import app.askya.data.entity.Note
 import app.askya.domain.docs.DocFormat
 import app.askya.ui.components.AskyaNotice
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.FadingScroll
 import app.askya.ui.components.MarkdownDocument
 import app.askya.ui.components.HeaderIcon
@@ -435,7 +435,7 @@ internal fun PdfView(uri: String) {
     when {
         failed -> Failed("Открыть не вышло — файл удалили или отозвали доступ.")
         open == null -> Waiting()
-        else -> LazyColumn(
+        else -> FadingColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,6 +48,7 @@ import app.askya.data.entity.VideoPlaylist
 import app.askya.data.repository.asClip
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingGrid
 import app.askya.ui.echo.EchoAsk
 import app.askya.ui.echo.EchoDialog
 import app.askya.ui.echo.EchoField
@@ -96,7 +96,7 @@ fun VideoPlaylistsGrid(
 
     var menu by remember { mutableStateOf<VideoPlaylist?>(null) }
 
-    LazyVerticalGrid(
+    FadingGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),

@@ -44,6 +44,8 @@ import app.askya.ui.theme.Accent
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
+import app.askya.ui.theme.cardShade
 
 /**
  * Диалоговое окно внизу страницы: строка во всю ширину, кнопки под ней.
@@ -87,10 +89,24 @@ fun Composer(
 ) {
     val ready = draft.text.isNotBlank() || canSendEmpty
 
+    // Окно приподнято тенью — той же, что у карточек.
+    //
+    // Без неё белое окно лежало на белой карточке записи вплотную, и граница
+    // между ними была одной линией скругления: непонятно, где кончается то,
+    // что уже записано, и начинается то, что набирают. Тень отвечает на это
+    // раньше, чем человек прочитает хоть слово, — окно лежит поверх карточки,
+    // а не продолжает её.
+    //
+    // [cardShade] потому, что ночью тень не работает: она чёрная, а лист под
+    // ней и так почти чёрный. Ночью то же самое говорит [cardEdge] — тонкая
+    // граница, которой ночью отделены все карточки.
+    val shape = RoundedCornerShape(26.dp)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
+            .cardShade(shape, elevation = 8.dp)
+            .cardEdge(shape)
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {

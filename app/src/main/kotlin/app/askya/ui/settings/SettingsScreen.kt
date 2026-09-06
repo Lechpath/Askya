@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +18,7 @@ import app.askya.app.appContainer
 import app.askya.data.preferences.SplashWhen
 import app.askya.data.preferences.WeatherSettings
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.AskyaPalette
 import app.askya.ui.theme.FlowerColor
 import app.askya.ui.theme.ThemeMode
@@ -74,7 +73,7 @@ fun SettingsScreen(onOpenMenu: () -> Unit, onOpenBridges: () -> Unit = {}) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .padding(horizontal = 16.dp),
         ) {
 

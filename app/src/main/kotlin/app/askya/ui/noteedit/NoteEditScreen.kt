@@ -20,12 +20,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Check
@@ -86,6 +84,7 @@ import app.askya.ui.components.NOTE_TITLE
 import app.askya.ui.components.ScreenHeader
 import app.askya.ui.components.TagsDialog
 import app.askya.ui.components.TagsLine
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.components.rememberDictation
 import app.askya.ui.scroll.ShareNoteDialog
 import app.askya.ui.scroll.formatOf
@@ -859,7 +858,7 @@ private fun WrittenNote(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fadingVerticalScroll()
             .padding(top = 14.dp, bottom = 8.dp),
     ) {
         if (paragraphs.isEmpty()) {
@@ -992,7 +991,7 @@ private fun BookChooser(
         Column(
             modifier = Modifier
                 .heightIn(max = 320.dp)
-                .verticalScroll(rememberScrollState()),
+                .fadingVerticalScroll(),
         ) {
             BookRow(
                 title = "Оставить отдельным файлом",

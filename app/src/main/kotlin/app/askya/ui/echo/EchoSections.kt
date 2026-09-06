@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +54,8 @@ import app.askya.echo.EchoLibrary
 import app.askya.echo.Track
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
+import app.askya.ui.components.FadingGrid
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
@@ -277,7 +277,7 @@ private fun PlaylistsPage(
             )
         },
     ) {
-        LazyVerticalGrid(
+        FadingGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -414,7 +414,7 @@ private fun PlaylistPage(
         } else {
             val queue = rows.map { it.asTrack() }
 
-            LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+            FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 items(rows, key = { it.id }) { row ->
                     val track = row.asTrack()
                     TrackRow(
@@ -471,7 +471,7 @@ private fun AddTracksPage(page: EchoPage.AddTracks, library: List<Track>?, onBac
                 hint = "Класть в плейлист пока нечего.",
             )
 
-            else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+            else -> FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 items(list, key = { it.id }) { track ->
                     val chosen = track.uri in added
                     TrackRow(
@@ -527,7 +527,7 @@ private fun FoldersPage(
                 hint = "Как только на телефоне появятся песни, здесь появятся их папки.",
             )
 
-            else -> LazyVerticalGrid(
+            else -> FadingGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -591,7 +591,7 @@ internal fun TrackList(
 
         tracks.isEmpty() -> EmptyState(title = empty, hint = hint)
 
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+        else -> FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
             items(tracks, key = { it.id }) { track ->
                 TrackRow(
                     track = track,

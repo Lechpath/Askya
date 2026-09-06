@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Science
@@ -47,6 +46,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
 import app.askya.echo.REVERB_NAMES
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
@@ -114,7 +114,7 @@ fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit, onLab: () -
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {

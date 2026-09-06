@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +52,7 @@ import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.Composer
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.HeaderIcon
 import app.askya.ui.components.MarkdownTask
 import app.askya.ui.components.rememberDictation
@@ -175,7 +175,7 @@ fun YetCard(
                 if (items.isEmpty()) {
                     Blank(modifier = Modifier.weight(1f))
                 } else {
-                    LazyColumn(
+                    FadingColumn(
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(
                             start = 22.dp,

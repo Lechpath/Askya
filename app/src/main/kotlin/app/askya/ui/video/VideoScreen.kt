@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -67,6 +66,7 @@ import app.askya.app.appContainer
 import app.askya.data.repository.asClip
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.HeaderIcon
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.echo.EchoPill
@@ -556,7 +556,7 @@ private fun FolderList(
     folders: List<app.askya.video.VideoFolder>,
     onOpen: (String) -> Unit,
 ) {
-    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         items(folders, key = { it.name }) { entry ->
             Row(
                 modifier = Modifier
@@ -610,7 +610,7 @@ private fun AddClipsList(clips: List<Clip>, added: Set<String>, onAdd: (Clip) ->
         return
     }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         items(clips, key = { it.id }) { clip ->
             val chosen = clip.uri in added
             ClipRow(

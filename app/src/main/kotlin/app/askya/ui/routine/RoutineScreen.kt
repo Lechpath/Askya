@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -22,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,8 +33,10 @@ import app.askya.ui.components.CardDialog
 import app.askya.ui.components.CardGrid
 import app.askya.ui.components.DayPart
 import app.askya.ui.components.DayPartTitle
+import app.askya.domain.model.DeedDays
 import app.askya.domain.model.DeedLink
 import app.askya.domain.model.LinkKind
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.LinkChoice
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.rememberLinkChoices
@@ -106,7 +108,7 @@ fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
             }
         },
     ) {
-        LazyColumn(
+        FadingColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 96.dp),
             // Свой отступ строки задаёт ритм сетки; общий интервал только
@@ -158,10 +160,15 @@ fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
                     icon = it.icon,
                     priority = it.priority,
                     link = it.link,
+                    days = it.repeatDays,
                 )
             },
             withNote = false,
             withPriority = true,
+            // Дни недели есть только здесь: повторение — свойство правила, по
+            // которому собирается день, а не самого дня. Делу, уже стоящему в
+            // среде, спрашивать «по каким дням» не о чем.
+            withDays = true,
             // Привязка у строки списка — та же, что у дела дня, и стоит она
             // здесь ради повторяющегося: «Чтение Библии» делается одной и той
             // же книгой каждый день, и выбирать её заново в каждом дне
@@ -185,6 +192,7 @@ fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
                         icon = draft.icon,
                         priority = draft.priority,
                         link = draft.link,
+                        days = DeedDays.store(draft.days),
                     ),
                 )
             },
@@ -223,7 +231,22 @@ private fun RoutineCard(
         onClick = onClick,
         modifier = modifier,
     ) {
-        Spacer(modifier = Modifier.weight(1f))
+        // Дни недели подписаны только у того дела, которое случается не каждый
+        // день: «Каждый день» под каждой карточкой — это слово, которое
+        // перестают читать на второй карточке, а «Пн Ср Пт» и есть новость.
+        val days = item.repeatDays
+        if (days.isNotEmpty()) {
+            Text(
+                text = DeedDays.title(days),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
         Switch(
             checked = item.enabled,
             onCheckedChange = onEnabledChange,

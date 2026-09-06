@@ -14,8 +14,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.R
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.navigation.Destination
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
@@ -144,7 +143,7 @@ fun AskyaTour(onDone: () -> Unit) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                    .fadingVerticalScroll(),
                 // Посередине оставшегося, а не под самой шапкой: карточка внизу
                 // и макет наверху иначе стоят по краям, а между ними — пустой
                 // лист в треть экрана.

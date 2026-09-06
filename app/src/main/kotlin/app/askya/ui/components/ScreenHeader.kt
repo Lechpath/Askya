@@ -17,6 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +30,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.R
@@ -88,15 +93,38 @@ fun ScreenHeader(
             )
         }
 
+        // Название раздела в одну строку — ужимаясь, если не помещается.
+        //
+        // У человека с крупным системным шрифтом «AskyaDay» в строку не
+        // влезал и переносился посреди слова: «AskyaD» сверху, «ay» под ним.
+        // Перенести целиком тоже нельзя — это одно слово, и вторая строка
+        // сдвинула бы шапку вниз на каждом экране с длинным именем. Поэтому
+        // шрифт уменьшается ровно настолько, чтобы имя встало в строку.
+        //
+        // Уменьшается по кадру за раз, из [onTextLayout]: измерить строку до
+        // того, как она нарисована, Compose не даёт, а померив — говорит,
+        // вылезла ли она. Шагов выходит несколько, и все они проходят до
+        // первого показа. Ниже [TitleMin] шрифт не опускается: заголовок,
+        // ужавшийся до подписи, читается хуже перенесённого, и с этого места
+        // длинное имя дочитывает многоточие.
+        var size by remember(title) { mutableStateOf(TitleSize) }
         Text(
             text = title,
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 4.dp),
             fontFamily = FontFamily.Serif,
-            fontSize = 26.sp,
+            fontSize = size,
             letterSpacing = (-0.3).sp,
             color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { measured ->
+                if (measured.hasVisualOverflow && size > TitleMin) {
+                    size = (size.value - 1f).sp
+                }
+            },
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), content = actions)
@@ -150,3 +178,14 @@ fun HeaderIcon(
         )
     }
 }
+
+/** Обычный размер заголовка раздела. */
+private val TitleSize = 26.sp
+
+/**
+ * Меньше которого заголовок не ужимается.
+ *
+ * Восемнадцать — это ещё заголовок; всё, что ниже, читается как подпись, и
+ * ради влезшего целиком слова терять голос шапки не стоит.
+ */
+private val TitleMin = 18.sp

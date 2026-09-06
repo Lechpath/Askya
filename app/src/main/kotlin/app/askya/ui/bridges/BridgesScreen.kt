@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -51,6 +49,7 @@ import app.askya.ui.components.AskyaDialog
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.blockIconOf
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.ModeRed
@@ -100,7 +99,7 @@ fun BridgesScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .fadingVerticalScroll()
                     .padding(horizontal = 16.dp),
             ) {
                 Text(

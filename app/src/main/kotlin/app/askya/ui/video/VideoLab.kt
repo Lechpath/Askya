@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -60,6 +59,7 @@ import app.askya.app.appContainer
 import app.askya.echo.formatDuration
 import app.askya.ui.components.BreathingFlower
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.echo.EchoDialog
 import app.askya.ui.echo.EchoField
 import app.askya.ui.echo.EchoIcon
@@ -406,7 +406,7 @@ private fun ClipsLabPage(
         return
     }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
         items(clips, key = { it.id }) { clip ->
             PickClip(
                 clip = clip,
@@ -443,7 +443,7 @@ private fun FoldersLabPage(
         return
     }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
         folders.forEach { folder ->
             val here = opened == folder.name
 
@@ -540,7 +540,7 @@ private fun FetchLabPage() {
         link = ""
     }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         item(key = "field") {
             EchoField(
                 value = link,

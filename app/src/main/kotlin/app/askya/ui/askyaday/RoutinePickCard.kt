@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Checklist
@@ -39,6 +37,7 @@ import app.askya.ui.components.DialogBadge
 import app.askya.ui.components.DialogButtons
 import app.askya.ui.components.DialogCaption
 import app.askya.ui.components.blockIconOf
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.components.formatRange
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
@@ -92,7 +91,7 @@ internal fun RoutinePickCard(
         Column(
             modifier = Modifier
                 .heightIn(max = 340.dp)
-                .verticalScroll(rememberScrollState()),
+                .fadingVerticalScroll(),
         ) {
             items.forEach { item ->
                 val already = inDay(item)

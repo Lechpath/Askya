@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MyLocation
@@ -44,6 +42,7 @@ import app.askya.ui.components.DialogCaption
 import app.askya.ui.components.DialogChoice
 import app.askya.ui.components.DialogField
 import app.askya.ui.components.DialogTitle
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.Muted
 import app.askya.weather.FoundPlace
 import app.askya.weather.WeatherService
@@ -183,7 +182,7 @@ fun PlaceDialog(onDismiss: () -> Unit) {
                     .fillMaxWidth()
                     .heightIn(max = 200.dp)
                     .padding(top = 8.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .fadingVerticalScroll(),
             ) {
                 places.forEach { place ->
                     DialogChoice(

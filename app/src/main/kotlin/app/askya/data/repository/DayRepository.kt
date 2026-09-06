@@ -49,7 +49,10 @@ class DayRepository(
     suspend fun ensureComposed(date: LocalDate) {
         if (date.isBefore(LocalDate.now())) return
         if (routineDao.isGenerated(date) > 0) return
-        if (routineDao.enabled().isEmpty()) return
+        // Дела этого дня недели, а не все подряд: список, в котором на среду
+        // нет ничего, средой и не заполняется — иначе среда навсегда осталась
+        // бы помеченной и пустой.
+        if (routineDao.enabled().none { it.on(date) }) return
         recompose(date)
     }
 
@@ -63,7 +66,9 @@ class DayRepository(
     suspend fun recompose(date: LocalDate): DayLayout {
         val request = DayRequest(
             date = date,
-            routine = routineDao.enabled(),
+            // Повторяющееся дело попадает только в свои дни недели: «Пн Ср
+            // Пт» на вторник не разворачивается (см. [DeedDays]).
+            routine = routineDao.enabled().filter { it.on(date) },
             existing = scheduleDao.itemsOn(date),
         )
 

@@ -13,11 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
@@ -48,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
 import app.askya.echo.formatDuration
+import app.askya.ui.components.FadingColumn
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoField
 import app.askya.ui.echo.EchoPill
@@ -141,7 +140,7 @@ fun VideoClipCard(
             ClipStep.ACTIONS -> Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .fadingVerticalScroll()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Row(
@@ -313,7 +312,7 @@ fun VideoClipCard(
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp)) {
+                    FadingColumn(contentPadding = PaddingValues(horizontal = 16.dp)) {
                         items(playlists, key = { it.id }) { playlist ->
                             ClipAction(
                                 icon = Icons.Outlined.VideoLibrary,
@@ -351,7 +350,7 @@ fun VideoClipCard(
             ClipStep.DETAILS -> Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .fadingVerticalScroll()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {

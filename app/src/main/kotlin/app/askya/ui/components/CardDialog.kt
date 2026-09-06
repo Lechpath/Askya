@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -75,6 +74,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.domain.model.BlockIcon
+import app.askya.domain.model.DeedDays
 import app.askya.domain.model.Priority
 import app.askya.domain.model.RemindAt
 import app.askya.reminders.ReminderSound
@@ -83,6 +83,7 @@ import app.askya.reminders.ReminderSounds
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.cardEdge
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -113,6 +114,8 @@ data class CardContent(
     val priority: Priority = Priority.NORMAL,
     /** Чем дело делается — как записано в колонке (`book:12`). */
     val link: String? = null,
+    /** По каким дням недели дело повторяется. Пусто — каждый день. */
+    val days: Set<DayOfWeek> = emptySet(),
 )
 
 /** Что человек написал и выбрал в карточке. */
@@ -132,6 +135,8 @@ data class CardDraft(
     val soundTitle: String? = null,
     /** Чем дело делается. Пусто — привязки нет или её сняли. */
     val link: String? = null,
+    /** По каким дням недели дело повторяется. Пусто — каждый день. */
+    val days: Set<DayOfWeek> = emptySet(),
 )
 
 /**
@@ -188,6 +193,7 @@ fun CardDialog(
     startAtList: Boolean = false,
     withNote: Boolean = true,
     withPriority: Boolean = false,
+    withDays: Boolean = false,
     withDate: Boolean = false,
     withRemind: Boolean = false,
     onToggleDone: (() -> Unit)? = null,
@@ -244,6 +250,7 @@ fun CardDialog(
     var icon by remember { mutableStateOf(card?.icon) }
     var priority by remember { mutableStateOf(card?.priority ?: Priority.NORMAL) }
     var link by remember { mutableStateOf(card?.link) }
+    var days by remember { mutableStateOf(card?.days ?: emptySet()) }
 
     // Выбор знака — не шаг правки, а отступление в сторону: он занимает
     // карточку целиком и возвращает обратно туда же, откуда его открыли.
@@ -323,6 +330,7 @@ fun CardDialog(
                 sound = sound,
                 soundTitle = soundTitle,
                 link = link,
+                days = days,
             ),
         )
     }
@@ -415,6 +423,11 @@ fun CardDialog(
                                 when {
                                     listing -> 0.72f
                                     withRemind -> 0.60f
+                                    // Со строкой дней недели — тоже выше: под
+                                    // названием прибавились неделя и слово
+                                    // под ней, и на прежней высоте они
+                                    // отъедали бы место у действий внизу.
+                                    withDays -> 0.58f
                                     else -> 0.52f
                                 },
                             )
@@ -549,6 +562,25 @@ fun CardDialog(
                     onDone = ::next,
                     modifier = Modifier.padding(top = 10.dp),
                 )
+
+                // Дни недели — там же, где важность, и по той же причине: у
+                // дела всегда есть значение по умолчанию («каждый день»), и
+                // отдельным шагом правки повторение спрашивало бы про дни у
+                // каждого дела, тогда как меняют их у одного из десяти.
+                //
+                // Под названием, а не над временем: сперва читается, что за
+                // дело и в котором часу, и только потом — как часто.
+                if (withDays) {
+                    DaysLine(
+                        chosen = days,
+                        onChoose = {
+                            days = it
+                            keepChoice()
+                        },
+                        dimmed = step != CardStep.VIEW,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
 
                 // Важность выбирается в один тап и не занимает очереди в
                 // правке: у дела всегда есть значение по умолчанию, и
@@ -819,7 +851,7 @@ private fun SoundPalette(
     DisposableEffect(Unit) { onDispose { ReminderSoundPreview.stop() } }
 
     Column(modifier = modifier) {
-        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        FadingColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
             item {
                 SoundRow(
                     title = "Молча",
@@ -1037,7 +1069,7 @@ private fun IconPalette(
                 // fill = false: пока знаки помещаются, сетка занимает своё, а
                 // не растягивается на всю карточку.
                 .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .fillMaxWidth(),
         ) {
             BlockIcon.entries.forEach { option ->
@@ -1080,6 +1112,62 @@ private fun IconPalette(
  * Не чипы: карточка набрана строчками текста, и рамки Material в ней читались
  * бы как кусок формы, попавший не туда.
  */
+/**
+ * Строка дней недели: семь букв, и нажатая горит.
+ *
+ * Повторение выбирается пальцем по самим дням, а не списком «ежедневно /
+ * еженедельно / по будням»: список отвечает словом, которое потом надо
+ * разворачивать в дни, а семь букв и есть ответ — «Пн Ср Пт» видно целиком,
+ * не открывая ничего.
+ *
+ * Ничего не выбрано и выбраны все семь — одно и то же, «каждый день» (см.
+ * [DeedDays]), и горят при этом все семь: погашенная неделя читалась бы как
+ * «дело не случается никогда», а такого у дела не бывает — для этого есть
+ * переключатель на карточке. Поэтому и снятый последний день возвращает
+ * неделю целиком: человек снимал день, а не отменял дело.
+ *
+ * Слово под буквами — то же, что стоит на карточке в списке: «По будням»
+ * короче пяти сокращений, и, увидев его здесь, человек узнает его там.
+ */
+@Composable
+private fun DaysLine(
+    chosen: Set<DayOfWeek>,
+    onChoose: (Set<DayOfWeek>) -> Unit,
+    dimmed: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    // Пусто — это «каждый день», и показывается оно всей неделей.
+    val lit = chosen.ifEmpty { DeedDays.week.toSet() }
+
+    Column(modifier = modifier.alpha(if (dimmed) 0.35f else 1f)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            DeedDays.week.forEach { day ->
+                val picked = day in lit
+                Text(
+                    text = DeedDays.short(day),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (picked) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (picked) AccentSoft else Color.Transparent)
+                        .clickable {
+                            val next = if (picked) lit - day else lit + day
+                            onChoose(if (next.size == 7) emptySet() else next.ifEmpty { emptySet() })
+                        }
+                        .padding(horizontal = 7.dp, vertical = 5.dp),
+                )
+            }
+        }
+        Text(
+            text = DeedDays.title(chosen),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+        )
+    }
+}
+
 @Composable
 private fun PriorityLine(
     chosen: Priority,

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -63,11 +62,11 @@ import app.askya.ui.components.DialogText
 import app.askya.ui.components.DialogTitle
 import app.askya.ui.components.EditableLine
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.NewButton
 import app.askya.ui.components.SHELF_COLUMNS
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.TileRow
-import app.askya.ui.components.fadingEdges
 import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
 
@@ -181,9 +180,9 @@ fun LibraryScreen(
             )
 
             val shelf = rememberLazyListState()
-            LazyColumn(
+            FadingColumn(
                 state = shelf,
-                modifier = Modifier.fillMaxSize().fadingEdges(shelf),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,

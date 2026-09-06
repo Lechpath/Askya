@@ -17,10 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
@@ -42,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
 import app.askya.echo.formatDuration
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoGroup
 import app.askya.ui.echo.EchoPill
@@ -86,7 +85,7 @@ fun VideoTracksCard(onDismiss: () -> Unit) {
     }
 
     EchoCard(title = "Дорожки", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fadingVerticalScroll()) {
 
             EchoGroup(title = "Звук", modifier = Modifier.padding(top = 12.dp)) {
                 if (state.audioTracks.isEmpty()) {
@@ -169,7 +168,7 @@ fun VideoSpeedCard(onDismiss: () -> Unit) {
     val settings by preferences.state.collectAsStateWithLifecycle()
 
     EchoCard(title = "Скорость", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fadingVerticalScroll()) {
             Pills(
                 values = RATES,
                 label = { rate -> rateLabel(rate) },
@@ -248,7 +247,7 @@ fun VideoEditCard(onDismiss: () -> Unit) {
     }
 
     EchoCard(title = "Правка", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fadingVerticalScroll()) {
 
             if (editable == false) {
                 Hint(

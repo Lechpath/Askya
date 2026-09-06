@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -54,6 +52,7 @@ import app.askya.ui.components.DialogChoice
 import app.askya.ui.components.DialogText
 import app.askya.ui.components.DialogTitle
 import app.askya.ui.components.ScreenScaffold
+import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentInk
 import java.time.LocalDate
@@ -111,7 +110,7 @@ fun LivedScreen(onBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .fadingVerticalScroll()
                 .padding(horizontal = 16.dp),
         ) {
             if (rows == null) {
@@ -331,7 +330,7 @@ private fun WatchPicker(
                     // Обрезка обязательна: без неё уезжающие строки наползают
                     // на объяснение над списком и на «Готово» под ним.
                     .clip(RoundedCornerShape(14.dp))
-                    .verticalScroll(rememberScrollState())
+                    .fadingVerticalScroll()
                     .padding(top = 12.dp),
             ) {
                 names.forEach { name ->

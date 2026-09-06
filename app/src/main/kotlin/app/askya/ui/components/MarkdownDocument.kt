@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -98,7 +97,7 @@ fun MarkdownDocument(
     CompositionLocalProvider(LocalHighlight provides highlight) {
         Box(modifier = modifier) {
             SelectionContainer {
-                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = contentPadding) {
+                FadingColumn(modifier = Modifier.fillMaxSize(), contentPadding = contentPadding) {
                     items(blocks.size) { index ->
                         BlockView(blocks[index], previous = blocks.getOrNull(index - 1))
                     }

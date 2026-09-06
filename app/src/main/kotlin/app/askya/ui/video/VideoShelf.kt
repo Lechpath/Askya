@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import app.askya.data.preferences.SHELF_COLUMNS
 import app.askya.data.preferences.SHELF_RANGE
 import app.askya.echo.formatDuration
+import app.askya.ui.components.FadingGrid
 import app.askya.ui.echo.EchoDialog
 import app.askya.ui.echo.EchoPill
 import app.askya.ui.theme.Night
@@ -122,7 +122,7 @@ internal fun ClipShelf(
     // коробками съели бы у каждой пятую часть ширины.
     val gap = if (columns >= 5) 7.dp else 12.dp
 
-    LazyVerticalGrid(
+    FadingGrid(
         columns = GridCells.Fixed(columns.coerceIn(SHELF_RANGE.first, SHELF_RANGE.last)),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(gap),

@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EditNote
@@ -38,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.R
 import app.askya.data.entity.Note
+import app.askya.ui.components.fadingVerticalScroll
 
 /**
  * Боковое меню: вордмарк, разделы, список недавних заметок и три кнопки внизу.
@@ -125,7 +124,7 @@ fun AppDrawer(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .fadingVerticalScroll(),
         ) {
             Destination.entries.forEach { destination ->
                 DrawerRow(

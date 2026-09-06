@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +56,7 @@ import app.askya.echo.EchoRules
 import app.askya.echo.EchoShelf
 import app.askya.echo.Track
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingGrid
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
@@ -157,7 +157,7 @@ fun EchoStartCard(
                 if (shelves.isEmpty()) {
                     EmptyState(title = "Разложить не по чему", hint = open.nothing)
                 } else {
-                    LazyVerticalGrid(
+                    FadingGrid(
                         columns = GridCells.Fixed(2),
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -294,7 +294,7 @@ private fun Waterfall(
                 )
             }
 
-            LazyVerticalGrid(
+            FadingGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

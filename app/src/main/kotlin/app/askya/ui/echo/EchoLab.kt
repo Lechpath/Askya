@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -69,6 +68,7 @@ import app.askya.echo.Track
 import app.askya.echo.formatDuration
 import app.askya.ui.components.BreathingFlower
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
@@ -509,7 +509,7 @@ private fun MusicLabPage(
             hint = "Echo играет файлы с телефона. Скачай что-нибудь — и он их увидит.",
         )
 
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+        else -> FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
             items(library, key = { it.id }) { track ->
                 PickRow(
                     title = track.title,
@@ -552,7 +552,7 @@ private fun FoldersLabPage(
             hint = "Как только на телефоне появятся песни, здесь появятся их папки.",
         )
 
-        else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+        else -> FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
             folders.forEach { folder ->
                 val here = opened == folder.name
 
@@ -636,7 +636,7 @@ private fun PlaylistsLabPage(onOpen: (Long, String) -> Unit) {
         return
     }
 
-    LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+    FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
         items(playlists, key = { it.id }) { playlist ->
             Row(
                 modifier = Modifier
@@ -1171,7 +1171,7 @@ private fun LabPlaylistCard(
         } else {
             val queue = rows.map { it.asTrack() }
 
-            LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+            FadingColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 items(rows, key = { it.id }) { row ->
                     val at = rows.indexOf(row)
                     val track = row.asTrack()

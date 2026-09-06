@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +20,7 @@ import app.askya.app.appContainer
 import app.askya.data.entity.Note
 import app.askya.ui.components.AskyaAsk
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.NewButton
 import app.askya.ui.components.SHELF_COLUMNS
 import app.askya.ui.components.ScreenScaffold
@@ -87,7 +87,7 @@ fun BookScreen(
         navigationIsBack = true,
         floatingActionButton = { NewButton(label = "new file", onClick = { adding = true }) },
     ) {
-        LazyColumn(
+        FadingColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),

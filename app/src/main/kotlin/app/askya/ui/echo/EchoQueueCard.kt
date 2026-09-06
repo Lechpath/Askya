@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +31,7 @@ import app.askya.app.appContainer
 import app.askya.echo.Track
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
+import app.askya.ui.components.FadingColumn
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
 import app.askya.ui.theme.NightPanelSoft
@@ -73,7 +73,7 @@ fun EchoQueueCard(onDismiss: () -> Unit, onTrack: (Track) -> Unit) {
                 hint = "Включи что-нибудь — и соседние песни встанут сюда сами.",
             )
         } else {
-            LazyColumn(
+            FadingColumn(
                 state = list,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             ) {
