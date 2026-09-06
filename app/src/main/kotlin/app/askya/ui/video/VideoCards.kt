@@ -4,10 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
@@ -26,10 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,18 +32,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
-import app.askya.echo.formatDuration
 import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoGroup
 import app.askya.ui.echo.EchoPill
-import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
-import app.askya.ui.theme.NightPanelSoft
 import app.askya.ui.theme.Sunset
-import app.askya.video.EditResult
-import app.askya.video.VideoEdits
 import app.askya.video.VideoFormats
 import kotlinx.coroutines.launch
 
@@ -203,175 +191,6 @@ fun VideoSpeedCard(onDismiss: () -> Unit) {
     }
 }
 
-/**
- * Правка видео — карточка поверх плеера.
- *
- * Границы куска берутся с места, на котором сейчас стоит фильм: человек
- * доводит до нужного кадра и говорит «отсюда», потом «досюда». Это точнее и
- * быстрее любого поля ввода — он смотрит на кадр, а не на цифры.
- *
- * Всё, что здесь делается, — пересборка контейнера без пережатия
- * ([VideoEdits]): мгновенно и без потери качества, но и только то, для чего
- * кадры не нужно рисовать заново. Файл, который системный разбор не открывает,
- * говорит об этом сразу, а не после ожидания.
- */
-@Composable
-fun VideoEditCard(onDismiss: () -> Unit) {
-    val container = appContainer()
-    val engine = container.videoEngine
-    val store = container.videoStore
-    val images = container.imageStore
-    val state by engine.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    val source = state.source
-    var trimming by remember { mutableStateOf(false) }
-    var withSound by remember { mutableStateOf(true) }
-    var turn by remember { mutableIntStateOf(0) }
-    var working by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
-    var editable by remember { mutableStateOf<Boolean?>(null) }
-
-    androidx.compose.runtime.LaunchedEffect(source?.uri) {
-        val uri = source?.uri ?: return@LaunchedEffect
-        editable = VideoEdits.editable(context, uri)
-    }
-
-    fun finish(result: EditResult) {
-        working = false
-        notice = when (result) {
-            is EditResult.Done -> "Готово: ${result.name} — в папке ${store.folderName}"
-            is EditResult.Failed -> result.reason
-        }
-    }
-
-    EchoCard(title = "Правка", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.fadingVerticalScroll()) {
-
-            if (editable == false) {
-                Hint(
-                    "Этот файл плеер играет, но системный разбор его не открывает — " +
-                        "резать нечем. Кадр снять тоже, скорее всего, не выйдет.",
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                EchoPill(
-                    label = if (withSound) "Со звуком" else "Без звука",
-                    chosen = withSound,
-                    onClick = { withSound = !withSound },
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            EchoGroup(title = "Поворот") {
-                Pills(
-                    values = TURNS,
-                    label = { if (it == 0) "как есть" else "$it°" },
-                    chosen = { it == turn },
-                    onPick = { turn = it },
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionRow(
-                    label = if (working) "Режем…" else "Обрезать",
-                    enabled = !working && editable != false && source != null,
-                ) {
-                    if (source != null) trimming = true
-                }
-
-                ActionRow(
-                    label = "Звук отдельным файлом",
-                    enabled = !working && editable != false && source != null,
-                ) {
-                    val uri = source?.uri ?: return@ActionRow
-                    working = true
-                    notice = null
-                    scope.launch {
-                        finish(VideoEdits.extractAudio(context, store, uri, source.title))
-                    }
-                }
-
-                ActionRow(label = "Сохранить кадр", enabled = !working && source != null) {
-                    val uri = source?.uri ?: return@ActionRow
-                    working = true
-                    notice = null
-                    scope.launch {
-                        val bitmap = VideoEdits.frame(context, uri, state.positionMs)
-                        working = false
-                        notice = if (bitmap == null) {
-                            "Кадр из этого файла системными средствами не снимается"
-                        } else {
-                            val saved = images.save(bitmap, source.title)
-                            if (saved == null) "Кадр не записался"
-                            else "Кадр — в папке ${images.folderName}"
-                        }
-                    }
-                }
-            }
-
-            notice?.let { text ->
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Sunset,
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-            Hint(
-                "Кусок пересобирается без пережатия: качество то же, а начало сдвигается " +
-                    "назад до ближайшего опорного кадра — обычно меньше чем на две секунды.",
-            )
-        }
-    }
-
-    // Ножницы — та же карточка, что и в лаборатории ([VideoTrimCard]), а не
-    // вторая пара полей рядом с плеером. Границы куска ставят в одном месте на
-    // весь раздел: два инструмента для одного дела разошлись бы в первый же
-    // раз, когда один из них научился бы чему-нибудь новому.
-    //
-    // Звук и поворот остаются здесь: они относятся не к границам, а к тому,
-    // что делать с куском, и отвечает на это карточка правки.
-    if (trimming && source != null) {
-        VideoTrimCard(
-            title = source.title,
-            source = source.uri,
-            durationMs = state.durationMs,
-            onDismiss = { trimming = false },
-            onDone = { fromMs, toMs, name ->
-                trimming = false
-                working = true
-                notice = null
-                scope.launch {
-                    finish(
-                        VideoEdits.cut(
-                            context = context,
-                            store = store,
-                            source = source.uri,
-                            title = name,
-                            fromMs = fromMs,
-                            toMs = toMs,
-                            keepAudio = withSound,
-                            rotateBy = turn,
-                        ),
-                    )
-                }
-            },
-        )
-    }
-}
-
 // ---- Мелочи, общие для карточек ----
 
 /** Строка выбора: подпись слева, галочка у выбранного. */
@@ -429,26 +248,6 @@ private fun DelayLine(title: String, valueMs: Long, onChange: (Long) -> Unit) {
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         )
         EchoPill(label = "+0,1 с", chosen = false, onClick = { onChange(valueMs + 100) })
-    }
-}
-
-/** Кнопка действия во всю ширину карточки. */
-@Composable
-private fun ActionRow(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(NightPanelSoft)
-            .let { if (enabled) it.clickable(onClick = onClick) else it }
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) NightInk else NightMuted,
-        )
     }
 }
 

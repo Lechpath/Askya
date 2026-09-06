@@ -2,7 +2,10 @@ package app.askya.video
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,6 +14,8 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /** Что открыто в плеере: ссылка на файл и то, как его назвать в шапке. */
 data class VideoSource(val uri: String, val title: String) {
@@ -100,6 +105,16 @@ data class VideoState(
      * поперёк ровно там, где разворачивать его не надо.
      */
     val videoRotated: Boolean = false,
+    /**
+     * Какой по счёту плеер играет.
+     *
+     * Меняется только при пересоздании плеера после зависания
+     * ([VideoEngine.restart]). Экран держит на этом числе своё место под кадр:
+     * замерший VLC поверхность по-хорошему не отдаёт, и отбирать её у него —
+     * значит ждать того, кто уже не отвечает. Новый плеер получает новое
+     * место, а старое уходит вместе со старым плеером.
+     */
+    val generation: Int = 0,
 ) {
     /** Ширина кадра такой, какой её видит человек, — с учётом метки поворота. */
     val shownWidth: Int get() = if (videoRotated) videoHeight else videoWidth
@@ -143,6 +158,34 @@ data class VideoState(
  * адресов не открывает вовсе; дескриптор же одинаков для всего, что вообще
  * можно прочитать, включая файлы, отданные приложению на один заход. Держать
  * его открытым приходится всё время, пока файл играет, — отсюда [descriptor].
+ *
+ * ## Ни одного вызова VLC на главном потоке
+ *
+ * Это главное правило этого класса, и написано оно кровью: приложение
+ * зависало намертво и уходило в «не отвечает» именно здесь. Поднять сам VLC —
+ * это загрузить сотню мегабайт нативного кода; открыть файл — сходить к чужому
+ * провайдеру за дескриптором; а `stop()` и `release()` ждут, пока сойдутся
+ * потоки разбора, — и если разбор встал (а он и встаёт, ради этого написан
+ * [restart]), они не возвращаются вовсе. Всё это делалось на потоке, который
+ * рисует экран: телефон переставал отвечать на касания, и система убивала
+ * приложение.
+ *
+ * Поэтому у плеера свой поток ([onVlc]) — один, чтобы вызовы шли по очереди:
+ * VLC не любит, когда его дёргают с двух сторон. Состояние при этом меняется
+ * сразу, на месте вызова: экран не должен ждать ответа железа, чтобы
+ * перерисовать кнопку «пауза».
+ *
+ * Исключение одно — работа с местом под кадр ([attach], [detach],
+ * [refreshSurfaces]): это Android-разметка, и её трогают только с потока
+ * разметки.
+ *
+ * ## Закрытие — всегда в сторону
+ *
+ * Закрыть замерший плеер нельзя: он не отвечает и на закрытие. Поэтому
+ * закрывается он не на общем потоке, а на своём собственном, одноразовом
+ * ([bury]), и никого больше не задерживает — даже если не закроется никогда.
+ * Мёртвый плеер уносит с собой немного памяти; заклинивший на нём поток унёс
+ * бы весь раздел.
  */
 class VideoEngine(private val context: Context) {
 
@@ -176,16 +219,108 @@ class VideoEngine(private val context: Context) {
         )
     }
 
+    /**
+     * Поток, на котором зовётся VLC. Один и по очереди — см. рассказ выше.
+     *
+     * `var`, а не `val`: если команда на нём не вернулась (VLC встал внутри
+     * неё), поток бросается вместе с плеером и заводится новый — иначе раздел
+     * молча перестал бы открывать что бы то ни было до перезапуска приложения.
+     */
+    @Volatile
+    private var vlc: ExecutorService = newVlcThread()
+
+    /** Когда началась команда, которая ещё не вернулась. Ноль — свободен. */
+    @Volatile
+    private var busySince: Long = 0
+
+    private val ui = Handler(Looper.getMainLooper())
+
+    @Volatile
     private var player: MediaPlayer? = null
 
     /** Открытый файл: закрывается вместе со следующим открытием и с плеером. */
+    @Volatile
     private var descriptor: ParcelFileDescriptor? = null
 
     /** Место на экране, куда отдан кадр. Пусто — плеер сейчас никуда не рисует. */
+    @Volatile
     private var surface: VLCVideoLayout? = null
 
     /** Куда встать, когда файл откроется: место, на котором его закрыли. */
+    @Volatile
     private var pendingSeekMs: Long = 0
+
+    /**
+     * Разбирать ли кадры железом.
+     *
+     * Обычно да — иначе телефон греется и на 1080p не успевает. Снимается это
+     * само, при пересборке после зависания ([restart]): чаще всего встаёт
+     * именно железный разбор, на неудачном кодеке он замирает насмерть, и
+     * второй заход тем же способом кончился бы тем же.
+     */
+    @Volatile
+    private var hardware: Boolean = true
+
+    private fun newVlcThread(): ExecutorService =
+        Executors.newSingleThreadExecutor { work ->
+            Thread(work, "askya-vlc").apply { isDaemon = true }
+        }
+
+    /**
+     * Сделать это в VLC — по очереди и не на главном потоке.
+     *
+     * Перед тем как встать в очередь, смотрит, вернулась ли прошлая команда.
+     * Не вернулась за [WEDGE_MS] — значит, VLC встал внутри неё и не вернётся:
+     * ждать нечего, поток и плеер бросаются, и очередь начинается заново на
+     * свежем потоке. Без этого одно зависание закрывало бы раздел до
+     * перезапуска приложения.
+     */
+    private fun onVlc(block: () -> Unit) {
+        val since = busySince
+        if (since != 0L && SystemClock.elapsedRealtime() - since > WEDGE_MS) {
+            val doomed = player
+            val file = descriptor
+            player = null
+            descriptor = null
+            surface = null
+            busySince = 0
+            runCatching { vlc.shutdownNow() }
+            vlc = newVlcThread()
+            bury(doomed, file)
+        }
+        runCatching {
+            vlc.execute {
+                busySince = SystemClock.elapsedRealtime()
+                runCatching(block)
+                busySince = 0
+            }
+        }
+    }
+
+    /** А это — на потоке разметки: место под кадр живёт там. */
+    private fun onUi(block: () -> Unit) {
+        ui.post { runCatching(block) }
+    }
+
+    /**
+     * Проводить плеер — на отдельном потоке, ни о чём его не спрашивая.
+     *
+     * Слушатель снимается первым: доигрывающий своё событие плеер иначе писал
+     * бы в состояние, которое принадлежит уже не ему.
+     *
+     * Файл уходит вместе с плеером и закрывается последним: дескриптор,
+     * закрытый под читающим его VLC, — это уже не уборка, а выдернутый из-под
+     * него пол.
+     */
+    private fun bury(doomed: MediaPlayer?, file: ParcelFileDescriptor?) {
+        if (doomed == null && file == null) return
+        Thread({
+            runCatching { doomed?.setEventListener(null) }
+            runCatching { doomed?.stop() }
+            runCatching { doomed?.release() }
+            runCatching { file?.close() }
+        }, "askya-vlc-farewell").apply { isDaemon = true }.start()
+    }
 
     private val _state = MutableStateFlow(VideoState())
     val state: StateFlow<VideoState> = _state.asStateFlow()
@@ -197,7 +332,34 @@ class VideoEngine(private val context: Context) {
      * фильма в памяти не нужны никогда, а незакрытый дескриптор держит файл от
      * удаления.
      */
-    fun open(source: VideoSource, startMs: Long = 0) {
+    fun open(source: VideoSource, startMs: Long = 0, hardware: Boolean = true) {
+        pendingSeekMs = startMs
+        this.hardware = hardware
+
+        // Состояние — сразу, на месте вызова: имя файла и ожидание человек
+        // должен увидеть в тот же миг, а не когда поднимется VLC.
+        _state.value = _state.value.copy(
+            source = source,
+            error = null,
+            ended = false,
+            playing = false,
+            buffering = true,
+            positionMs = startMs,
+            durationMs = 0,
+            audioTracks = emptyList(),
+            subtitleTracks = emptyList(),
+            subtitleDelayMs = 0,
+            audioDelayMs = 0,
+            videoWidth = 0,
+            videoHeight = 0,
+            videoRotated = false,
+        )
+
+        onVlc { openHere(source, hardware) }
+    }
+
+    /** Само открытие — уже на своём потоке. */
+    private fun openHere(source: VideoSource, hardware: Boolean) {
         val vlc = runCatching { libVlc }.getOrElse {
             _state.value = VideoState(source = source, error = "Не удалось поднять плеер")
             return
@@ -213,34 +375,25 @@ class VideoEngine(private val context: Context) {
 
         // Разбирать кадры железом, а не процессором: без этого телефон греется
         // и на 1080p не успевает. Второй флаг — «падать обратно на процессор,
-        // если железо этот кодек не знает».
-        media.setHWDecoderEnabled(true, false)
+        // если железо этот кодек не знает». После зависания заходим сюда уже
+        // без железа вовсе — см. [hardware].
+        media.setHWDecoderEnabled(hardware, false)
 
         val current = player ?: MediaPlayer(vlc).also { fresh ->
             fresh.setEventListener { event -> onEvent(event) }
             player = fresh
         }
 
-        pendingSeekMs = startMs
-        _state.value = _state.value.copy(
-            source = source,
-            error = null,
-            ended = false,
-            positionMs = startMs,
-            durationMs = 0,
-            audioTracks = emptyList(),
-            subtitleTracks = emptyList(),
-            subtitleDelayMs = 0,
-            audioDelayMs = 0,
-            videoWidth = 0,
-            videoHeight = 0,
-            videoRotated = false,
-        )
-
         current.media = media
         // Ссылка отдана плееру — своя нам больше не нужна.
         media.release()
         current.play()
+
+        // Плеер мог родиться после того, как экран отдал место под кадр:
+        // открытие идёт своим потоком, а разметка своим. Кто из них успел
+        // первым, неважно — оба спрашивают об этом на потоке разметки, и
+        // второй доделывает то, чего не смог первый.
+        onUi { surface?.let { layout -> player?.attachViews(layout, null, true, false) } }
     }
 
     /**
@@ -262,17 +415,19 @@ class VideoEngine(private val context: Context) {
 
     fun play() {
         val current = player ?: return
-        if (_state.value.ended) {
-            // Доигранный файл кнопкой «играть» начинается сначала: иначе она
-            // выглядит нажатой впустую.
-            current.setTime(0)
-            _state.value = _state.value.copy(ended = false)
+        // Доигранный файл кнопкой «играть» начинается сначала: иначе она
+        // выглядит нажатой впустую.
+        val again = _state.value.ended
+        if (again) _state.value = _state.value.copy(ended = false)
+        onVlc {
+            if (again) current.setTime(0)
+            current.play()
         }
-        current.play()
     }
 
     fun pause() {
-        player?.pause()
+        val current = player ?: return
+        onVlc { current.pause() }
     }
 
     fun togglePlay() {
@@ -285,8 +440,8 @@ class VideoEngine(private val context: Context) {
         if (!_state.value.seekable) return
         val duration = _state.value.durationMs
         val target = if (duration > 0) ms.coerceIn(0, duration) else maxOf(0, ms)
-        current.setTime(target)
         _state.value = _state.value.copy(positionMs = target, ended = false)
+        onVlc { current.setTime(target) }
     }
 
     /** Перемотка на [deltaMs] от текущего места — двойным касанием и жестом. */
@@ -295,8 +450,8 @@ class VideoEngine(private val context: Context) {
     /** Скорость от четверти до четырёх: дальше речь неразборчива в обе стороны. */
     fun setRate(rate: Float) {
         val clamped = rate.coerceIn(0.25f, 4f)
-        player?.rate = clamped
         _state.value = _state.value.copy(rate = clamped)
+        onVlc { player?.rate = clamped }
     }
 
     /**
@@ -307,26 +462,29 @@ class VideoEngine(private val context: Context) {
      */
     fun setVolume(percent: Int) {
         val clamped = percent.coerceIn(0, 200)
-        player?.setVolume(clamped)
         _state.value = _state.value.copy(volume = clamped)
+        onVlc { player?.setVolume(clamped) }
     }
 
     fun setScale(scale: VideoScale) {
-        player?.videoScale = scale.type
         _state.value = _state.value.copy(scale = scale)
+        onVlc { player?.videoScale = scale.type }
     }
 
+    /**
+     * Выбранная дорожка запоминается сразу, не дожидаясь ответа плеера: ответ
+     * придёт со своего потока, а подсветку в списке человек ждёт от пальца.
+     * Дорожку из этого же списка плеер принимает всегда — списки он и отдал.
+     */
     fun setAudioTrack(id: Int) {
-        if (player?.setAudioTrack(id) == true) {
-            _state.value = _state.value.copy(audioTrackId = id)
-        }
+        _state.value = _state.value.copy(audioTrackId = id)
+        onVlc { player?.setAudioTrack(id) }
     }
 
     /** -1 выключает субтитры вовсе. */
     fun setSubtitleTrack(id: Int) {
-        if (player?.setSpuTrack(id) == true) {
-            _state.value = _state.value.copy(subtitleTrackId = id)
-        }
+        _state.value = _state.value.copy(subtitleTrackId = id)
+        onVlc { player?.setSpuTrack(id) }
     }
 
     /**
@@ -337,41 +495,50 @@ class VideoEngine(private val context: Context) {
      * субтитры может один человек.
      */
     fun addSubtitles(uri: String, select: Boolean = true) {
-        player?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(uri), select)
+        onVlc { player?.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(uri), select) }
     }
 
     /** Сдвиг субтитров: плюс — показывать позже. */
     fun setSubtitleDelay(ms: Long) {
-        player?.setSpuDelay(ms * 1000)
         _state.value = _state.value.copy(subtitleDelayMs = ms)
+        onVlc { player?.setSpuDelay(ms * 1000) }
     }
 
     /** Сдвиг звука: плюс — звучать позже. */
     fun setAudioDelay(ms: Long) {
-        player?.setAudioDelay(ms * 1000)
         _state.value = _state.value.copy(audioDelayMs = ms)
+        onVlc { player?.setAudioDelay(ms * 1000) }
     }
 
     /**
-     * Показывать кадр в этом месте экрана.
+     * Показывать кадр в этом месте экрана. Зовётся с потока разметки — оттуда,
+     * где это место и заведено.
      *
-     * Место запоминается: плеер, пересозданный после зависания ([restart]),
-     * должен вернуть картинку туда же, откуда она пропала, — а экран об этом
-     * пересоздании не знает и заново её не отдаст.
+     * Плеера в этот миг может ещё не быть: открытие идёт своим потоком. Тогда
+     * ничего не делается, а картинку отдаст сам [openHere], когда плеер
+     * родится, — тоже отсюда, с потока разметки.
      */
     fun attach(layout: VLCVideoLayout) {
         surface = layout
-        player?.attachViews(layout, null, true, false)
+        runCatching { player?.attachViews(layout, null, true, false) }
     }
 
-    fun detach() {
+    /**
+     * Экран убрал место под кадр.
+     *
+     * Спрашивается, то ли это место: после пересборки плеера ([restart])
+     * старое место брошено вместе со старым плеером, и отбирать по нему
+     * картинку у нового — значит гасить только что открытое.
+     */
+    fun detach(layout: VLCVideoLayout) {
+        if (surface !== layout) return
         surface = null
-        player?.detachViews()
+        runCatching { player?.detachViews() }
     }
 
     /** Кадр перерисовывается по размеру места — после поворота экрана. */
     fun refreshSurfaces() {
-        player?.updateVideoSurfaces()
+        runCatching { player?.updateVideoSurfaces() }
     }
 
     /**
@@ -392,18 +559,32 @@ class VideoEngine(private val context: Context) {
     fun restart() {
         val was = _state.value
         val source = was.source ?: return
-        runCatching { player?.detachViews() }
-        runCatching { player?.stop() }
-        runCatching { player?.release() }
+
+        // Ни stop, ни release, ни detachViews: замерший VLC не отвечает ни на
+        // что из этого, и вопрос к нему — это и есть то самое зависание всего
+        // приложения. Плеер просто перестаёт быть нашим и уходит в сторону
+        // ([bury]), а место под кадр бросается вместе с ним: новое заведёт
+        // экран, увидев новое [VideoState.generation].
+        bury(player, descriptor)
         player = null
-        closeMedia()
-        open(source, startMs = was.positionMs)
-        // Новый плеер рисует в никуда, пока ему не сказали куда: экран о
-        // пересоздании не знает и отдать себя заново не может.
-        surface?.let { player?.attachViews(it, null, true, false) }
+        descriptor = null
+        surface = null
+
+        _state.value = was.copy(
+            generation = was.generation + 1,
+            playing = false,
+            buffering = true,
+            error = null,
+        )
+
+        // Программным разбором: встаёт обычно железный, и второй заход тем же
+        // способом кончился бы тем же.
+        open(source, startMs = was.positionMs, hardware = false)
+
         // Скорость и способ вписать кадр живут в плеере, а плеер новый:
         // перезапуск не должен возвращать полуторную скорость к обычной, а
-        // «обрезать» — к «вписать».
+        // «обрезать» — к «вписать». Встают в ту же очередь, следом за
+        // открытием, — значит, плеер к тому времени уже есть.
         setRate(was.rate)
         setScale(was.scale)
     }
@@ -415,19 +596,34 @@ class VideoEngine(private val context: Context) {
      * ради следующего фильма значило бы ждать дважды.
      */
     fun stop() {
-        player?.stop()
-        closeMedia()
-        _state.value = VideoState(scale = _state.value.scale, volume = _state.value.volume)
+        val was = _state.value
+        val doomed = player
+        val file = descriptor
+        player = null
+        descriptor = null
+        // Место под кадр экран сейчас уберёт сам, и спрашивать об этом плеер
+        // мы не станем: отобрать картинку у того, кто, может быть, уже не
+        // отвечает, — это то самое зависание, только теперь на потоке
+        // разметки. Плеер уходит целиком, а следующий файл откроет новый:
+        // дорог здесь сам VLC, а он остаётся поднятым.
+        surface = null
+        _state.value = VideoState(
+            scale = was.scale,
+            volume = was.volume,
+            generation = was.generation,
+        )
+        bury(doomed, file)
     }
 
-    /** Совсем: вместе с VLC. Зовётся, когда приложение уходит из памяти. */
+    /** Совсем: вместе с плеером. Зовётся, когда приложение уходит из памяти. */
     fun release() {
-        runCatching { player?.detachViews() }
-        runCatching { player?.release() }
+        val doomed = player
+        val file = descriptor
         player = null
+        descriptor = null
         surface = null
-        closeMedia()
         _state.value = VideoState()
+        bury(doomed, file)
     }
 
     private fun closeMedia() {
@@ -567,4 +763,17 @@ class VideoEngine(private val context: Context) {
      */
     private fun sideways(orientation: Int): Boolean =
         orientation >= IMedia.VideoTrack.Orientation.LeftTop
+
+    private companion object {
+
+        /**
+         * Сколько ждать ответа от VLC, прежде чем счесть его поток пропавшим.
+         *
+         * Четыре секунды: открытие тяжёлого файла на медленной памяти бывает и
+         * секундным, и двухсекундным, а всё, что дольше, — уже не работа.
+         * Ошибиться здесь не страшно: ценой ошибки будет лишний новый плеер,
+         * а не потерянный раздел.
+         */
+        const val WEDGE_MS = 4_000L
+    }
 }

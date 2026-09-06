@@ -290,21 +290,6 @@ object VideoEdits {
     }
 
     /**
-     * Можно ли этот файл вообще резать.
-     *
-     * Спрашивается заранее, чтобы редактор не предлагал того, чего не сделает:
-     * плеер открывает avi и flv, а системный разбор — нет, и узнать об этом,
-     * прождав обрезку часового фильма, обидно.
-     */
-    suspend fun editable(context: Context, source: String): Boolean = withContext(Dispatchers.IO) {
-        val extractor = MediaExtractor()
-        runCatching {
-            extractor.setDataSource(context, Uri.parse(source), null)
-            extractor.trackCount > 0
-        }.also { runCatching { extractor.release() } }.getOrDefault(false)
-    }
-
-    /**
      * Угол готового файла: свой угол исходника плюс доворот.
      *
      * Свой спрашивается у системы, а не считается нулём: снятое телефоном

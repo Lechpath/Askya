@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.ScreenRotation
@@ -37,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -79,7 +79,6 @@ import kotlin.math.abs
 private enum class PlayerPanel {
     TRACKS,
     SPEED,
-    EDIT,
 }
 
 /**
@@ -261,6 +260,15 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
     // Считается по времени плеера, а не по картинке: время — единственное, что
     // говорит, идёт ли разбор. Буферизация и пауза сторожа не будят: там
     // стоящее время законно.
+    //
+    // **Перезапуск на файл один.** Прежде сторож будил плеер сколько угодно
+    // раз, и на файле, который не даётся вовсе, это становилось петлёй:
+    // открылся, не пошёл, встал, открылся заново — и так до тех пор, пока
+    // приложение не переставало отвечать. Один заход честен: он лечит
+    // случайную заминку разбора и не притворяется, что вылечит неигоспособный
+    // файл. Второе зависание подряд — это уже не заминка, и сказать об этом
+    // словами полезнее, чем открывать в третий раз.
+    var restarted by remember(source?.uri) { mutableStateOf(false) }
     LaunchedEffect(state.playing, source?.uri) {
         if (!state.playing) return@LaunchedEffect
         var was = -1L
@@ -276,7 +284,14 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
             still = if (now.positionMs == was) still + 1 else 0
             was = now.positionMs
             if (still >= STALL_SECONDS) {
-                flash = "Плеер встал — открываю заново"
+                if (restarted) {
+                    flash = "Плеер снова встал — этот файл ему не даётся"
+                    flashes++
+                    engine.pause()
+                    return@LaunchedEffect
+                }
+                restarted = true
+                flash = "Плеер встал — открываю заново, без железного разбора"
                 flashes++
                 engine.restart()
                 return@LaunchedEffect
@@ -297,17 +312,25 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
 
         // ---- Сам кадр ----
-        AndroidView(
-            factory = { ctx ->
-                VLCVideoLayout(ctx).also { layout -> engine.attach(layout) }
-            },
-            onRelease = { engine.detach() },
-            modifier = Modifier
-                .fillMaxSize()
-                // Поворот экрана меняет место под кадром, и без этого кадр
-                // остался бы нарисованным по старому размеру.
-                .onSizeChanged { engine.refreshSurfaces() },
-        )
+        //
+        // Место под кадр заводится заново на каждый пересозданный плеер
+        // ([VideoState.generation]): замерший VLC поверхность по-хорошему не
+        // отдаёт, и отбирать её у него — значит ждать того, кто уже не
+        // отвечает. Пока плеер один и тот же, число не меняется и лист живёт
+        // своей обычной жизнью — поворот экрана его не пересоздаёт.
+        key(state.generation) {
+            AndroidView(
+                factory = { ctx ->
+                    VLCVideoLayout(ctx).also { layout -> engine.attach(layout) }
+                },
+                onRelease = { layout -> engine.detach(layout) },
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Поворот экрана меняет место под кадром, и без этого кадр
+                    // остался бы нарисованным по старому размеру.
+                    .onSizeChanged { engine.refreshSurfaces() },
+            )
+        }
 
         // ---- Жесты ----
         Box(
@@ -483,9 +506,6 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
                         scale = state.scale.label,
                         stepSeconds = settings.seekStepSeconds,
                         subtitlesOn = state.subtitleTrackId >= 0,
-                        // Резать можно только то, что лежит на телефоне: у
-                        // потока из сети файла нет, и «Cut» вёл бы к ошибке.
-                        editable = source?.network != true,
                         onSeek = { engine.seekTo(it) },
                         onPlay = { engine.togglePlay() },
                         onBack10 = { engine.seekBy(-stepMs) },
@@ -493,7 +513,6 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
                         onScale = { engine.setScale(state.scale.next()) },
                         onSpeed = { panel = PlayerPanel.SPEED },
                         onTracks = { panel = PlayerPanel.TRACKS },
-                        onEdit = { panel = PlayerPanel.EDIT },
                         modifier = Modifier.align(Alignment.BottomStart),
                     )
                 }
@@ -503,7 +522,6 @@ fun VideoPlayerScreen(onClose: () -> Unit) {
         when (panel) {
             PlayerPanel.TRACKS -> VideoTracksCard(onDismiss = { panel = null })
             PlayerPanel.SPEED -> VideoSpeedCard(onDismiss = { panel = null })
-            PlayerPanel.EDIT -> VideoEditCard(onDismiss = { panel = null })
             null -> Unit
         }
 
@@ -587,7 +605,6 @@ private fun BottomBar(
     scale: String,
     stepSeconds: Int,
     subtitlesOn: Boolean,
-    editable: Boolean,
     onSeek: (Long) -> Unit,
     onPlay: () -> Unit,
     onBack10: () -> Unit,
@@ -595,7 +612,6 @@ private fun BottomBar(
     onScale: () -> Unit,
     onSpeed: () -> Unit,
     onTracks: () -> Unit,
-    onEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Пока палец на полосе, время берётся из-под пальца, а не от плеера:
@@ -681,15 +697,6 @@ private fun BottomBar(
                 onClick = onTracks,
                 modifier = Modifier.weight(1f),
             )
-            if (editable) {
-                EchoMode(
-                    text = "Cut",
-                    label = "Правка",
-                    on = false,
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f),
-                )
-            }
         }
     }
 }
