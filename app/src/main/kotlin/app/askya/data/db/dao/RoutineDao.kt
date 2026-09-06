@@ -37,4 +37,14 @@ interface RoutineDao {
 
     @Query("SELECT COUNT(*) FROM generated_days WHERE date = :date")
     suspend fun isGenerated(date: LocalDate): Int
+
+    /**
+     * Дни, уже собранные из списка, начиная с названного.
+     *
+     * Нужны правке списка: собранный день сам за списком не следит, и
+     * заведённое сегодня дело иначе появилось бы в нём только после
+     * пересборки. Прошлые дни не спрашиваются вовсе — их не трогают.
+     */
+    @Query("SELECT date FROM generated_days WHERE date >= :from ORDER BY date")
+    suspend fun generatedFrom(from: LocalDate): List<LocalDate>
 }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,6 +65,9 @@ import app.askya.ui.theme.Ink
 @Composable
 fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
     val viewModel: RoutineViewModel = viewModel(factory = RoutineViewModel.factory(appContainer()))
+    // Context нужен не экрану, а будильникам: сохранённое дело доходит до
+    // сегодняшнего дня, и вместе с убранным из него снимаются напоминания.
+    val context = LocalContext.current
     val items by viewModel.items.collectAsStateWithLifecycle()
     val bridges by appContainer().bridgeRepository.bridges()
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -135,7 +139,7 @@ fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
                                 RoutineCard(
                                     item = item,
                                     onClick = { editing = Editing(item) },
-                                    onEnabledChange = { viewModel.setEnabled(item, it) },
+                                    onEnabledChange = { viewModel.setEnabled(context, item, it) },
                                     modifier = cardModifier,
                                 )
                             }
@@ -185,6 +189,7 @@ fun RoutineScreen(onBack: () -> Unit, onOpenLink: (String) -> Unit = {}) {
             onSave = { draft ->
                 val base = current.item ?: RoutineItem(title = draft.title, startTime = draft.start)
                 viewModel.save(
+                    context,
                     base.copy(
                         title = draft.title,
                         startTime = draft.start,

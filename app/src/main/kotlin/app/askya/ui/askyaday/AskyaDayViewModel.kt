@@ -14,13 +14,15 @@ import app.askya.data.repository.DeedTaskRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
 import app.askya.data.repository.ScheduleRepository
-import app.askya.data.entity.remindAt
 import app.askya.data.entity.reminderOf
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.DayPlan
 import app.askya.domain.model.RemindAt
 import app.askya.domain.plan.DayLayout
+import app.askya.domain.plan.sameDeed
 import app.askya.reminders.ReminderAlarms
+import app.askya.reminders.dropReminders
+import app.askya.reminders.moveReminder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -188,7 +190,7 @@ class AskyaDayViewModel(
             // не бывало.
             val ids = schedule.itemsOnce(date).map { it.id }
             schedule.clearDay(date)
-            dropReminders(context, ids)
+            dropReminders(context, reminders, ids)
         }
     }
 
@@ -227,44 +229,9 @@ class AskyaDayViewModel(
         viewModelScope.launch {
             schedule.save(one.copy(startTime = other.startTime, endTime = other.endTime))
             schedule.save(other.copy(startTime = one.startTime, endTime = one.endTime))
-            moveReminder(context, one.id, one.date, other.startTime, other.endTime)
-            moveReminder(context, other.id, other.date, one.startTime, one.endTime)
+            moveReminder(context, reminders, one.id, one.date, other.startTime, other.endTime)
+            moveReminder(context, reminders, other.id, other.date, one.startTime, one.endTime)
         }
-    }
-
-    /**
-     * Переносит напоминание о деле на новый час — тем же способом, каким его
-     * задал человек: сказанный прямо час остаётся, «за столько-то до» едет
-     * вслед за началом.
-     *
-     * Выключенное напоминание переписывается, но будильник ему не заводится:
-     * выключили — значит, не звонить.
-     */
-    private suspend fun moveReminder(
-        context: Context,
-        itemId: Long,
-        date: LocalDate,
-        start: LocalTime,
-        end: LocalTime?,
-    ) {
-        val old = reminders.forItems(listOf(itemId)).firstOrNull() ?: return
-        ReminderAlarms.cancel(context, old.id)
-        val moved = reminderOf(
-            title = old.title,
-            eventDate = date,
-            eventStart = start,
-            eventEnd = end,
-            remind = old.remindAt,
-            id = old.id,
-            icon = old.icon,
-            enabled = old.enabled,
-            silent = old.silent,
-            sound = old.sound,
-            soundTitle = old.soundTitle,
-            itemId = itemId,
-        )
-        reminders.save(moved)
-        if (moved.enabled) ReminderAlarms.schedule(context, moved)
     }
 
     /**
@@ -329,14 +296,17 @@ class AskyaDayViewModel(
     fun addToRoutine(item: ScheduleItem) {
         viewModelScope.launch {
             if (routineItems.value.any { sameDeed(it, item) }) return@launch
-            routine.add(
-                RoutineItem(
-                    title = item.title,
-                    startTime = item.startTime,
-                    endTime = item.endTime,
-                    icon = item.icon,
-                )
+            val added = RoutineItem(
+                title = item.title,
+                startTime = item.startTime,
+                endTime = item.endTime,
+                icon = item.icon,
             )
+            routine.add(added)
+            // И сразу в уже собранные дни впереди: «будет в каждом новом» для
+            // человека значит и завтрашний день, если он в него уже заглянул.
+            // В этом дне дело уже стоит — его же отсюда и взяли.
+            routine.applyToDays(added)
         }
     }
 
@@ -378,7 +348,7 @@ class AskyaDayViewModel(
         sound: String?,
         soundTitle: String?,
     ) {
-        dropReminders(context, listOf(itemId))
+        dropReminders(context, reminders, listOf(itemId))
         if (remind == null) return
 
         val reminder = reminderOf(
@@ -408,27 +378,13 @@ class AskyaDayViewModel(
     fun remove(context: Context, id: Long) {
         viewModelScope.launch {
             schedule.remove(id)
-            dropReminders(context, listOf(id))
+            dropReminders(context, reminders, listOf(id))
         }
     }
 
     /** Вернуть убранное — то, что предлагает полоска внизу экрана. */
     fun restore(id: Long) {
         viewModelScope.launch { schedule.restore(id) }
-    }
-
-    /**
-     * Снимает напоминания о названных делах — вместе с будильниками.
-     *
-     * Читается из базы, а не из [itemReminders]: тот поток жив, только пока на
-     * экран смотрят, а дело могут удалить и в тот же миг уйти назад.
-     */
-    private suspend fun dropReminders(context: Context, itemIds: List<Long>) {
-        if (itemIds.isEmpty()) return
-        reminders.forItems(itemIds).forEach { old ->
-            ReminderAlarms.cancel(context, old.id)
-            reminders.delete(old)
-        }
     }
 
     companion object {
@@ -445,14 +401,3 @@ class AskyaDayViewModel(
         }
     }
 }
-/**
- * Дело списка и дело дня — одно и то же, когда совпали название и время начала.
- *
- * Номера, связывающего копию с источником, у дел нет и заводить его не стоит:
- * день и список живут порознь, правки в одном другого не касаются, и такая
- * связь пережила бы смысл, который в неё вкладывают. Название со временем —
- * ровно то, чем дело в списке и является.
- */
-internal fun sameDeed(routine: RoutineItem, item: ScheduleItem): Boolean =
-    routine.startTime == item.startTime &&
-        routine.title.trim().equals(item.title.trim(), ignoreCase = true)

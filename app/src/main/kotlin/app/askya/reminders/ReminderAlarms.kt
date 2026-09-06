@@ -17,7 +17,12 @@ import app.askya.app.AskyaApplication
 import app.askya.app.MainActivity
 import app.askya.data.backup.SnapshotAlarms
 import app.askya.data.entity.Reminder
+import app.askya.data.entity.remindAt
+import app.askya.data.entity.reminderOf
+import app.askya.data.repository.ReminderRepository
 import kotlinx.coroutines.runBlocking
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 /**
@@ -43,6 +48,69 @@ import java.time.ZoneId
  * из-за переключателя на боку телефона незачем. Режим «не беспокоить» пропускает
  * будильники, если их там не запретили отдельно.
  */
+/**
+ * Снять напоминания об убранных делах — вместе с их будильниками.
+ *
+ * Одно место на всех, кто убирает дела: убирает их и день (карточкой), и
+ * список дел (сняли день недели, выключили дело). Напоминание, пережившее своё
+ * дело, звонит о том, чего в дне уже нет, — и человек идёт искать несуществующее.
+ *
+ * Читается из базы, а не из потока экрана: тот жив, только пока на экран
+ * смотрят, а дело убирают и в тот же миг уходят назад.
+ */
+suspend fun dropReminders(
+    context: Context,
+    reminders: ReminderRepository,
+    itemIds: List<Long>,
+) {
+    if (itemIds.isEmpty()) return
+    reminders.forItems(itemIds).forEach { old ->
+        ReminderAlarms.cancel(context, old.id)
+        reminders.delete(old)
+    }
+}
+
+/**
+ * Переносит напоминание о деле на новый час — тем же способом, каким его задал
+ * человек: сказанный прямо час остаётся, «за столько-то до» едет вслед за
+ * началом.
+ *
+ * Одно место на всех, кто двигает дела: их двигает и день (карточку тянут за
+ * соседнюю), и список дел — правка часа в правиле доходит до уже собранных
+ * дней. «За пятнадцать минут» — это про дело, а не про час, в который оно
+ * раньше стояло.
+ *
+ * Выключенное напоминание переписывается, но будильник ему не заводится:
+ * выключили — значит, не звонить.
+ */
+suspend fun moveReminder(
+    context: Context,
+    reminders: ReminderRepository,
+    itemId: Long,
+    date: LocalDate,
+    start: LocalTime,
+    end: LocalTime?,
+) {
+    val old = reminders.forItems(listOf(itemId)).firstOrNull() ?: return
+    ReminderAlarms.cancel(context, old.id)
+    val moved = reminderOf(
+        title = old.title,
+        eventDate = date,
+        eventStart = start,
+        eventEnd = end,
+        remind = old.remindAt,
+        id = old.id,
+        icon = old.icon,
+        enabled = old.enabled,
+        silent = old.silent,
+        sound = old.sound,
+        soundTitle = old.soundTitle,
+        itemId = itemId,
+    )
+    reminders.save(moved)
+    if (moved.enabled) ReminderAlarms.schedule(context, moved)
+}
+
 object ReminderAlarms {
 
     private const val CHANNEL_GROUP = "reminders_group"
