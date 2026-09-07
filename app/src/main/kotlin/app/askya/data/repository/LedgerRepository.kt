@@ -56,6 +56,16 @@ class LedgerRepository(private val dao: LedgerDao) {
 
     fun categories(): Flow<List<LedgerCategory>> = dao.observeCategories()
 
+    /**
+     * Самый поздний месяц, в котором есть запись, — граница листания вперёд.
+     *
+     * `null` означает «дальше нынешнего месяца ничего нет», и это обычный
+     * ответ: книга пишется про прошлое. Нужна граница ради того редкого
+     * случая, когда запись всё же оказалась впереди, — см.
+     * [LedgerDao.observeLastDate].
+     */
+    fun edge(): Flow<YearMonth?> = dao.observeLastDate().map { date -> date?.let(YearMonth::from) }
+
     /** Месяц целиком: его записи и всё, что из них считается. */
     fun month(month: YearMonth): Flow<MonthBook> =
         dao.observeIn(month.atDay(1), month.atEndOfMonth()).map { entries ->

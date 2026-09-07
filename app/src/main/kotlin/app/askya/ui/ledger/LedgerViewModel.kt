@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -49,6 +50,18 @@ class LedgerViewModel(private val ledger: LedgerRepository, private val trash: T
      */
     val stats: StateFlow<LedgerStats> = ledger.stats()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LedgerStats())
+
+    /**
+     * Докуда пускать листание месяцев вперёд.
+     *
+     * Нынешний месяц — обычная граница: книга пишется про то, что уже было.
+     * Дальше она отодвигается ровно настолько, насколько в базе есть записи, —
+     * запись, попавшая в будущее опиской в дате, иначе не открывается и не
+     * стирается (см. [LedgerRepository.edge]).
+     */
+    val ahead: StateFlow<YearMonth> = ledger.edge()
+        .map { edge -> maxOf(YearMonth.now(), edge ?: YearMonth.now()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), YearMonth.now())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val book: StateFlow<MonthBook> = _month

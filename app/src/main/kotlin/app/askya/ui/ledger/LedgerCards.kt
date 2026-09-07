@@ -50,6 +50,7 @@ import app.askya.domain.model.parseRate
 import app.askya.domain.model.rateToText
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.AskyaDialog
+import app.askya.ui.components.DateLean
 import app.askya.ui.components.DialogBadge
 import app.askya.ui.components.DialogButtons
 import app.askya.ui.components.DialogCaption
@@ -305,7 +306,12 @@ fun MoneyCard(
                             amount = sum,
                             // Не разобранная дата остаётся прежней: «20 abc» —
                             // это описка, и терять из-за неё запись незачем.
-                            date = parseTypedDate(day) ?: entry.date,
+                            //
+                            // Год у ненаписанного года берётся назад
+                            // ([DateLean.BEHIND]): книга ведётся о
+                            // случившемся, и «31.08», напечатанная в сентябре,
+                            // означает позавчера, а не будущий август.
+                            date = parseTypedDate(day, lean = DateLean.BEHIND) ?: entry.date,
                             accountId = accountId,
                             toAccountId = toAccountId,
                             categoryId = categoryId,

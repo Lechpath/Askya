@@ -181,6 +181,9 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
 
     val stats by viewModel.stats.collectAsStateWithLifecycle()
 
+    // Докуда пускать листание месяцев вперёд — см. LedgerViewModel.ahead.
+    val ahead by viewModel.ahead.collectAsStateWithLifecycle()
+
     val pages = LedgerPage.entries
     val pager = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
@@ -271,7 +274,14 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
                     // над этим числом обещал бы остаток на конец августа,
                     // которого книга не считает.
                     LedgerPage.MONTH -> Column(modifier = Modifier.fillMaxSize()) {
-                        MonthStrip(month = month, onShow = viewModel::showMonth)
+                        MonthStrip(month = month, ahead = ahead, onShow = viewModel::showMonth)
+                        // Записи впереди — новость, и сказать её надо там, где
+                        // человек стоит: одиннадцать тапов стрелкой до августа
+                        // будущего года не делает никто, а не сходится счёт
+                        // из-за них уже сегодня.
+                        if (ahead > YearMonth.now() && month <= YearMonth.now()) {
+                            AheadNotice(ahead = ahead, onShow = { viewModel.showMonth(ahead) })
+                        }
                         MonthTab(
                             book = book,
                             accounts = accounts,
@@ -453,15 +463,43 @@ private fun PageMark(titles: List<String>, current: Int, onSelect: (Int) -> Unit
 }
 
 /**
+ * Строчка о записях, лежащих впереди нынешнего месяца.
+ *
+ * Запись в будущем — почти всегда описка в дате, и молчать о ней нельзя:
+ * в остаток счёта и в статистику она входит наравне со всеми, а на глаза не
+ * попадается — ленту листают по месяцам назад. Счёт при этом не сходится с
+ * настоящей картой, и найти причину не за что зацепиться.
+ *
+ * Строчка не «ошибка» и не красная: записать трату будущим числом человек мог
+ * и нарочно. Она говорит, где смотреть, и открывает тот месяц по тапу.
+ */
+@Composable
+private fun AheadNotice(ahead: YearMonth, onShow: () -> Unit) {
+    Text(
+        text = "Есть записи позже — " + formatMonthTitle(ahead) + ". Открыть",
+        style = MaterialTheme.typography.labelMedium,
+        color = AccentInk,
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onShow)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+    )
+}
+
+/**
  * Месяц со стрелками: «‹ Август 2026 ›».
  *
  * Вперёд дальше нынешнего месяца не листается: будущих трат не бывает, а
  * пустой сентябрь, в который можно уйти без края, — это способ заблудиться.
+ *
+ * Кроме одного случая: если запись всё же лежит впереди — опиской в дате, —
+ * край отодвигается до неё ([LedgerViewModel.ahead]). Иначе такая запись
+ * входит в остаток счёта и в статистику, а достать её нельзя ничем: месяца, в
+ * котором она стоит, не открыть.
  */
 @Composable
-private fun MonthStrip(month: YearMonth, onShow: (YearMonth) -> Unit) {
-    val ahead = YearMonth.now()
-
+private fun MonthStrip(month: YearMonth, ahead: YearMonth, onShow: (YearMonth) -> Unit) {
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
