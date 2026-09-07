@@ -5,6 +5,7 @@ import app.askya.data.entity.LedgerAccount
 import app.askya.data.entity.LedgerCategory
 import app.askya.data.entity.LedgerEntry
 import app.askya.domain.model.AccountKind
+import app.askya.domain.model.Currency
 import app.askya.domain.model.EntryKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -66,32 +67,63 @@ class LedgerRepository(private val dao: LedgerDao) {
      */
     fun edge(): Flow<YearMonth?> = dao.observeLastDate().map { date -> date?.let(YearMonth::from) }
 
-    /** Месяц целиком: его записи и всё, что из них считается. */
+    /**
+     * Месяц целиком: его записи и всё, что из них считается.
+     *
+     * Со списком счетов, а не с одними записями: у счёта своя валюта, а курсов
+     * книга не знает (см. [Currency]). В ленту месяца попадает всё, что за
+     * месяц было, — но складываются в итоги и разносятся по статьям только
+     * записи главной валюты: «Еда», в которой рубли сложены с долларами, — не
+     * сумма, а описка. Сколько валютных записей осталось за итогом, лежит в
+     * [MonthBook.foreign], и месяц говорит об этом строкой.
+     */
     fun month(month: YearMonth): Flow<MonthBook> =
-        dao.observeIn(month.atDay(1), month.atEndOfMonth()).map { entries ->
+        combine(
+            dao.observeIn(month.atDay(1), month.atEndOfMonth()),
+            dao.observeAccounts(),
+        ) { entries, accounts ->
+            val currencyOf = accounts.associate { it.id to it.currency }
+            val (own, foreign) = entries.partition { entry ->
+                (currencyOf[entry.accountId] ?: Currency.RUB).main
+            }
+
             // Возврат считается расходом со знаком минус — и в общем «ушло», и
             // в статье, по которой прошла трата. Складываются они поэтому
             // вместе, одной кучей: врозь пришлось бы вычитать одну карту из
             // другой, помня, что в первой есть статьи, которых нет во второй.
-            val outgoing = entries.filter {
+            val outgoing = own.filter {
                 it.kind == EntryKind.SPEND || it.kind == EntryKind.BACK
             }
-            val returned = entries.filter { it.kind == EntryKind.BACK }.sumOf { it.amount }
+            val returned = own.filter { it.kind == EntryKind.BACK }.sumOf { it.amount }
             MonthBook(
                 month = month,
                 entries = entries,
-                earned = entries.filter { it.kind == EntryKind.EARN }.sumOf { it.amount },
+                foreign = foreign,
+                earned = own.filter { it.kind == EntryKind.EARN }.sumOf { it.amount },
                 spent = outgoing.sumOf { it.signed },
                 returned = returned,
                 spentByCategory = outgoing
                     .groupBy { it.categoryId }
                     .mapValues { (_, rows) -> rows.sumOf { it.signed } },
-                earnedByCategory = entries
+                earnedByCategory = own
                     .filter { it.kind == EntryKind.EARN }
                     .groupBy { it.categoryId }
                     .mapValues { (_, rows) -> rows.sumOf { it.amount } },
             )
         }
+
+    /**
+     * Движение средств по одному счёту — то, из чего сложился его остаток.
+     *
+     * Карточка счёта отвечала на «сколько на нём сейчас», и это был тупик:
+     * увидев на карте не то число, человек шёл искать её траты в общей ленте
+     * месяца, вперемешку со всеми прочими. Теперь тап по счёту раскрывает его
+     * собственную ленту.
+     *
+     * Переводы приходят с обоих концов — см. [LedgerDao.observeOnAccount].
+     */
+    fun onAccount(accountId: Long): Flow<List<LedgerEntry>> =
+        dao.observeOnAccount(accountId, ACCOUNT_ENTRIES)
 
     /**
      * Вся книга, сложенная по месяцам и статьям, — для страницы «Статистика».
@@ -244,6 +276,13 @@ private val StatCell.signed: Long
         else -> 0
     }
 
+/**
+ * Докуда раскрывается лента счёта. Три сотни строк — это больше года частых
+ * трат: столько прокручивают до конца разве что нарочно, а держать в окне всю
+ * пятилетнюю книгу незачем.
+ */
+private const val ACCOUNT_ENTRIES = 300
+
 /** Счёт вместе с тем, сколько на нём сейчас. */
 data class AccountLine(val account: LedgerAccount, val amount: Long)
 
@@ -263,6 +302,12 @@ data class AccountLine(val account: LedgerAccount, val amount: Long)
 data class MonthBook(
     val month: YearMonth = YearMonth.now(),
     val entries: List<LedgerEntry> = emptyList(),
+    /**
+     * Записи месяца по валютным счетам. Они есть в [entries] и стоят в ленте,
+     * но ни в один итог и ни в одну статью не входят: складывать доллары с
+     * рублями книга не берётся — см. [Currency].
+     */
+    val foreign: List<LedgerEntry> = emptyList(),
     val earned: Long = 0,
     val spent: Long = 0,
     /** Сколько за месяц вернули. Из [spent] уже вычтено. */

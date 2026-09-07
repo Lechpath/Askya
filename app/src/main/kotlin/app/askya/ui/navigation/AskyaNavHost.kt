@@ -58,6 +58,7 @@ import app.askya.ui.routine.RoutineScreen
 import app.askya.ui.settings.SettingsScreen
 import app.askya.ui.yet.YetListScreen
 import app.askya.ui.yet.YetScreen
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -86,8 +87,40 @@ fun AskyaApp(
     val currentRoute = backStack?.destination?.route
 
     val container = appContainer()
-    val recents by remember(container) { container.noteRepository.notes() }
-        .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    /*
+     * «Недавнее» — записи Scroll и списки Yet одной лентой, по времени.
+     *
+     * Двумя потоками, сведёнными в один: таблицы разные, и запросом их не
+     * склеить, а восьми верхних строк из каждой хватает с запасом — в ленту
+     * попадают всё равно восемь. Список Yet отмечает время сам, когда его
+     * трогают (`YetRepository.touch`), — иначе заведённый неделю назад, но
+     * ведомый каждый день, тонул бы под вчерашними заметками.
+     */
+    val recents by remember(container) {
+        combine(
+            container.noteRepository.notes(),
+            container.yetRepository.recentLists(RECENTS),
+        ) { notes, lists ->
+            val fromNotes = notes.take(RECENTS).map { note ->
+                RecentEntry(
+                    id = note.id,
+                    title = note.title,
+                    list = false,
+                    at = note.updatedAt,
+                )
+            }
+            val fromLists = lists.map { list ->
+                RecentEntry(
+                    id = list.id,
+                    title = list.title,
+                    list = true,
+                    at = list.updatedAt,
+                )
+            }
+            (fromNotes + fromLists).sortedByDescending { it.at }.take(RECENTS)
+        }
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     val player = container.echoPlayer
     val echo by player.state.collectAsStateWithLifecycle()
@@ -226,15 +259,17 @@ fun AskyaApp(
         drawerContent = {
             AppDrawer(
                 currentRoute = currentRoute,
-                recents = recents.take(8),
+                recents = recents,
                 playing = echo.playing,
                 onSelect = { route ->
                     closeDrawer()
                     openSection(route)
                 },
-                onOpenNote = { id ->
+                onOpenRecent = { entry ->
                     closeDrawer()
-                    navController.navigate(Routes.noteEdit(id))
+                    navController.navigate(
+                        if (entry.list) Routes.yetList(entry.id) else Routes.noteEdit(entry.id),
+                    )
                 },
                 onQuickNote = {
                     closeDrawer()
@@ -565,9 +600,13 @@ fun AskyaApp(
             if (quickNote) {
                 QuickNoteCard(
                     onDismiss = { quickNote = false },
-                    onOpenFull = { id ->
+                    onOpenNote = { id ->
                         quickNote = false
                         navController.navigate(Routes.noteEdit(id))
+                    },
+                    onOpenList = { id ->
+                        quickNote = false
+                        navController.navigate(Routes.yetList(id))
                     },
                 )
             }
@@ -575,4 +614,10 @@ fun AskyaApp(
     }
 }
 
-
+/**
+ * Сколько строк держит «Недавнее» в меню.
+ *
+ * Восемь: список длиннее меню не помещает, а «недавнее» из двадцати строк —
+ * это уже не недавнее, а второй раздел, который надо читать.
+ */
+private const val RECENTS = 8

@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -543,7 +544,11 @@ private fun TopBar(
             .fillMaxWidth()
             .background(Night.copy(alpha = 0.55f))
             .statusBarsPadding()
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            // Вырез камеры в горизонтальном положении стоит сбоку, а не
+            // сверху: без него «назад» и замок уезжали под чёлку, а название
+            // фильма упиралось в самый край стекла.
+            .displayCutoutPadding()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!locked) {
@@ -630,7 +635,8 @@ private fun BottomBar(
             .fillMaxWidth()
             .background(Night.copy(alpha = 0.66f))
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .displayCutoutPadding()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
     ) {
         EchoLine(
             progress = progress,

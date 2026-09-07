@@ -1,7 +1,10 @@
 package app.askya.ui.echo
 
 import android.Manifest
+import android.app.NotificationManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,9 +46,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
+import app.askya.echo.EchoService
 import app.askya.echo.REVERB_NAMES
 import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.NightBorder
@@ -118,6 +124,11 @@ fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit, onLab: () -
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
+            // Шторка стоит первой: это не украшение звука, а единственная
+            // кнопка плеера за пределами приложения, и человек, который сюда
+            // зашёл, чаще всего зашёл именно из-за неё.
+            EchoGroup("Шторка") { ShadeLine() }
+
             EchoGroup("Звук") {
                 Row(
                     modifier = Modifier
@@ -503,3 +514,111 @@ private fun hasMic(context: android.content.Context): Boolean =
         context,
         Manifest.permission.RECORD_AUDIO,
     ) == PackageManager.PERMISSION_GRANTED
+
+/**
+ * Управление плеером за пределами приложения — и почему его может не быть.
+ *
+ * ## Зачем эта строка
+ *
+ * Карточку плеера в шторке и в центре управления рисует система — из
+ * уведомления и сессии, которые держит [app.askya.echo.EchoService]. Всё это
+ * заводится само и не спрашивает ни о чём, но упирается в одно чужое условие:
+ * разрешение показывать уведомления. С Android 13 его спрашивают, отказ
+ * запоминают навсегда, а на MIUI новому приложению его нередко не дают вовсе
+ * — и тогда музыка играет, а остановить её из кармана нечем.
+ *
+ * Хуже всего, что молча: приложение выглядит исправным, шторка пуста, и
+ * связать одно с другим человеку не по чему. Поэтому здесь стоит строка,
+ * которая говорит правду про нынешнее состояние и ведёт туда, где его
+ * меняют, — в системные настройки уведомлений самой Askya. Своего окна
+ * «дайте разрешение» второй раз не открыть: отказавшему дважды система его
+ * больше не показывает.
+ *
+ * ## Что она проверяет
+ *
+ * Два условия, и оба чужие: разрешение на уведомления и то, не выключены ли
+ * они у приложения целиком (или у канала плеера — его человек мог погасить
+ * долгим нажатием на само уведомление). Спрашивается это при каждом открытии
+ * карточки, а не однажды: настройки меняют снаружи, и запомненный ответ
+ * устарел бы к следующему разу.
+ */
+@Composable
+private fun ShadeLine() {
+    val context = LocalContext.current
+    // Ответ пересчитывается на каждый показ карточки: разрешение могли дать в
+    // системных настройках, куда эта же строка и уводит.
+    val allowed = shadeAllowed(context)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { openNotificationSettings(context) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Notifications,
+            contentDescription = null,
+            tint = if (allowed) Sunset else NightMuted,
+            modifier = Modifier.width(24.dp),
+        )
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(
+                text = if (allowed) "Плеер в шторке включён" else "Плеера в шторке нет",
+                style = MaterialTheme.typography.titleSmall,
+                color = NightInk,
+            )
+            Text(
+                text = if (allowed) {
+                    "Играющая песня показывается в шторке и в центре управления: " +
+                        "пауза и «дальше» под рукой, не открывая Askya. Нажми, чтобы " +
+                        "открыть системные настройки уведомлений."
+                } else {
+                    "Askya не разрешено показывать уведомления — а карточку плеера " +
+                        "система рисует именно из него. Нажми и включи уведомления " +
+                        "Askya: музыка тогда появится в шторке и на экране блокировки."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = NightMuted,
+            )
+        }
+    }
+}
+
+/**
+ * Появится ли карточка плеера в шторке.
+ *
+ * Разрешение на уведомления и включённость канала — оба ответа нужны: право
+ * дают один раз, а канал гасят долгим нажатием на само уведомление, и второе
+ * встречается чаще первого.
+ */
+private fun shadeAllowed(context: android.content.Context): Boolean {
+    val manager = NotificationManagerCompat.from(context)
+    if (!manager.areNotificationsEnabled()) return false
+    val channel = runCatching { manager.getNotificationChannel(EchoService.CHANNEL) }.getOrNull()
+        ?: return true
+    return channel.importance != NotificationManager.IMPORTANCE_NONE
+}
+
+/**
+ * Открыть системные настройки уведомлений Askya.
+ *
+ * Канал не называется: страница приложения показывает и общий переключатель, и
+ * список каналов, а прицельная страница канала на выключенных уведомлениях
+ * приложения открывается пустой — и человек видит переключатель, который ни на
+ * что не влияет.
+ *
+ * Не открылось — не беда: страница настроек есть не на всякой прошивке, и
+ * ронять из-за неё плеер незачем.
+ */
+private fun openNotificationSettings(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+

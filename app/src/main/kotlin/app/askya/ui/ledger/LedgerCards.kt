@@ -42,10 +42,14 @@ import app.askya.data.entity.LedgerCategory
 import app.askya.data.entity.LedgerEntry
 import app.askya.data.repository.AccountLine
 import app.askya.domain.model.AccountKind
+import app.askya.domain.model.Currency
 import app.askya.domain.model.EntryKind
 import app.askya.domain.model.MarkColor
 import app.askya.domain.model.moneyToText
+import app.askya.domain.model.formatMoney
 import app.askya.domain.model.parseMoney
+import app.askya.domain.model.parseMoneySum
+import app.askya.domain.model.parseMoneyTerms
 import app.askya.domain.model.parseRate
 import app.askya.domain.model.rateToText
 import app.askya.ui.components.ActionButton
@@ -114,9 +118,25 @@ fun MoneyCard(
     val pickable = accounts.filter { !it.account.closed || it.account.id == accountId }
     val forKind = categories.filter { it.kind == kind.categoryKind }
 
-    val money = parseMoney(amount)
+    // Валюта записи — та, что у выбранного счёта: своей у записи нет и быть не
+    // должно (см. [app.askya.domain.model.Currency]).
+    val currency = pickable.firstOrNull { it.account.id == accountId }?.account?.currency
+        ?: Currency.RUB
+
+    // Поле суммы складывает столбик: «120+340+56». Слагаемые нужны и отдельно
+    // — чтобы показать итог только тогда, когда их правда несколько, а не
+    // подписывать «= 700» под одинокой семисоткой.
+    val terms = parseMoneyTerms(amount)
+    val money = parseMoneySum(amount)
+    // У перевода второй счёт обязан быть той же валюты: одно число на два
+    // счёта разных валют означало бы курс, которого у книги нет.
+    val target = toAccountId?.let { id -> pickable.firstOrNull { it.account.id == id } }
     val ready = money != null && money > 0 && accountId != 0L &&
-        (kind != EntryKind.MOVE || (toAccountId != null && toAccountId != accountId))
+        (
+            kind != EntryKind.MOVE ||
+                (target != null && target.account.id != accountId &&
+                    target.account.currency == currency)
+            )
 
     if (naming) {
         NewCategoryCard(
@@ -183,6 +203,33 @@ fun MoneyCard(
             autoFocus = entry.id == 0L,
         )
 
+        // Столбик прямо в поле суммы: четыре чека из одного магазина
+        // записываются одной записью, и складывать их в уме, а потом
+        // проверять по калькулятору телефона, больше не нужно.
+        //
+        // Кнопки «+» и «−» стоят под полем, потому что цифровая клавиатура их
+        // не даёт: тянуться за плюсом на буквенную раскладку посреди набора
+        // суммы — работа, которой не должно быть.
+        Row(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Word(text = "+", picked = false, onClick = { amount = plus(amount, "+") })
+            Word(text = "−", picked = false, onClick = { amount = plus(amount, "−") })
+            // Итог показывается, только когда слагаемых больше одного: под
+            // одиноким числом он повторял бы его же.
+            if (terms.size > 1 && money != null) {
+                Text(
+                    text = "= " + formatMoney(money, currency = currency) +
+                        " · " + terms.size + " шт.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AccentInk,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+        }
+
         Spacer(Modifier.height(8.dp))
         DialogField(
             value = day,
@@ -209,7 +256,17 @@ fun MoneyCard(
                     picked = accountId == line.account.id,
                     onClick = {
                         accountId = line.account.id
-                        if (toAccountId == line.account.id) toAccountId = null
+                        // Второй конец перевода сбрасывается и тогда, когда он
+                        // остался в другой валюте: рубли на долларовый счёт
+                        // книга переложить не может.
+                        val other = toAccountId?.let { id ->
+                            pickable.firstOrNull { it.account.id == id }?.account
+                        }
+                        if (other == null || other.id == line.account.id ||
+                            other.currency != line.account.currency
+                        ) {
+                            toAccountId = null
+                        }
                     },
                     mark = markColor(line.account.color, line.account.title),
                 )
@@ -218,7 +275,14 @@ fun MoneyCard(
 
         if (kind == EntryKind.MOVE) {
             DialogCaption("Куда")
-            val others = pickable.filter { it.account.id != accountId }
+            // Только счета той же валюты: перевод — это одно число на два
+            // счёта, и, чтобы положить рубли на долларовый счёт, книге нужен
+            // курс, которого у неё нет (см. [Currency]). Обмен валюты
+            // записывается двумя записями — расходом там и доходом здесь, — и
+            // курс в них человек считает сам.
+            val others = pickable.filter {
+                it.account.id != accountId && it.account.currency == currency
+            }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -237,8 +301,14 @@ fun MoneyCard(
             // почему окно не закрывается.
             if (others.isEmpty()) {
                 Text(
-                    text = "Перевести можно только на другой свой счёт, а он пока один. " +
-                        "Заведите второй на вкладке «Счета».",
+                    text = if (pickable.count { it.account.id != accountId } > 0) {
+                        "Перевести можно только на счёт той же валюты: курса, чтобы " +
+                            "пересчитать сумму, у книги нет. Обмен записывается двумя " +
+                            "записями — расходом там и доходом здесь."
+                    } else {
+                        "Перевести можно только на другой свой счёт, а он пока один. " +
+                            "Заведите второй на вкладке «Счета»."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = Muted,
                 )
@@ -299,7 +369,7 @@ fun MoneyCard(
                 accent = true,
                 enabled = ready,
                 onClick = {
-                    val sum = parseMoney(amount) ?: return@ActionButton
+                    val sum = parseMoneySum(amount) ?: return@ActionButton
                     onSave(
                         entry.copy(
                             kind = kind,
@@ -321,6 +391,24 @@ fun MoneyCard(
                 },
             )
         }
+    }
+}
+
+/**
+ * Дописать знак к набранной сумме.
+ *
+ * Второй знак подряд заменяет первый, а не встаёт рядом: «120+−» не значит
+ * ничего, а промахнуться мимо соседней кнопки легко. Знак в пустом поле имеет
+ * смысл только у минуса — с плюса сумма и так начинается.
+ */
+private fun plus(amount: String, sign: String): String {
+    val written = amount.trimEnd()
+    if (written.isEmpty()) return if (sign == "+") "" else sign
+    val last = written.last()
+    return if (last == '+' || last == '−' || last == '-') {
+        written.dropLast(1) + sign
+    } else {
+        written + sign
     }
 }
 
@@ -480,6 +568,7 @@ fun AccountCard(
 ) {
     var title by remember(account.id) { mutableStateOf(account.title) }
     var kind by remember(account.id) { mutableStateOf(account.kind) }
+    var currency by remember(account.id) { mutableStateOf(account.currency) }
     // Знак в поле не показывается: у долговых счетов оно спрашивает «сколько
     // должны», а не «какой остаток», — см. рассуждение выше.
     var opening by remember(account.id) {
@@ -512,6 +601,41 @@ fun AccountCard(
             AccountKind.entries.forEach { option ->
                 Word(text = option.title, picked = kind == option, onClick = { kind = option })
             }
+        }
+
+        DialogCaption("В чём считать")
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Currency.entries.forEach { option ->
+                Word(
+                    text = option.title,
+                    picked = currency == option,
+                    onClick = { currency = option },
+                )
+            }
+        }
+        if (!currency.main) {
+            Text(
+                text = "Валютный счёт живёт сам по себе: его остаток и его записи " +
+                    "считаются в " + currency.sign + " и ни в итоги месяца, ни в статьи, " +
+                    "ни в статистику не входят. Курсов книга не знает и складывать " +
+                    "разные валюты не берётся — на «Счетах» у каждой свой итог.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Muted,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        if (account.id != 0L && currency != account.currency) {
+            Text(
+                text = "Уже записанное не пересчитывается: цифры остаются те же, " +
+                    "меняется только знак валюты. Курса, по которому их пересчитать, " +
+                    "у книги нет.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
 
         DialogCaption(
@@ -626,6 +750,7 @@ fun AccountCard(
                         account.copy(
                             title = title,
                             kind = kind,
+                            currency = currency,
                             // Долг ложится в остаток минусом: спросили «сколько
                             // должны», а хранится то же самое остатком счёта.
                             opening = if (kind.owed) -written else written,

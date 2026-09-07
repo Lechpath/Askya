@@ -73,6 +73,7 @@ import app.askya.data.entity.LedgerEntry
 import app.askya.data.repository.AccountLine
 import app.askya.data.repository.MonthBook
 import app.askya.domain.model.AccountKind
+import app.askya.domain.model.Currency
 import app.askya.domain.model.Debt
 import app.askya.domain.model.EntryKind
 import app.askya.domain.model.creditLeft
@@ -180,6 +181,7 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
 
     val stats by viewModel.stats.collectAsStateWithLifecycle()
+    val accountEntries by viewModel.accountEntries.collectAsStateWithLifecycle()
 
     // Докуда пускать листание месяцев вперёд — см. LedgerViewModel.ahead.
     val ahead by viewModel.ahead.collectAsStateWithLifecycle()
@@ -192,6 +194,9 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
     // Открытая запись. `null` — окна нет; запись с номером 0 — новая.
     var editing by remember { mutableStateOf<LedgerEntry?>(null) }
     var editingAccount by remember { mutableStateOf<LedgerAccount?>(null) }
+    // Раскрытый счёт — его движение средств. Не то же, что [editingAccount]:
+    // там правят название и вид, здесь смотрят, из чего сложился остаток.
+    var openAccount by remember { mutableStateOf<LedgerAccount?>(null) }
     var editingCategory by remember { mutableStateOf<LedgerCategory?>(null) }
     // Раскрытая статья — её записи за открытый месяц. Не то же, что
     // [editingCategory]: там правят название и предел, здесь смотрят, из чего
@@ -263,9 +268,13 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().weight(1f),
             ) { index ->
                 when (pages[index]) {
+                    // Тап по счёту раскрывает его ленту, а не настройки:
+                    // «сколько на карте и откуда это взялось» спрашивают
+                    // каждую неделю, а название правят однажды — см.
+                    // [AccountEntriesCard].
                     LedgerPage.ACCOUNTS -> AccountsTab(
                         lines = accounts,
-                        onOpen = { editingAccount = it },
+                        onOpen = { openAccount = it },
                         onSwap = viewModel::swapAccounts,
                     )
 
@@ -319,6 +328,33 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
         )
     }
 
+    // Лента раскрытого счёта спрашивается у базы отдельным потоком: она не
+    // про открытый месяц, и выбрать её из уже загруженного нельзя.
+    LaunchedEffect(openAccount?.id) { viewModel.showAccount(openAccount?.id ?: 0L) }
+
+    openAccount?.let { chosen ->
+        // Счёт берётся из свежего списка, а не из того, что положили в
+        // состояние: правку из этого же окна иначе пришлось бы ждать до
+        // закрытия.
+        val line = accounts.firstOrNull { it.account.id == chosen.id }
+        AccountEntriesCard(
+            account = line?.account ?: chosen,
+            amount = line?.amount ?: 0L,
+            entries = accountEntries,
+            accounts = remember(accounts) { accounts.associate { it.account.id to it.account } },
+            categories = remember(categories) { categories.associateBy { it.id } },
+            onOpenEntry = { entry ->
+                openAccount = null
+                editing = entry
+            },
+            onEdit = {
+                openAccount = null
+                editingAccount = line?.account ?: chosen
+            },
+            onDismiss = { openAccount = null },
+        )
+    }
+
     editingAccount?.let { account ->
         AccountCard(
             account = account,
@@ -351,7 +387,11 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
         // У расхода берутся и возвраты: они той же статьи и именно они
         // объясняют, почему её сумма меньше суммы покупок (см. [EntryKind]).
         val ofCategory = book.entries.filter { entry ->
-            entry.categoryId == category.id &&
+            // Валютные записи сюда не попадают: в статью они не входят вовсе
+            // (см. [Currency]), и итог раскрытой статьи разошёлся бы с той же
+            // суммой в строке над ней.
+            entry !in book.foreign &&
+                entry.categoryId == category.id &&
                 when (category.kind) {
                     EntryKind.EARN -> entry.kind == EntryKind.EARN
                     else -> entry.kind == EntryKind.SPEND || entry.kind == EntryKind.BACK
@@ -396,6 +436,19 @@ fun LedgerScreen(onOpenMenu: () -> Unit) {
             onDismiss = { notice = null },
         )
     }
+}
+
+/** «одна запись», «три записи», «пять записей» — по числу. */
+private fun entryWord(count: Int): String {
+    val last = count % 10
+    val hundred = count % 100
+    val word = when {
+        hundred in 11..14 -> "записей"
+        last == 1 -> "запись"
+        last in 2..4 -> "записи"
+        else -> "записей"
+    }
+    return "$count $word"
 }
 
 /**
@@ -620,6 +673,25 @@ private fun MonthTab(
             }
         }
 
+        // Валютные записи стоят в ленте месяца, но ни в один итог не входят:
+        // сложить доллар с рублём книге нечем — курсов она не знает (см.
+        // [Currency]). Молчать об этом нельзя: три карточки наверху иначе
+        // отвечали бы не на весь месяц, ничем этого не показывая. Сколько их
+        // и на каких счетах — видно в самом счёте, тапом по его карточке.
+        if (book.foreign.isNotEmpty()) {
+            item(key = "foreign") {
+                Text(
+                    text = "Ещё " + entryWord(book.foreign.size) +
+                        " по валютным счетам. В итоги месяца и в статьи они не " +
+                        "входят: курсов книга не знает и доллары с рублями не " +
+                        "складывает. Смотреть их — в самом счёте на «Счетах».",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Muted,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                )
+            }
+        }
+
         // Четвёртой карточкой возврат в ряд не встал бы: четыре суммы засечным
         // в ширину экрана — это четыре обрезанных числа. Да и не четвёртое это
         // число месяца, а объяснение к третьему: «ушло» уже уменьшено на
@@ -722,10 +794,16 @@ private fun MonthTab(
                     // Итог дня — рядом с его именем: «сколько я вчера потратил»
                     // спрашивают не реже, чем «на что». Возврат вычитается и
                     // здесь: иначе день говорил бы одно, а месяц — другое.
+                    // Валютные траты в итог дня не идут по той же причине, по
+                    // какой не идут в итог месяца: сложить доллар с рублём
+                    // книге нечем. Сами записи в ленте стоят и читаются со
+                    // своим знаком.
                     val spentThatDay = sameDay.sumOf { entry ->
-                        when (entry.kind) {
-                            EntryKind.SPEND -> entry.amount
-                            EntryKind.BACK -> -entry.amount
+                        val own = (accountById[entry.accountId]?.currency ?: Currency.RUB).main
+                        when {
+                            !own -> 0L
+                            entry.kind == EntryKind.SPEND -> entry.amount
+                            entry.kind == EntryKind.BACK -> -entry.amount
                             else -> 0L
                         }
                     }
@@ -761,7 +839,12 @@ private fun MonthTab(
  * файлам значило бы получить две слегка разные.
  */
 @Composable
-fun RowScope.Total(title: String, value: Long, color: Color) {
+fun RowScope.Total(
+    title: String,
+    value: Long,
+    color: Color,
+    currency: Currency = Currency.RUB,
+) {
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -773,7 +856,7 @@ fun RowScope.Total(title: String, value: Long, color: Color) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = formatMoney(value),
+                text = formatMoney(value, currency = currency),
                 fontFamily = FontFamily.Serif,
                 fontSize = 17.sp,
                 color = color,
@@ -888,6 +971,7 @@ private fun EntryRow(
     onClick: () -> Unit,
 ) {
     val account = accounts[entry.accountId]
+    val currency = account?.currency ?: Currency.RUB
     val category = entry.categoryId?.let { categories[it] }?.title
     val from = account?.title.orEmpty()
     val to = entry.toAccountId?.let { accounts[it]?.title }.orEmpty()
@@ -955,11 +1039,14 @@ private fun EntryRow(
                 }
             }
             Text(
+                // Валюта — та, что у счёта записи: сумма без знака своей
+                // валюты в ленте, где рядом стоят рублёвые и долларовые
+                // строки, читалась бы неправдой.
                 text = when (entry.kind) {
                     EntryKind.EARN, EntryKind.BACK ->
-                        formatMoney(entry.amount, withSign = true)
-                    EntryKind.SPEND -> formatMoney(-entry.amount)
-                    EntryKind.MOVE -> formatMoney(entry.amount)
+                        formatMoney(entry.amount, withSign = true, currency = currency)
+                    EntryKind.SPEND -> formatMoney(-entry.amount, currency = currency)
+                    EntryKind.MOVE -> formatMoney(entry.amount, currency = currency)
                 },
                 style = MaterialTheme.typography.titleSmall,
                 color = when (entry.kind) {
@@ -1002,11 +1089,14 @@ private fun AccountsTab(
 ) {
     val open = lines.filterNot { it.account.closed }
     val closed = lines.filter { it.account.closed }
-    val total = open.sumOf { it.amount }
-    // Долг считается по всем открытым счетам, а не по одним кредитным: заняли
-    // у человека — это тот же долг, и разносить его по двум строкам значило бы
-    // спрашивать «а какой именно долг вы имеете в виду».
-    val debt = open.sumOf { debtOf(it.amount) }
+
+    // Итоги считаются по каждой валюте отдельно и никогда не складываются
+    // между собой: курсов книга не знает — см. [Currency]. Валюта, которой в
+    // книге нет, и строки себе не получает.
+    val totals = Currency.entries.mapNotNull { currency ->
+        val its = open.filter { it.account.currency == currency }
+        if (its.isEmpty()) null else CurrencyTotal(currency = currency, lines = its)
+    }
     // Ряд высотой в самую высокую свою карточку — но мерить его надо по тому,
     // что в разделе есть, а не по тому, что бывает. У кредитной карты под
     // суммой ещё полоска лимита и подпись; у долгового счёта — слово «долг»; у
@@ -1032,20 +1122,12 @@ private fun AccountsTab(
     ) {
         item(key = "total") {
             Column {
-                // Две карточки, а не одна с двумя числами внутри: «сколько у
-                // меня» и «сколько я должен» — разные вопросы, и в одной рамке
-                // второе читается как уточнение первого.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Total(
-                        title = "всего",
-                        value = total,
-                        color = if (total < 0) Danger else Ink,
-                    )
-                    if (debt > 0) Total(title = "долг", value = debt, color = Danger)
+                if (totals.isEmpty()) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Total(title = "всего", value = 0, color = Ink)
+                    }
                 }
+                totals.forEach { money -> CurrencyTotals(money) }
 
                 // Черта под итогом: он не счёт, а сумма счетов, и стоящий
                 // вплотную к сетке читался бы как ещё одна карточка в ней —
@@ -1079,8 +1161,11 @@ private fun AccountsTab(
         // Долги — те же счета, но взятые со своим знаком: план считает по
         // сумме долга, а не по остатку в минусе. Закрытые счета в него не
         // попадают: закрытый долг — уже не долг.
+        // План погашения — только по рублёвым долгам: он складывает их в один
+        // столбик и считает, чем гасить вперёд, а сложить доллар с рублём
+        // книге нечем.
         val debts = open
-            .filter { it.account.kind.owed }
+            .filter { it.account.kind.owed && it.account.currency.main }
             .map { line ->
                 Debt(
                     id = line.account.id,
@@ -1110,6 +1195,104 @@ private fun AccountsTab(
         }
 
         item(key = "tail") { Spacer(Modifier.height(96.dp)) }
+    }
+}
+
+/**
+ * Итоги одной валюты: сколько своих и сколько должен.
+ *
+ * ## «Всего» — без кредитной карты
+ *
+ * Раньше в «всего» складывались все счета подряд, и кредитка среди них
+ * означала одно из двух: либо остаток на ней в минусе и «всего» молча
+ * уменьшалось на долг, либо на карте лежало переплаченное — и книга
+ * записывала банковские деньги в наличные. Ни то ни другое не отвечает на
+ * вопрос, ради которого на это число смотрят: «сколько я могу потратить, не
+ * влезая в долг».
+ *
+ * Поэтому кредитная карта в «всего» не входит вовсе — ни минусом, ни плюсом.
+ * Она стоит справа, в долге, и подписана отдельной строкой: занятое у банка —
+ * это не средства, это обязательство, и складывать одно с другим в единственном
+ * числе, которое читают мельком, нельзя.
+ *
+ * Прочий долг ([AccountKind.DEBT]) из «всего» не вынут: заняли у человека
+ * наличными — деньги эти лежат в кошельке и правда доступны, а минус на
+ * долговом счету — та самая поправка, которая делает «всего» правдой.
+ */
+private data class CurrencyTotal(val currency: Currency, val lines: List<AccountLine>) {
+
+    /** Свои деньги: всё, кроме кредитных карт. */
+    val total: Long = lines
+        .filter { it.account.kind != AccountKind.CREDIT }
+        .sumOf { it.amount }
+
+    /**
+     * Долг по всем счетам — и по кредитным, и по взятым у людей: «сколько я
+     * должен» задают одним вопросом, и разносить ответ по двум карточкам
+     * значило бы переспрашивать «а какой именно долг вы имеете в виду».
+     */
+    val debt: Long = lines.sumOf { debtOf(it.amount) }
+
+    /** Та его часть, что висит на кредитных картах. */
+    val credit: Long = lines
+        .filter { it.account.kind == AccountKind.CREDIT }
+        .sumOf { debtOf(it.amount) }
+}
+
+/**
+ * Строка итогов одной валюты.
+ *
+ * Две карточки, а не одна с двумя числами внутри: «сколько у меня» и «сколько
+ * я должен» — разные вопросы, и в одной рамке второе читается как уточнение
+ * первого.
+ *
+ * У главной валюты подписи короткие — «всего», «долг»: рубль в книге и так
+ * везде. У валютной подпись несёт знак («всего, $»), потому что рядом стоит
+ * такая же карточка с другим знаком, и без него они читались бы как одно
+ * число, посчитанное дважды.
+ */
+@Composable
+private fun CurrencyTotals(money: CurrencyTotal) {
+    val currency = money.currency
+    val mark = if (currency.main) "" else ", " + currency.sign
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Total(
+            title = "всего" + mark,
+            value = money.total,
+            color = if (money.total < 0) Danger else Ink,
+            currency = currency,
+        )
+        if (money.debt > 0) {
+            Total(
+                title = "долг" + mark,
+                value = money.debt,
+                color = Danger,
+                currency = currency,
+            )
+        }
+    }
+
+    // Долг по кредитке — тут же под ним, словами: он и есть та часть, которую
+    // из «всего» вынули, и не сказать об этом значило бы оставить человека с
+    // числом, которое он не может сойтись с суммой своих карточек.
+    if (money.credit > 0) {
+        Text(
+            text = if (money.credit == money.debt) {
+                "Весь он по кредитной карте. В «всего» кредитные деньги не входят: " +
+                    "они банковские, а не ваши."
+            } else {
+                "По кредитной карте из них " +
+                    formatMoney(money.credit, currency = currency) +
+                    ". В «всего» кредитные деньги не входят: они банковские, а не ваши."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = Muted,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 
@@ -1324,7 +1507,10 @@ private fun AccountTile(
             Money(
                 // Долговой счёт без долга показывает ноль, а не пустоту:
                 // «карта погашена» — это новость, и её надо видеть.
-                text = if (account.kind.owed) formatMoney(debt) else formatMoney(line.amount),
+                text = formatMoney(
+                    if (account.kind.owed) debt else line.amount,
+                    currency = account.currency,
+                ),
                 color = when {
                     account.closed -> Muted
                     account.kind.owed -> if (debt > 0) Danger else ModeGreen
@@ -1363,9 +1549,9 @@ private fun AccountTile(
                 }
                 Text(
                     text = if (over) {
-                        "сверх лимита " + formatMoney(-left)
+                        "сверх лимита " + formatMoney(-left, currency = account.currency)
                     } else {
-                        "доступно " + formatMoney(left)
+                        "доступно " + formatMoney(left, currency = account.currency)
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (over) Danger else Muted,

@@ -129,6 +129,25 @@ interface LedgerDao {
     )
     fun observeIn(from: LocalDate, to: LocalDate): Flow<List<LedgerEntry>>
 
+    /**
+     * Всё, что прошло по одному счёту, — движение средств по нему.
+     *
+     * Переводы берутся с обоих концов: снятое с карты в кошелёк — событие и
+     * для карты, и для кошелька, и счёт, у которого видно только уходящую
+     * половину переводов, не сходится с собственным остатком.
+     *
+     * Без границ по месяцу: смотрят сюда не «что было в августе», а «куда
+     * делись деньги», и обрывать ленту на первом числе значит прятать ответ.
+     * Потолок в [limit] строк — от книги, которую ведут пятый год: показать
+     * три тысячи записей окно всё равно не может, а прочесть их нельзя.
+     */
+    @Query(
+        "SELECT * FROM ledger_entries WHERE removedAt IS NULL " +
+            "AND (accountId = :accountId OR toAccountId = :accountId) " +
+            "ORDER BY date DESC, id DESC LIMIT :limit",
+    )
+    fun observeOnAccount(accountId: Long, limit: Int): Flow<List<LedgerEntry>>
+
     @Query("SELECT * FROM ledger_entries WHERE id = :id")
     suspend fun entry(id: Long): LedgerEntry?
 
@@ -167,12 +186,18 @@ interface LedgerDao {
      *
      * Возвраты здесь есть, и отдельным видом: вычесть их из расхода — дело
      * репозитория, а база отдаёт то, что записано, не складывая разное.
+     *
+     * Валютных счетов здесь нет вовсе. Статистика — это столбики месяцев и
+     * доли статей, то есть одни сложения; курсов книга не знает, и доллар,
+     * попавший в столбик рядом с рублём, сделал бы весь год неправдой (см.
+     * [app.askya.domain.model.Currency]).
      */
     @Query(
         """
         SELECT substr(date, 1, 7) AS month, categoryId, kind, SUM(amount) AS amount
           FROM ledger_entries
          WHERE removedAt IS NULL AND kind != 'MOVE'
+           AND accountId IN (SELECT id FROM ledger_accounts WHERE currency = 'RUB')
          GROUP BY month, categoryId, kind
          ORDER BY month
         """

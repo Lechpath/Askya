@@ -132,7 +132,14 @@ class AskyaDayViewModel(
      * пустым списком, решено в [DayRepository.ensureComposed].
      */
     fun ensureGenerated(date: LocalDate) {
-        viewModelScope.launch { day.ensureComposed(date) }
+        viewModelScope.launch {
+            day.ensureComposed(date)
+            // Важные дела списка ставятся отдельно и при каждом открытии, а
+            // не одной сборкой: сборка бывает один раз на день, а важное дело
+            // должно оказаться в дне и тогда, когда его пометили важным уже
+            // после сборки — см. [DayRepository.ensureImportant].
+            day.ensureImportant(date)
+        }
     }
 
     /**

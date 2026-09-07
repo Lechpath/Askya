@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -35,8 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.R
-import app.askya.data.entity.Note
 import app.askya.ui.components.fadingVerticalScroll
+import java.time.LocalDateTime
 
 /**
  * Боковое меню: вордмарк, разделы, список недавних заметок и три кнопки внизу.
@@ -53,10 +54,10 @@ import app.askya.ui.components.fadingVerticalScroll
 @Composable
 fun AppDrawer(
     currentRoute: String?,
-    recents: List<Note>,
+    recents: List<RecentEntry>,
     playing: Boolean,
     onSelect: (String) -> Unit,
-    onOpenNote: (Long) -> Unit,
+    onOpenRecent: (RecentEntry) -> Unit,
     onQuickNote: () -> Unit,
     onPlay: () -> Unit,
     weather: WeatherLine? = null,
@@ -154,18 +155,38 @@ fun AppDrawer(
                     modifier = Modifier.padding(start = 24.dp, top = 4.dp, bottom = 8.dp),
                 )
             } else {
-                recents.forEach { note ->
-                    Text(
-                        text = note.title.ifBlank { "Без названия" },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                recents.forEach { entry ->
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onOpenNote(note.id) }
+                            .clickable { onOpenRecent(entry) }
                             .padding(horizontal = 24.dp, vertical = 12.dp),
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // У списка перед именем стоит его знак, у записи —
+                        // ничего: в «Недавнем» они лежат вперемешку, и, не
+                        // отличив их взглядом, человек не знает, куда попадёт.
+                        // Значок, а не подпись «список»: слово в каждой второй
+                        // строке читалось бы дольше, чем сама строка.
+                        if (entry.list) {
+                            Icon(
+                                imageVector = Icons.Outlined.Checklist,
+                                contentDescription = "Список",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        Text(
+                            text = entry.title.ifBlank {
+                                if (entry.list) "Список без названия" else "Без названия"
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 
@@ -181,6 +202,36 @@ fun AppDrawer(
         )
     }
 }
+
+/**
+ * Строка «Недавнего»: запись Scroll или список Yet.
+ *
+ * ## Почему списки тоже здесь
+ *
+ * «Недавнее» показывало одни записи Scroll, а списки Yet — его же подраздел —
+ * оставались за двумя дверями: раздел, потом «Списки», потом нужный среди
+ * прочих. Между тем список заводят чаще всего впопыхах и ради ближайшего часа:
+ * «взять на объект», «купить по дороге», — и открывают его через минуту после
+ * того, как записали. Дорога до него была длиннее, чем сам список.
+ *
+ * Теперь запись и список стоят в «Недавнем» одной лентой, по времени. Двух
+ * колонок нет нарочно: «недавнее» — это про время, а не про вид, и раскладывать
+ * его на два столбика значило бы заставить выбирать раньше, чем вспомнил.
+ *
+ * ## Почему свой тип, а не общий предок
+ *
+ * Запись и список — разные сущности с разными таблицами и разными экранами, и
+ * общего у них ровно то, что здесь и написано: имя, время и куда вести.
+ * Заводить ради меню родство между ними значило бы связать две части
+ * приложения, которые ничем больше не связаны.
+ */
+data class RecentEntry(
+    val id: Long,
+    val title: String,
+    /** Список Yet, а не запись Scroll: от этого зависит и значок, и куда вести. */
+    val list: Boolean,
+    val at: LocalDateTime,
+)
 
 /**
  * Погода строкой: знак и градусы.

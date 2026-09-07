@@ -35,6 +35,7 @@ import app.askya.ui.components.CardGrid
 import app.askya.ui.components.DayPart
 import app.askya.ui.components.DayPartTitle
 import app.askya.domain.model.DeedDays
+import app.askya.domain.model.Priority
 import app.askya.domain.model.DeedLink
 import app.askya.domain.model.LinkKind
 import app.askya.ui.components.FadingColumn
@@ -239,12 +240,25 @@ private fun RoutineCard(
         // Дни недели подписаны только у того дела, которое случается не каждый
         // день: «Каждый день» под каждой карточкой — это слово, которое
         // перестают читать на второй карточке, а «Пн Ср Пт» и есть новость.
+        //
+        // «Важно» стоит рядом с ними и по той же мерке: это уже не пометка о
+        // настроении, а поведение — важное дело само встаёт в день (см.
+        // [app.askya.data.repository.DayRepository.ensureImportant]), и не
+        // видеть этого в списке значило бы гадать, откуда в дне взялось дело.
         val days = item.repeatDays
-        if (days.isNotEmpty()) {
+        val under = listOfNotNull(
+            "Важно".takeIf { item.priority == Priority.HIGH },
+            DeedDays.title(days).takeIf { days.isNotEmpty() },
+        ).joinToString(" · ")
+        if (under.isNotEmpty()) {
             Text(
-                text = DeedDays.title(days),
+                text = under,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (item.priority == Priority.HIGH) {
+                    Accent
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),

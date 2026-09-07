@@ -723,7 +723,12 @@ fun AskyaDayScreen(
 }
 
 /** Строка списка дела — тем видом, каким её знает карточка. */
-private fun cardTask(task: DeedTask) = CardTask(id = task.id, text = task.text, done = task.done)
+private fun cardTask(task: DeedTask) = CardTask(
+    id = task.id,
+    text = task.text,
+    done = task.done,
+    heading = task.heading,
+)
 
 /**
  * Ушли по мосту: какое дело, как называется и когда ушли.

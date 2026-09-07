@@ -22,6 +22,19 @@ interface YetDao {
     @Query("DELETE FROM yet_lists WHERE id = :id")
     suspend fun deleteListById(id: Long)
 
+    /**
+     * Отметить, что список трогали. Одной колонкой, а не через [updateList]:
+     * менять надо одно число, а перечитывать ради него весь список из базы
+     * значило бы гонять туда-обратно название и знак на каждую вычеркнутую
+     * строку.
+     */
+    @Query("UPDATE yet_lists SET updatedAt = :at WHERE id = :id")
+    suspend fun touchList(id: Long, at: LocalDateTime)
+
+    /** Свежие первыми — для «Недавнего» в меню. */
+    @Query("SELECT * FROM yet_lists ORDER BY updatedAt DESC LIMIT :limit")
+    fun observeRecentLists(limit: Int): Flow<List<YetList>>
+
     @Query("SELECT * FROM yet_lists ORDER BY createdAt")
     fun observeLists(): Flow<List<YetList>>
 
@@ -58,6 +71,9 @@ interface YetDao {
     /** Все строки сразу — из них считается, сколько «ещё» в каждом списке. */
     @Query("SELECT * FROM yet_items WHERE removedAt IS NULL")
     fun observeAllItems(): Flow<List<YetItem>>
+
+    @Query("SELECT * FROM yet_items WHERE id = :id")
+    suspend fun item(id: Long): YetItem?
 
     @Query("UPDATE yet_items SET removedAt = :at WHERE id = :id")
     suspend fun setItemRemoved(id: Long, at: LocalDateTime?)

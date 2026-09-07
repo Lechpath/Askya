@@ -39,8 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
@@ -48,7 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.app.appContainer
+import app.askya.domain.model.ListMark
 import app.askya.ui.theme.Accent
+import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Muted
 import app.askya.ui.theme.cardEdge
 import kotlinx.coroutines.launch
@@ -69,15 +73,40 @@ import kotlinx.coroutines.launch
  * строчка текста — то же, что человек и назвал бы этой заметкой, если бы его
  * спросили.
  *
- * [onOpenFull] — «развернуть»: заметка записывается и тут же открывается
+ * [onOpenNote] — «развернуть»: заметка записывается и тут же открывается
  * правкой со всей разметкой. Быстрая запись иногда оказывается началом
  * длинной, и бросать её ради этого не нужно.
+ *
+ * ## Заметка или список — одной кнопкой
+ *
+ * Записываемое на ходу бывает двух видов, и второй — список: «взять на
+ * объект», «купить по дороге». Заметкой он записывается плохо — в ней ничего
+ * не отметишь, — а до «Списков» надо идти через раздел и подраздел, то есть
+ * ровно тем длинным путём, от которого эта карточка и избавляет.
+ *
+ * Поэтому наверху два слова, и они переключают не поле, а то, чем написанное
+ * станет: заметкой в Библиотеке или списком в Yet. Поля те же самые — имя и
+ * строки, — и переключиться можно посреди набора, ничего не потеряв: набранное
+ * живёт в карточке, а не в том, чем оно окажется.
+ *
+ * Строки списка разбираются тем же, чем разбирается вставленный список
+ * ([app.askya.domain.markdown.ListInput]): маркеры, отступы и галочки
+ * снимаются, остаётся написанное. Знак списка не спрашивается — квадрат, как
+ * у всякого списка по умолчанию: быстрая запись не место для выбора
+ * оформления, а поменять его можно в самом списке.
  */
 @Composable
-fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
-    val notes = appContainer().noteRepository
+fun QuickNoteCard(
+    onDismiss: () -> Unit,
+    onOpenNote: (Long) -> Unit,
+    onOpenList: (Long) -> Unit,
+) {
+    val container = appContainer()
+    val notes = container.noteRepository
+    val lists = container.yetRepository
     val scope = rememberCoroutineScope()
 
+    var asList by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
 
@@ -111,7 +140,16 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
     fun save(then: (Long) -> Unit) {
         if (!ready) return
         scope.launch {
-            val id = notes.quickNote(name(), body)
+            val id = if (asList) {
+                // Имя у списка обязательно — иначе в «Списках» он стоит
+                // безымянным корешком. Не написали — берём первую строку, как
+                // и у заметки.
+                val listId = lists.addList(name(), ListMark.SQUARE)
+                lists.addLines(listId, body)
+                listId
+            } else {
+                notes.quickNote(name(), body)
+            }
             then(id)
         }
     }
@@ -148,22 +186,28 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
                 ),
         ) {
             Column(modifier = Modifier.fillMaxSize().padding(22.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Kind(text = "Заметка", picked = !asList, onClick = { asList = false })
+                    Kind(text = "Список", picked = asList, onClick = { asList = true })
+                }
                 Text(
-                    text = "Быстрая заметка",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Muted,
-                )
-                Text(
-                    text = "Ляжет в Библиотеку, к остальным записям",
+                    text = if (asList) {
+                        "Ляжет в Списки — по строке на пункт"
+                    } else {
+                        "Ляжет в Библиотеку, к остальным записям"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = Muted,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
+                    modifier = Modifier.padding(top = 6.dp, bottom = 12.dp),
                 )
 
                 Line(
                     value = title,
                     onValueChange = { title = it },
-                    hint = "Название — можно не писать",
+                    hint = if (asList) "Как назвать список" else "Название — можно не писать",
                     fontSize = 22.sp,
                     weight = FontWeight.SemiBold,
                     modifier = Modifier.focusRequester(focus),
@@ -174,7 +218,7 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
                 Line(
                     value = body,
                     onValueChange = { body = it },
-                    hint = "Что записать?",
+                    hint = if (asList) "Что в него внести? По строке на пункт" else "Что записать?",
                     fontSize = 17.sp,
                     weight = FontWeight.Normal,
                     modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -195,7 +239,10 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
                         icon = Icons.Outlined.OpenInFull,
                         label = "Развернуть",
                         enabled = ready,
-                        onClick = { save { id -> onOpenFull(id) } },
+                        onClick = {
+                            val list = asList
+                            save { id -> if (list) onOpenList(id) else onOpenNote(id) }
+                        },
                     )
                     ActionButton(
                         icon = Icons.Outlined.Check,
@@ -208,6 +255,28 @@ fun QuickNoteCard(onDismiss: () -> Unit, onOpenFull: (Long) -> Unit) {
             }
         }
     }
+}
+
+/**
+ * Чем станет написанное: заметкой или списком.
+ *
+ * Двумя словами, а не переключателем: переключатель отвечает на «да или нет», а
+ * здесь два равных ответа, и ни один из них не «выключено». Тем же способом
+ * выбирают важность дела и вид записи в книге — слово, набранное акцентом.
+ */
+@Composable
+private fun Kind(text: String, picked: Boolean, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal,
+        color = if (picked) Accent else Muted,
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (picked) AccentSoft else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
 }
 
 /**

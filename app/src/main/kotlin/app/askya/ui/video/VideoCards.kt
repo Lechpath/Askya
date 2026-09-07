@@ -73,9 +73,16 @@ fun VideoTracksCard(onDismiss: () -> Unit) {
     }
 
     EchoCard(title = "Дорожки", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.fadingVerticalScroll()) {
+        // Поля карточки — те же, что у всех карточек Askya (20 по бокам, 14
+        // сверху): без них строки выбора, кнопки сдвига и пояснения упирались
+        // в саму обводку, и карточка читалась как обрезанная по краю.
+        Column(
+            modifier = Modifier
+                .fadingVerticalScroll()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        ) {
 
-            EchoGroup(title = "Звук", modifier = Modifier.padding(top = 12.dp)) {
+            EchoGroup(title = "Звук") {
                 if (state.audioTracks.isEmpty()) {
                     Hint("В этом файле звуковых дорожек не нашлось")
                 } else {
@@ -156,13 +163,16 @@ fun VideoSpeedCard(onDismiss: () -> Unit) {
     val settings by preferences.state.collectAsStateWithLifecycle()
 
     EchoCard(title = "Скорость", onDismiss = onDismiss, height = null) {
-        Column(modifier = Modifier.fadingVerticalScroll()) {
+        Column(
+            modifier = Modifier
+                .fadingVerticalScroll()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+        ) {
             Pills(
                 values = RATES,
                 label = { rate -> rateLabel(rate) },
                 chosen = { rate -> kotlin.math.abs(rate - state.rate) < 0.01f },
                 onPick = { engine.setRate(it) },
-                modifier = Modifier.padding(top = 14.dp),
             )
 
             Row(modifier = Modifier.padding(top = 12.dp)) {
@@ -201,7 +211,7 @@ private fun ChoiceRow(label: String, chosen: Boolean, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

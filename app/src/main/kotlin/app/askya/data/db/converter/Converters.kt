@@ -2,6 +2,7 @@ package app.askya.data.db.converter
 
 import androidx.room.TypeConverter
 import app.askya.domain.model.AccountKind
+import app.askya.domain.model.Currency
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.MarkColor
 import app.askya.domain.model.EntryKind
@@ -116,4 +117,15 @@ class Converters {
     @TypeConverter
     fun stringToAccountKind(value: String): AccountKind =
         AccountKind.entries.firstOrNull { it.name == value } ?: AccountKind.CARD
+
+    /**
+     * Валюта счёта — именем, по той же причине, что и вид записи: строка в
+     * базе читается глазами и переживает вставку четвёртой валюты в середину
+     * перечисления.
+     */
+    @TypeConverter
+    fun currencyToString(value: Currency): String = value.name
+
+    @TypeConverter
+    fun stringToCurrency(value: String?): Currency = Currency.of(value)
 }

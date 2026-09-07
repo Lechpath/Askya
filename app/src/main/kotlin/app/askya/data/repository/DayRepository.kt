@@ -7,6 +7,8 @@ import app.askya.data.entity.ScheduleItem
 import app.askya.domain.plan.DayComposer
 import app.askya.domain.plan.DayLayout
 import app.askya.domain.plan.DayRequest
+import app.askya.domain.plan.sameDeed
+import app.askya.domain.model.Priority
 import java.time.LocalDate
 
 /**
@@ -54,6 +56,69 @@ class DayRepository(
         // бы помеченной и пустой.
         if (routineDao.enabled().none { it.on(date) }) return
         recompose(date)
+    }
+
+    /**
+     * Ставит в день важные дела списка — те, что помечены «Важно».
+     *
+     * ## Зачем
+     *
+     * Список разворачивается в день один раз — при первом его открытии
+     * ([ensureComposed]), — и дальше день живёт сам. Для обычного дела это
+     * правильно: день не должен переписываться под правило задним числом.
+     * Но с важным делом выходило иначе. Собрали день утром, а вечером человек
+     * завёл в списке «Позвонить в банк» и пометил важным — и в сегодняшний
+     * день оно попадало только через «Взять из списка дел», окно, которое
+     * приходилось открывать каждое утро заново. Важное дело, о котором надо
+     * помнить отдельно, — это ровно то дело, которое не должно требовать
+     * ежедневного выбора.
+     *
+     * Поэтому важное дело встаёт в день само и при каждом открытии: не только
+     * в тот день, который ещё не собирали, а в любой сегодняшний и будущий,
+     * где его нет.
+     *
+     * ## Чего это не делает
+     *
+     * **Не трогает прошлого.** Расписание на позавчера — запись о том, что
+     * было, и дописывать её задним числом значило бы врать.
+     *
+     * **Не спорит с человеком.** Дело, убранное из этого дня, обратно не
+     * встаёт: корзина видна ([ScheduleDao.allOn]), и убранное значит «сегодня
+     * не надо». Иначе вычеркнуть важное дело из одного дня стало бы нельзя.
+     *
+     * **Не ставит дважды.** Признак тот же, что везде: совпали название и час
+     * — дело то же самое ([sameDeed]). Поправленное руками в самом дне из-под
+     * правила выходит само.
+     *
+     * **Не разворачивает список.** Важные дела и только они: всё остальное
+     * по-прежнему приходит сборкой.
+     *
+     * **Не помечает день собранным.** День, в который важное дело встало
+     * до сборки, соберётся своим чередом — и уже с ним.
+     */
+    suspend fun ensureImportant(date: LocalDate) {
+        if (date.isBefore(LocalDate.now())) return
+
+        val important = routineDao.enabled()
+            .filter { it.priority == Priority.HIGH && it.on(date) }
+        if (important.isEmpty()) return
+
+        db.withTransaction {
+            val standing = scheduleDao.allOn(date)
+            important
+                .filterNot { deed -> standing.any { sameDeed(deed, it) } }
+                .forEach { deed ->
+                    scheduleDao.insert(
+                        ScheduleItem(
+                            date = date,
+                            startTime = deed.startTime,
+                            endTime = deed.endTime,
+                            title = deed.title,
+                            icon = deed.icon,
+                        ),
+                    )
+                }
+        }
     }
 
     /**

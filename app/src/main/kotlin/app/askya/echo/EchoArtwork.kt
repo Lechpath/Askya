@@ -50,8 +50,13 @@ private var last: Bitmap? = null
 private fun fromAlbumArt(context: Context, albumId: Long): Bitmap? {
     if (albumId <= 0) return null
     return runCatching {
-        context.contentResolver.openInputStream(EchoLibrary.coverUri(albumId))?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options())
+        val cover = EchoLibrary.coverUri(albumId)
+        // Дважды открытый поток, а не один: размер читается первым проходом,
+        // и отмотать поток документа назад нельзя — `markSupported` у него
+        // ничего не обещает.
+        val options = options(stream = { context.contentResolver.openInputStream(cover) })
+        context.contentResolver.openInputStream(cover)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
         }
     }.getOrNull()
 }
@@ -61,12 +66,44 @@ private fun fromTag(context: Context, uri: String): Bitmap? = runCatching {
     try {
         reader.setDataSource(context, Uri.parse(uri))
         reader.embeddedPicture?.let { bytes ->
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options())
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options(bytes = bytes))
         }
     } finally {
         reader.release()
     }
 }.getOrNull()
 
-/** Половинное уменьшение: обложке на экране больше 600 точек не нужно. */
-private fun options() = BitmapFactory.Options().apply { inSampleSize = 2 }
+/**
+ * Уменьшение по размеру самой картинки, а не вслепую вдвое.
+ *
+ * Обложки бывают какие угодно: у песни из магазина она 600 точек, у рипа с
+ * диска — 3000. Половинное уменьшение первую оставляло приемлемой, а вторую
+ * превращало в полтора мегапикселя — девять мегабайт в памяти на каждую
+ * играющую песню, и эти же девять мегабайт уходили в уведомление и в
+ * `MediaMetadata`. Система такие картинки ужимает сама, но не всегда молча: у
+ * уведомления есть потолок на то, сколько оно весит, и переросшее его просто
+ * не появляется в шторке.
+ *
+ * [LIMIT] точек по большей стороне хватает и карточке плеера на весь экран, и
+ * обложке в центре управления. Читается размер сперва без самой картинки
+ * (`inJustDecodeBounds`), потом подбирается степень двойки — единственный
+ * множитель, который `BitmapFactory` умеет применять при чтении, не разбирая
+ * файл целиком.
+ */
+private fun options(bytes: ByteArray? = null, stream: () -> java.io.InputStream? = { null }): BitmapFactory.Options {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    if (bytes != null) {
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    } else {
+        stream()?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    }
+
+    var sample = 1
+    val side = maxOf(bounds.outWidth, bounds.outHeight)
+    while (side > 0 && side / sample > LIMIT) sample *= 2
+
+    return BitmapFactory.Options().apply { inSampleSize = sample }
+}
+
+/** Больше этого обложке негде пригодиться: карточка плеера и есть экран. */
+private const val LIMIT = 1024

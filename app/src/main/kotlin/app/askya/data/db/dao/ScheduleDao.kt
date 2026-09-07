@@ -32,6 +32,18 @@ interface ScheduleDao {
     suspend fun itemsOn(date: LocalDate): List<ScheduleItem>
 
     /**
+     * То же, но вместе с убранным в корзину.
+     *
+     * Спрашивает один — важное дело списка, которое само встаёт в день
+     * ([app.askya.data.repository.DayRepository.ensureImportant]). Убранное
+     * из дня дело для него значит «сегодня не надо»: не увидев корзины, оно
+     * поставило бы его обратно через секунду после того, как его убрали, и
+     * вычеркнуть важное дело из одного дня стало бы нельзя вовсе.
+     */
+    @Query("SELECT * FROM schedule_items WHERE date = :date ORDER BY startTime, id")
+    suspend fun allOn(date: LocalDate): List<ScheduleItem>
+
+    /**
      * Убирает из дня всё, кроме сделанного и того, у чего есть свой список.
      *
      * Так пересобирается день. Сделанное — это запись о том, что уже

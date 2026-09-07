@@ -8,6 +8,15 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
+ * Заголовок раздела в списке дела: «# Взять с собой».
+ *
+ * Своё правило, а не общее из [ListInput]: заголовки есть только здесь. В
+ * списке Yet раздел не нужен — там сами списки и есть разделы, а вот дело в
+ * дне одно, и три перечня внутри него разделять нечем.
+ */
+private val HEADING = Regex("""^#{1,6}\s+(.*)$""")
+
+/**
  * Списки внутри дел дня.
  *
  * Своё хранилище, а не поле [ScheduleRepository]: строки списка переписываются
@@ -38,18 +47,42 @@ class DeedTaskRepository(private val dao: DeedTaskDao) {
      * Подпункты сюда не переносятся: список дела короткий и плоский, а уровень
      * внутри одного дела означал бы дело внутри дела — для этого в Askya есть
      * само расписание.
+     *
+     * Строка с решёткой впереди — «# Взять с собой» — становится заголовком
+     * раздела ([DeedTask.heading]): в одном деле умещаются и то, что надо
+     * сделать, и то, что надо взять или купить, и без заголовка они читаются
+     * одной кашей. Знак тот же, каким заголовок набирают в заметке, и из
+     * текста он снимается — как снимаются маркеры со строк списка.
      */
     suspend fun addLines(deedId: Long, source: String) {
-        ListInput.parse(source).forEach { line ->
-            dao.insert(DeedTask(deedId = deedId, text = line.text, done = line.done))
+        source.lines().forEach { raw ->
+            val head = HEADING.matchEntire(raw.trim())
+            if (head != null) {
+                val text = head.groupValues[1].trim().removeSuffix(":").trim()
+                if (text.isNotEmpty()) {
+                    dao.insert(DeedTask(deedId = deedId, text = text, heading = true))
+                }
+                return@forEach
+            }
+            // По строке за раз, а не всей отправкой сразу: заголовок стоит
+            // среди строк, и разобрать их одним куском значило бы потерять его
+            // место в списке.
+            ListInput.parse(raw).forEach { line ->
+                dao.insert(DeedTask(deedId = deedId, text = line.text, done = line.done))
+            }
         }
     }
 
-    suspend fun toggle(task: DeedTask) = dao.update(task.copy(done = !task.done))
+    /** Заголовок не отмечают: у него нет квадрата и отмечать в нём нечего. */
+    suspend fun toggle(task: DeedTask) {
+        if (task.heading) return
+        dao.update(task.copy(done = !task.done))
+    }
 
     /** Отметить по номеру — так приходит нажатие из шторки уведомлений. */
     suspend fun toggle(id: Long) {
         val task = dao.getById(id) ?: return
+        if (task.heading) return
         dao.update(task.copy(done = !task.done))
     }
 

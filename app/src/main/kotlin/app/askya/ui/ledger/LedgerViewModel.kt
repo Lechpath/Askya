@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -62,6 +63,24 @@ class LedgerViewModel(private val ledger: LedgerRepository, private val trash: T
     val ahead: StateFlow<YearMonth> = ledger.edge()
         .map { edge -> maxOf(YearMonth.now(), edge ?: YearMonth.now()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), YearMonth.now())
+
+    /**
+     * Счёт, чья лента сейчас раскрыта. 0 — не раскрыта ничья.
+     *
+     * Отдельным потоком, а не выборкой из уже загруженного месяца (как у
+     * статьи): лента счёта не про месяц. Спрашивают у неё «куда делись
+     * деньги», и обрывать ответ первым числом значит не отвечать.
+     */
+    private val _shownAccount = MutableStateFlow(0L)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val accountEntries: StateFlow<List<LedgerEntry>> = _shownAccount
+        .flatMapLatest { id -> if (id == 0L) flowOf(emptyList()) else ledger.onAccount(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun showAccount(id: Long) {
+        _shownAccount.value = id
+    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val book: StateFlow<MonthBook> = _month

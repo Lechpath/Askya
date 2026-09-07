@@ -110,6 +110,65 @@ class MoneyTest {
     }
 
     @Test
+    fun `столбик сумм складывается в поле`() {
+        assertEquals(51_600L, parseMoneySum("120+340+56"))
+        // Пробелы вокруг знака — обычное дело: их ставят машинально.
+        assertEquals(51_600L, parseMoneySum("120 + 340 + 56"))
+        // Копейки внутри столбика складываются копейками, а не рублями.
+        assertEquals(30_050L, parseMoneySum("100,25+200,25"))
+    }
+
+    @Test
+    fun `минус в столбике вычитает`() {
+        assertEquals(45_000L, parseMoneySum("500-50"))
+        // Типографский минус приходит вставкой из уже написанного и значит то
+        // же самое, что дефис с клавиатуры.
+        assertEquals(45_000L, parseMoneySum("500−50"))
+        // Первым знаком минус тоже понимается: итог тогда отрицательный, а
+        // отказать в записи — дело самой записи, а не разбора.
+        assertEquals(-5_000L, parseMoneySum("-50"))
+    }
+
+    @Test
+    fun `хвостовой знак не ломает набор`() {
+        // «120+» — середина набора, а не ошибка: гасить из-за неё «Готово»
+        // значило бы мигать кнопкой на каждом втором нажатии.
+        assertEquals(12_000L, parseMoneySum("120+"))
+        assertEquals(1, parseMoneyTerms("120+").size)
+    }
+
+    @Test
+    fun `одно число остаётся одним слагаемым`() {
+        assertEquals(listOf(70_000L), parseMoneyTerms("700"))
+        assertEquals(70_000L, parseMoneySum("700"))
+    }
+
+    @Test
+    fun `пусто значит пусто, а не ноль`() {
+        assertNull(parseMoneySum(""))
+        assertNull(parseMoneySum("+"))
+        assertNull(parseMoneySum("рублей"))
+    }
+
+    @Test
+    fun `валюта меняет только знак, а не число`() {
+        assertEquals("300${nbsp}$", formatMoney(30_000, currency = Currency.USD))
+        assertEquals("1${nbsp}234${nbsp}€", formatMoney(123_400, currency = Currency.EUR))
+        // Рубль остаётся значением по умолчанию: колонка, дописанная старым
+        // счетам, означает ровно то, чем они были.
+        assertEquals("300${nbsp}₽", formatMoney(30_000, currency = Currency.RUB))
+        assertTrue(Currency.RUB.main)
+        assertFalse(Currency.USD.main)
+    }
+
+    @Test
+    fun `неизвестная валюта читается рублём`() {
+        assertEquals(Currency.USD, Currency.of("USD"))
+        assertEquals(Currency.RUB, Currency.of(null))
+        assertEquals(Currency.RUB, Currency.of("XYZ"))
+    }
+
+    @Test
     fun `долговой счёт спрашивает про долг, а не про остаток`() {
         assertTrue(AccountKind.CREDIT.owed)
         assertTrue(AccountKind.DEBT.owed)

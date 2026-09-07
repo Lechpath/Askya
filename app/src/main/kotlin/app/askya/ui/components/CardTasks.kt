@@ -23,14 +23,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.askya.domain.model.ListMark
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentInk
 
-/** Строка списка внутри дела — то, что о ней знает карточка. */
-data class CardTask(val id: Long, val text: String, val done: Boolean)
+/**
+ * Строка списка внутри дела — то, что о ней знает карточка.
+ *
+ * [heading] — заголовок раздела: «Взять с собой», «Купить». У него нет
+ * квадрата, его не отмечают и в «3 из 7» он не считается (см.
+ * [app.askya.data.entity.DeedTask]).
+ */
+data class CardTask(
+    val id: Long,
+    val text: String,
+    val done: Boolean,
+    val heading: Boolean = false,
+)
 
 /**
  * Список задач внутри дела — тем же видом, что и список Yet.
@@ -45,6 +58,15 @@ data class CardTask(val id: Long, val text: String, val done: Boolean)
  * Знак только квадратный: форму знака в Yet выбирают списку, как цвет корешка
  * книге, — там списков десяток и их различают в лицо. Внутри дела список один,
  * различать его не с чем, и выбор формы был бы вопросом без последствий.
+ *
+ * ## Разделы
+ *
+ * Список дела — не всегда список дел. У поездки на объект в нём и то, что там
+ * сделать, и то, что туда взять, и то, что купить по дороге; человек пишет их
+ * в одно дело, потому что дело одно. Поэтому строка бывает заголовком:
+ * «# Взять с собой» набирается решёткой, как заголовок в заметке, и встаёт
+ * разделом — без квадрата, засечным, чуть отбитая сверху. Отмечать в ней
+ * нечего, и в счёте «3 из 7» её нет.
  *
  * ## Как пишут
  *
@@ -120,8 +142,10 @@ internal fun CardTaskList(
             if (tasks.isEmpty()) {
                 item {
                     Text(
-                        text = "Что нужно сделать в этом деле? Пиши строкой ниже — " +
-                            "по одной или списком сразу.",
+                        text = "Что сделать, что взять, что купить — пиши строкой ниже, " +
+                            "по одной или списком сразу. Строка с решёткой впереди — " +
+                            "«# Взять с собой» — становится заголовком: так в одном деле " +
+                            "умещаются несколько списков.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 12.dp),
@@ -130,6 +154,28 @@ internal fun CardTaskList(
             }
 
             items(tasks, key = { it.id }) { task ->
+                if (task.heading) {
+                    // Заголовок раздела: засечным и акцентом, с воздухом
+                    // сверху — тем же, чем в Askya набраны заголовки частей
+                    // дня. Нажатие ничего не отмечает: отмечать в разделе
+                    // нечего. Длинное — убирает, как у всякой строки.
+                    Text(
+                        text = task.text,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 17.sp,
+                        color = Accent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = { onRemove(task) },
+                            )
+                            .padding(top = 14.dp, bottom = 4.dp),
+                    )
+                    return@items
+                }
+
                 Row(
                     verticalAlignment = Alignment.Top,
                     modifier = Modifier
@@ -192,10 +238,13 @@ internal fun TaskLine(
     modifier: Modifier = Modifier,
 ) {
     val faded = MaterialTheme.colorScheme.onSurfaceVariant
-    val label = if (tasks.isEmpty()) {
+    // Заголовки разделов в счёт не идут: отмечать в них нечего, и «2 из 9» с
+    // двумя заголовками внутри обещало бы девять дел там, где их семь.
+    val lines = tasks.filterNot { it.heading }
+    val label = if (lines.isEmpty()) {
         "Список"
     } else {
-        "Список · ${tasks.count { it.done }} из ${tasks.size}"
+        "Список · ${lines.count { it.done }} из ${lines.size}"
     }
     Row(
         modifier = modifier
@@ -210,7 +259,7 @@ internal fun TaskLine(
             style = MaterialTheme.typography.bodyLarge,
             color = when {
                 dimmed -> faded.copy(alpha = 0.5f)
-                tasks.isEmpty() -> faded
+                lines.isEmpty() -> faded
                 else -> AccentInk
             },
         )

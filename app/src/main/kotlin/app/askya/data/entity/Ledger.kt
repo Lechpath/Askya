@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import app.askya.domain.model.AccountKind
+import app.askya.domain.model.Currency
 import app.askya.domain.model.EntryKind
 import app.askya.domain.model.MarkColor
 import java.time.LocalDate
@@ -29,6 +30,19 @@ data class LedgerAccount(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String = "",
     val kind: AccountKind = AccountKind.CARD,
+    /**
+     * В чём считается этот счёт.
+     *
+     * У счёта, а не у записи: доллары лежат на долларовом счету, и всё, что по
+     * нему прошло, — доллары. Запись знак валюты не хранит и хранить не должна
+     * — иначе на одном счету оказались бы записи в двух валютах, и остаток
+     * перестал бы что-либо значить.
+     *
+     * Складывать разные валюты книга не берётся нигде: курсов в ней нет — см.
+     * [Currency]. Отсюда и то, что валютный счёт не участвует ни в итогах
+     * месяца, ни в статьях, ни в статистике: там суммы складываются в одну.
+     */
+    val currency: Currency = Currency.RUB,
     /** Сколько было на счету, когда его завели. Может быть и отрицательным — долг. */
     val opening: Long = 0,
     /**

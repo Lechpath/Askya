@@ -13,6 +13,9 @@ class YetRepository(private val dao: YetDao) {
 
     fun lists(): Flow<List<YetList>> = dao.observeLists()
 
+    /** Свежие списки — для «Недавнего» в меню. */
+    fun recentLists(limit: Int): Flow<List<YetList>> = dao.observeRecentLists(limit)
+
     fun list(id: Long): Flow<YetList?> = dao.observeList(id)
 
     fun items(listId: Long): Flow<List<YetItem>> = dao.observeItems(listId)
@@ -45,7 +48,23 @@ class YetRepository(private val dao: YetDao) {
 
     /** Название и знак правятся вместе: в карточке списка они стоят рядом. */
     suspend fun updateList(list: YetList, title: String, mark: ListMark) =
-        dao.updateList(list.copy(title = title.trim(), mark = mark))
+        dao.updateList(list.copy(title = title.trim(), mark = mark, updatedAt = LocalDateTime.now()))
+
+    /**
+     * Отметить, что список трогали, — ради «Недавнего» в меню.
+     *
+     * Зовётся при всяком изменении его строк, а не только при правке названия:
+     * список, в котором сегодня вычеркнули три пункта, — это и есть тот, к
+     * которому вернутся ещё раз. Само название и знак трогают своей правкой
+     * ([updateList]) и время пишут сами.
+     *
+     * Промах не роняет то, ради чего звали: строку могли убрать вместе со
+     * списком, и колонка «когда трогали» у несуществующего списка — не беда,
+     * из-за которой стоит терять вычеркнутый пункт.
+     */
+    private suspend fun touch(listId: Long) {
+        dao.touchList(listId, LocalDateTime.now())
+    }
 
     /** Список уходит вместе со строками: без этого они остались бы сиротами. */
     suspend fun deleteList(id: Long) {
@@ -70,12 +89,20 @@ class YetRepository(private val dao: YetDao) {
                 ),
             )
         }
+        touch(listId)
     }
 
-    suspend fun toggle(item: YetItem) = dao.updateItem(item.copy(done = !item.done))
+    suspend fun toggle(item: YetItem) {
+        dao.updateItem(item.copy(done = !item.done))
+        touch(item.listId)
+    }
 
     /** Убрать строку — в корзину на сутки. См. [ScheduleRepository.remove]. */
-    suspend fun removeItem(id: Long) = dao.setItemRemoved(id, LocalDateTime.now())
+    suspend fun removeItem(id: Long) {
+        val item = dao.item(id)
+        dao.setItemRemoved(id, LocalDateTime.now())
+        item?.let { touch(it.listId) }
+    }
 
     suspend fun restoreItem(id: Long) = dao.setItemRemoved(id, null)
 
@@ -83,5 +110,8 @@ class YetRepository(private val dao: YetDao) {
 
     suspend fun deleteItem(id: Long) = dao.deleteItemById(id)
 
-    suspend fun clearDone(listId: Long) = dao.deleteDoneOf(listId)
+    suspend fun clearDone(listId: Long) {
+        dao.deleteDoneOf(listId)
+        touch(listId)
+    }
 }

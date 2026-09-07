@@ -73,6 +73,16 @@ object TaskShade {
     private const val DONE_INK = 0xFF9A9A9A.toInt()
 
     /**
+     * Цвет заголовка раздела в шторке — коралловый акцент Askya
+     * ([app.askya.ui.theme.CoralAccent]). Зашит числом по той же причине, что
+     * и серый выше: шторку рисует система своим набором красок, и `?attr`
+     * указывал бы на чужую тему. Гамму человек может сменить, а шторка
+     * останется коралловой — это цена одного числа против чтения темы из
+     * приёмника будильника.
+     */
+    private const val HEAD_INK = 0xFFD97757.toInt()
+
+    /**
      * Своя область, а не область экрана: шторку пересобирает и приёмник
      * нажатия, у которого экрана нет вовсе.
      */
@@ -116,7 +126,7 @@ object TaskShade {
             .sortedBy { it.startTime }
             .forEach { deed ->
                 val rows = tasks[deed.id].orEmpty()
-                if (rows.none { !it.done }) return@forEach
+                if (rows.none { !it.done && !it.heading }) return@forEach
                 shown += deed.id.toInt()
                 runCatching {
                     NotificationManagerCompat.from(context)
@@ -157,9 +167,13 @@ object TaskShade {
     }
 
     private fun build(context: Context, deed: ScheduleItem, tasks: List<DeedTask>): Notification {
-        val left = tasks.count { !it.done }
+        // Заголовки разделов в счёт не идут: отмечать в них нечего, и «2 из 9»
+        // с двумя заголовками внутри обещало бы девять дел там, где их семь.
+        // В самой шторке они стоят — тем же порядком, что и в карточке.
+        val lines = tasks.filterNot { it.heading }
+        val left = lines.count { !it.done }
         val meta = formatRange(deed.startTime, deed.endTime) +
-            " · " + (tasks.size - left) + " из " + tasks.size
+            " · " + (lines.size - left) + " из " + lines.size
 
         val big = RemoteViews(context.packageName, R.layout.shade_tasks)
         big.setTextViewText(R.id.shade_title, deed.title)
@@ -203,6 +217,17 @@ object TaskShade {
     private fun row(context: Context, task: DeedTask): RemoteViews {
         val view = RemoteViews(context.packageName, R.layout.shade_task_row)
         view.setTextViewText(R.id.shade_row_text, task.text)
+
+        // Заголовок раздела: без квадрата и без нажатия — отмечать в нём
+        // нечего. Пустой знак вместо квадрата, а не спрятанный: RemoteViews
+        // умеет менять картинку, а прятать её пришлось бы видимостью, которая
+        // потом остаётся у переиспользованной строки.
+        if (task.heading) {
+            view.setImageViewResource(R.id.shade_row_mark, R.drawable.ic_shade_box_blank)
+            view.setTextColor(R.id.shade_row_text, HEAD_INK)
+            return view
+        }
+
         view.setImageViewResource(
             R.id.shade_row_mark,
             if (task.done) R.drawable.ic_shade_box_done else R.drawable.ic_shade_box,

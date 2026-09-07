@@ -214,18 +214,37 @@ class EchoService : Service() {
         val notification = build(state)
 
         if (state.playing || !promised) {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                } else {
-                    0
-                },
-            )
-            foreground = true
-            promised = true
+            // Под `runCatching`, потому что бросает: с Android 12 система
+            // отказывает службе переднего плана, поднятой из фона
+            // (`ForegroundServiceStartNotAllowedException`). Отказ этот —
+            // не повод потерять подписку на плеер: вылети исключение отсюда,
+            // и сборщик состояния умер бы вместе с ней, а уведомление
+            // перестало бы обновляться до конца жизни службы — то есть шторка
+            // замерла бы на той песне, при которой это случилось.
+            val raised = runCatching {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    } else {
+                        0
+                    },
+                )
+            }.isSuccess
+
+            if (raised) {
+                foreground = true
+                promised = true
+            } else {
+                // Передним планом не вышло — уведомление всё равно должно
+                // висеть: карточку плеера система рисует из него, и без него
+                // музыку из кармана нечем остановить.
+                runCatching {
+                    NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
+                }
+            }
         }
 
         if (!state.playing) {
@@ -356,7 +375,12 @@ class EchoService : Service() {
     }
 
     companion object {
-        private const val CHANNEL = "echo"
+        /**
+         * Канал плеера. Не приватный: настройки Echo спрашивают у системы,
+         * не выключен ли он, — и два одинаковых имени в двух местах разошлись
+         * бы в первый же раз, когда правят одно из них.
+         */
+        internal const val CHANNEL = "echo"
         private const val NOTIFICATION_ID = 1_000
 
         private const val ACTION_PLAY = "app.askya.echo.PLAY"

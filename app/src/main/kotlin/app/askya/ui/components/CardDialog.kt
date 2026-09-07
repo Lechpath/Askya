@@ -1168,6 +1168,20 @@ private fun DaysLine(
     }
 }
 
+/**
+ * Важность дела списка — и то, что она теперь делает.
+ *
+ * Раньше она не значила ничего: осталась от разбора рассказа о себе, где
+ * решала, куда поставить дело без названного часа. Теперь важное дело само
+ * встаёт в расписание дня — в сегодняшний и в каждый будущий свой день, — и
+ * выбирать его каждое утро из списка не нужно (см.
+ * [app.askya.data.repository.DayRepository.ensureImportant]).
+ *
+ * Сказано это строкой под выбором, а не спрятано в справку: слово «Важно»,
+ * которое молча меняет поведение приложения, — это ловушка, а не пометка. И
+ * сказано только у выбранного «Важно»: подпись под каждым из трёх слов
+ * перестают читать на второй карточке.
+ */
 @Composable
 private fun PriorityLine(
     chosen: Priority,
@@ -1175,22 +1189,33 @@ private fun PriorityLine(
     dimmed: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.alpha(if (dimmed) 0.35f else 1f),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Priority.entries.forEach { option ->
-            val picked = option == chosen
+    Column(modifier = modifier.alpha(if (dimmed) 0.35f else 1f)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Priority.entries.forEach { option ->
+                val picked = option == chosen
+                Text(
+                    text = option.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (picked) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onChoose(option) }
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                )
+            }
+        }
+        if (chosen == Priority.HIGH) {
             Text(
-                text = option.label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (picked) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { onChoose(option) }
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                text = "Важное дело само встаёт в расписание — в сегодняшний день и в " +
+                    "каждый выбранный выше. Брать его из списка руками не нужно; " +
+                    "убранное из одного дня обратно не возвращается.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, start = 6.dp, end = 6.dp),
             )
         }
     }
