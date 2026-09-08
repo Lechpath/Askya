@@ -140,7 +140,7 @@ data class LedgerCategory(
  */
 @Entity(
     tableName = "ledger_entries",
-    indices = [Index("date"), Index("accountId"), Index("categoryId")],
+    indices = [Index("date"), Index("accountId"), Index("categoryId"), Index("threadId")],
 )
 data class LedgerEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -154,6 +154,15 @@ data class LedgerEntry(
     /** Статья. `null` — «без статьи»: см. рассуждение выше. */
     val categoryId: Long? = null,
     val note: String = "",
+    /**
+     * Нить, по которой прошла трата. `null` — обычная запись.
+     *
+     * Вторая ось разбора рядом со статьёй, и она отвечает на другой вопрос:
+     * статья говорит «на что» вообще («Дом»), нить — «ради чего именно»
+     * («Кухня на Гоголя»). Одно другого не заменяет: тот же цемент попадает и
+     * в «Дом» за месяц, и в смету кухни.
+     */
+    val threadId: Long? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val removedAt: LocalDateTime? = null,
 )

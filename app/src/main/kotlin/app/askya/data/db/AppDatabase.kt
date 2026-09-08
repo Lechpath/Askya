@@ -15,6 +15,7 @@ import app.askya.data.db.dao.NoteDao
 import app.askya.data.db.dao.ReminderDao
 import app.askya.data.db.dao.RoutineDao
 import app.askya.data.db.dao.ScheduleDao
+import app.askya.data.db.dao.ThreadDao
 import app.askya.data.db.dao.TopicDao
 import app.askya.data.db.dao.VideoDao
 import app.askya.data.db.dao.YetDao
@@ -35,6 +36,7 @@ import app.askya.data.entity.Reminder
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import app.askya.data.entity.ScrollTopic
+import app.askya.data.entity.ThreadItem
 import app.askya.data.entity.SelfAnswer
 import app.askya.data.entity.VideoPlaylist
 import app.askya.data.entity.VideoPlaylistClip
@@ -72,6 +74,7 @@ import app.askya.data.entity.YetList
         InterviewMessage::class,
         SelfAnswer::class,
         ScrollTopic::class,
+        ThreadItem::class,
         ImageAlbum::class,
         YetList::class,
         YetItem::class,
@@ -102,6 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun videoDao(): VideoDao
     abstract fun bridgeDao(): BridgeDao
     abstract fun ledgerDao(): LedgerDao
+    abstract fun threadDao(): ThreadDao
 
     companion object {
         private const val NAME = "askya.db"
@@ -112,11 +116,11 @@ abstract class AppDatabase : RoomDatabase() {
          * сверяет при чтении, а два числа об одном разошлись бы в первый же
          * раз, когда правят одно из них.
          */
-        const val VERSION = 40
+        const val VERSION = 41
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41)
                 .build()
     }
 }

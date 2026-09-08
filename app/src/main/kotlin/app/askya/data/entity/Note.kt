@@ -29,7 +29,7 @@ import java.time.LocalDateTime
  */
 @Entity(
     tableName = "notes",
-    indices = [Index("updatedAt"), Index("topicId"), Index("albumId")],
+    indices = [Index("updatedAt"), Index("topicId"), Index("albumId"), Index("threadId")],
 )
 data class Note(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -63,6 +63,14 @@ data class Note(
      * остановили. Ровно то же рассуждение, что у [isImage], только про длину.
      */
     val durationMs: Long = 0,
+    /**
+     * Нить, к которой запись относится. `null` — запись сама по себе.
+     *
+     * Не вместо книги ([topicId]) и не поверх неё: книга говорит, где запись
+     * лежит на полке, нить — ради чего она написана. Замеры кухни лежат в
+     * книге «Дом» и тянут нить «Кухня на Гоголя», и обе правды нужны.
+     */
+    val threadId: Long? = null,
     val createdAt: LocalDateTime = LocalDateTime.now(),
     val updatedAt: LocalDateTime = LocalDateTime.now(),
     /**

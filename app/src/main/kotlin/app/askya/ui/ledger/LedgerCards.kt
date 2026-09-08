@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.askya.app.appContainer
 import app.askya.data.entity.LedgerAccount
 import app.askya.data.entity.LedgerCategory
 import app.askya.data.entity.LedgerEntry
@@ -60,6 +62,8 @@ import app.askya.ui.components.DialogButtons
 import app.askya.ui.components.DialogCaption
 import app.askya.ui.components.DialogField
 import app.askya.ui.components.DialogTitle
+import app.askya.ui.components.MarkPalette
+import app.askya.ui.threads.ThreadPicker
 import app.askya.ui.components.formatTypedDate
 import app.askya.ui.components.parseTypedDate
 import app.askya.ui.theme.Accent
@@ -108,6 +112,7 @@ fun MoneyCard(
     var toAccountId by remember(entry.id) { mutableStateOf(entry.toAccountId) }
     var categoryId by remember(entry.id) { mutableStateOf(entry.categoryId) }
     var note by remember(entry.id) { mutableStateOf(entry.note) }
+    var threadId by remember(entry.id) { mutableStateOf(entry.threadId) }
     // Заводится ли сейчас новая статья: окно на это время подменяется, а
     // набранное в записи остаётся на месте — оно живёт здесь, а не в окне.
     var naming by remember(entry.id) { mutableStateOf(false) }
@@ -117,6 +122,12 @@ fun MoneyCard(
     // «ниоткуда».
     val pickable = accounts.filter { !it.account.closed || it.account.id == accountId }
     val forKind = categories.filter { it.kind == kind.categoryKind }
+
+    // Нити спрашиваются у контейнера, а не приходят сверху: экран книги о них
+    // ничего не знает и знать не должен — то же, что с выбором привязки дела
+    // (`rememberLinkChoices`).
+    val threads by appContainer().threadRepository.threads()
+        .collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Валюта записи — та, что у выбранного счёта: своей у записи нет и быть не
     // должно (см. [app.askya.domain.model.Currency]).
@@ -346,6 +357,21 @@ fun MoneyCard(
             }
         }
 
+        // Нить — вторая ось разбора рядом со статьёй, и вопрос у неё другой:
+        // статья говорит «на что» вообще («Дом»), нить — «ради чего именно»
+        // («Кухня на Гоголя»). Тот же цемент попадает и в «Дом» за месяц, и в
+        // смету кухни, и одно другого не заменяет.
+        //
+        // У перевода нити не бывает: переложить из кармана в карман — не
+        // вложение в начинание, а перемещение денег.
+        if (kind != EntryKind.MOVE) {
+            ThreadPicker(
+                threads = threads.map { it.thread },
+                chosen = threadId,
+                onPick = { threadId = it },
+            )
+        }
+
         Spacer(Modifier.height(12.dp))
         DialogField(
             value = note,
@@ -385,6 +411,9 @@ fun MoneyCard(
                             accountId = accountId,
                             toAccountId = toAccountId,
                             categoryId = categoryId,
+                            // Перевод нить не тянет — см. рассуждение выше;
+                            // выбранная до переключения вида не остаётся.
+                            threadId = if (kind == EntryKind.MOVE) null else threadId,
                             note = note,
                         ),
                     )
@@ -804,47 +833,3 @@ private fun Word(text: String, picked: Boolean, onClick: () -> Unit, mark: Color
     }
 }
 
-/**
- * Палитра красок: восемь кружков, выбранный — с галочкой.
- *
- * Без подписей: краску выбирают глазами, и слово «сливовая» не помогает её
- * узнать. Галочка внутри кружка, а не обводка вокруг: на тёмных красках
- * обводка почти не видна, а светлый знак виден на всех восьми. Ровно та же
- * палитра, что у корешков книг в Scroll, — см. [MarkColor].
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MarkPalette(chosen: MarkColor?, onPick: (MarkColor) -> Unit) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        maxItemsInEachRow = 4,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        MarkColor.entries.forEach { option ->
-            val picked = option == chosen
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(markColor(option))
-                    .border(
-                        width = if (picked) 2.dp else 0.dp,
-                        color = if (picked) Ink else Color.Transparent,
-                        shape = CircleShape,
-                    )
-                    .clickable { onPick(option) },
-            ) {
-                if (picked) {
-                    Icon(
-                        imageVector = Icons.Outlined.Check,
-                        contentDescription = "Выбрано",
-                        tint = Cream,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-    }
-}

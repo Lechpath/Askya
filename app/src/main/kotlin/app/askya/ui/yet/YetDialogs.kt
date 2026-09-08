@@ -58,6 +58,9 @@ import app.askya.ui.theme.Cream
 import app.askya.ui.theme.Ink
 import app.askya.ui.theme.Muted
 import app.askya.ui.theme.cardEdge
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.askya.app.appContainer
+import app.askya.ui.threads.ThreadPicker
 
 /**
  * Карточка списка: как назвать и чем отмечать.
@@ -77,11 +80,17 @@ import app.askya.ui.theme.cardEdge
 fun ListDialog(
     list: YetList?,
     onDismiss: () -> Unit,
-    onConfirm: (String, ListMark) -> Unit,
+    onConfirm: (String, ListMark, Long?) -> Unit,
     onDelete: (() -> Unit)? = null,
 ) {
     var draft by remember(list) { mutableStateOf(list?.title.orEmpty()) }
     var mark by remember(list) { mutableStateOf(list?.mark ?: ListMark.SQUARE) }
+    var threadId by remember(list) { mutableStateOf(list?.threadId) }
+
+    // Нити спрашиваются здесь же: экран списков о них не знает, а список —
+    // главное, чем нить тянут. То же, что с выбором привязки у дела.
+    val threads by appContainer().threadRepository.threads()
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     val focus = remember { FocusRequester() }
 
     BackHandler(onBack = onDismiss)
@@ -108,7 +117,7 @@ fun ListDialog(
 
     fun confirm() {
         if (draft.isBlank()) return
-        onConfirm(draft.trim(), mark)
+        onConfirm(draft.trim(), mark, threadId)
     }
 
     Box(
@@ -188,6 +197,14 @@ fun ListDialog(
                     modifier = Modifier.padding(top = 22.dp, bottom = 10.dp),
                 )
                 MarkPalette(chosen = mark, onPick = { mark = it })
+
+                // Нить, которую этот список тянет. Строки такого списка идут
+                // в её пульс и в её «что дальше» — см. `ui/threads`.
+                ThreadPicker(
+                    threads = threads.map { it.thread },
+                    chosen = threadId,
+                    onPick = { threadId = it },
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 22.dp),

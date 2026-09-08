@@ -148,12 +148,12 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
         ListDialog(
             list = null,
             onDismiss = { creating = false },
-            onConfirm = { title, mark ->
+            onConfirm = { title, mark, threadId ->
                 creating = false
                 // Заведённый список сразу открывается — как новая заметка в
                 // Библиотеке открывается на своей странице, а не оставляет
                 // человека смотреть на полку и искать, что он только что завёл.
-                viewModel.addList(title, mark) { id -> opened = id }
+                viewModel.addList(title, mark, threadId) { id -> opened = id }
             },
         )
     }
@@ -162,8 +162,8 @@ fun YetScreen(onBack: () -> Unit, onOpenList: (Long) -> Unit) {
         ListDialog(
             list = list,
             onDismiss = { editing = null },
-            onConfirm = { title, mark ->
-                viewModel.updateList(list, title, mark)
+            onConfirm = { title, mark, threadId ->
+                viewModel.updateList(list, title, mark, threadId)
                 editing = null
             },
             onDelete = {

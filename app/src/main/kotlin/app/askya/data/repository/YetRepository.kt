@@ -43,12 +43,22 @@ class YetRepository(private val dao: YetDao) {
             }
         }
 
-    suspend fun addList(title: String, mark: ListMark): Long =
-        dao.insertList(YetList(title = title.trim(), mark = mark))
+    suspend fun addList(title: String, mark: ListMark, threadId: Long? = null): Long =
+        dao.insertList(YetList(title = title.trim(), mark = mark, threadId = threadId))
 
-    /** Название и знак правятся вместе: в карточке списка они стоят рядом. */
-    suspend fun updateList(list: YetList, title: String, mark: ListMark) =
-        dao.updateList(list.copy(title = title.trim(), mark = mark, updatedAt = LocalDateTime.now()))
+    /**
+     * Название, знак и нить правятся вместе: в карточке списка они стоят
+     * рядом, и решают их одним заходом.
+     */
+    suspend fun updateList(list: YetList, title: String, mark: ListMark, threadId: Long?) =
+        dao.updateList(
+            list.copy(
+                title = title.trim(),
+                mark = mark,
+                threadId = threadId,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
 
     /**
      * Отметить, что список трогали, — ради «Недавнего» в меню.

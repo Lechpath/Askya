@@ -225,8 +225,10 @@ fun rememberLinkChoices(): List<LinkChoice> {
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val lists by remember(container) { container.yetRepository.lists() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
+    val threads by remember(container) { container.threadRepository.threads() }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    return remember(topics, notes, lists) {
+    return remember(topics, notes, lists, threads) {
         buildList {
             topics.forEach { topic ->
                 add(
@@ -252,6 +254,18 @@ fun rememberLinkChoices(): List<LinkChoice> {
                         value = DeedLink(LinkKind.YET, list.id).store(),
                         title = list.title.ifBlank { "Без названия" },
                         group = "Списки Yet",
+                    ),
+                )
+            }
+            // Нити стоят перед разделами и после списков: дело чаще тянет
+            // нить, чем ведёт в плеер. Закрытые не предлагаются — привязывать
+            // сегодняшнее дело к брошенному начинанию не за чем.
+            threads.filterNot { it.thread.state.closed }.forEach { row ->
+                add(
+                    LinkChoice(
+                        value = DeedLink(LinkKind.THREAD, row.thread.id).store(),
+                        title = row.thread.title.ifBlank { "Без названия" },
+                        group = "Нити",
                     ),
                 )
             }

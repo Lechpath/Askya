@@ -1149,3 +1149,47 @@ val MIGRATION_39_40 = object : Migration(39, 40) {
         db.execSQL("ALTER TABLE deed_tasks ADD COLUMN heading INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * Сорок первая: нити — шестой раздел.
+ *
+ * Нить это личное начинание, которое тянется неделями: ремонт, язык, книга.
+ * Своего содержимого у неё почти нет — она тянется через разделы, и поэтому
+ * миграция заводит одну маленькую таблицу и дописывает по одной колонке тем
+ * таблицам, через которые нить проходит.
+ *
+ * У дела своей колонки не появилось: привязка дела хранится строкой
+ * «вид:адрес» ([app.askya.domain.model.DeedLink]), и новый вид `thread`
+ * укладывается в неё без единого изменения схемы.
+ *
+ * Все колонки пустые, и это значение, а не заготовка: у списка, траты и
+ * записи, заведённых до нитей, нити и не было.
+ */
+val MIGRATION_40_41 = object : Migration(40, 41) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `threads` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`ending` TEXT NOT NULL, " +
+                "`color` TEXT, " +
+                "`state` TEXT NOT NULL, " +
+                "`due` TEXT, " +
+                "`budget` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`closedAt` TEXT)",
+        )
+
+        db.execSQL("ALTER TABLE yet_lists ADD COLUMN threadId INTEGER")
+
+        db.execSQL("ALTER TABLE ledger_entries ADD COLUMN threadId INTEGER")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_threadId` " +
+                "ON `ledger_entries` (`threadId`)",
+        )
+
+        db.execSQL("ALTER TABLE notes ADD COLUMN threadId INTEGER")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_threadId` ON `notes` (`threadId`)")
+    }
+}

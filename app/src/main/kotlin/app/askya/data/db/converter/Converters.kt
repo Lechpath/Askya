@@ -8,6 +8,7 @@ import app.askya.domain.model.MarkColor
 import app.askya.domain.model.EntryKind
 import app.askya.domain.model.ListMark
 import app.askya.domain.model.Priority
+import app.askya.domain.model.ThreadState
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -128,4 +129,15 @@ class Converters {
 
     @TypeConverter
     fun stringToCurrency(value: String?): Currency = Currency.of(value)
+
+    /**
+     * Состояние нити — именем, по той же причине, что и всё прочее в этом
+     * файле: строка читается глазами и переживает вставку нового значения в
+     * середину перечисления.
+     */
+    @TypeConverter
+    fun threadStateToString(value: ThreadState): String = value.name
+
+    @TypeConverter
+    fun stringToThreadState(value: String?): ThreadState = ThreadState.of(value)
 }

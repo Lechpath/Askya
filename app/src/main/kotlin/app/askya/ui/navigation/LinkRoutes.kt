@@ -32,6 +32,11 @@ fun routeOf(link: DeedLink, note: Note?): String? = when (link.kind) {
     LinkKind.YET -> Routes.yetList(link.id)
     LinkKind.ECHO -> Destination.ECHO.route
     LinkKind.VIDEO -> Destination.VIDEO.route
+
+    // Нить ведёт в свой раздел, а не в отдельный экран: раскрывается она
+    // карточкой поверх ленты, и своего маршрута у карточки нет — как у счёта
+    // в книге и у статьи.
+    LinkKind.THREAD -> Destination.THREADS.route
 }
 
 /** Нужно ли спрашивать запись, прежде чем считать маршрут. */
