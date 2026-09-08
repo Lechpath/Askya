@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -24,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +44,7 @@ import app.askya.domain.model.ThreadPulse
 import app.askya.domain.model.ThreadState
 import app.askya.domain.model.asksAbout
 import app.askya.domain.model.silenceWord
+import app.askya.domain.model.suggestState
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.DayPartTitle
 import app.askya.ui.components.EmptyState
@@ -62,53 +61,52 @@ import app.askya.ui.theme.markColor
 import java.time.LocalDate
 
 /**
- * Threads — нити: то, что тянется неделями через все разделы.
+ * Threads — нити: замыслы, которые растут неделями и тянутся через разделы.
  *
- * ## Почему это раздел, а не метка
+ * ## Раздел из двух слоёв
  *
- * Метка отвечает «покажи всё с этим ярлыком»; раздел отвечает «как оно идёт».
- * Второго вопроса в Askya задать было нечем: расписание знает про свой день,
- * книга про свои деньги, списки про свои строки, и ни один не складывает их в
- * одно начинание. Нить складывает — и ничего при этом не хранит: дела остаются
- * делами дня, траты тратами, строки строками.
+ * Верхний — эта лента: все нити разом и один вопрос к каждой, «жива ли она».
+ * Нижний — карта замысла (`ThreadMapScreen`), куда лента ведёт по касанию: там
+ * искры, пути, подводные камни и шаги, и там думают.
  *
- * ## Что показывает лента
+ * Слоя два, потому что вопросов два, и задают их в разное время. «Как оно
+ * вообще идёт» спрашивают походя, на бегу, глядя в список; «а что если пойти
+ * другим путём» — сев и открыв одну нить. Свалив оба в один экран, получаешь
+ * либо список, в котором нельзя думать, либо карту, по которой нельзя окинуть
+ * взглядом всё сразу.
  *
- * У каждой нити три вещи, и все три — ответ на «жива ли она»: когда трогали в
- * последний раз, полоска месяцев и ближайший незакрытый шаг. Процента
- * готовности здесь нет и не будет: его нельзя назвать честно, а «47 дней
- * назад» — факт, который лежит в базе.
+ * ## Что говорит лента
+ *
+ * Состояние словом, последнее касание, полоска месяцев и ближайший
+ * несделанный шаг. Процента готовности здесь нет и не будет: его нельзя
+ * назвать честно, а «47 дней назад» — факт, который лежит в базе.
  *
  * Полоска — та же арифметика, что в «Прожитом»: считаются дни, в которые
- * что-то происходило, а не события. День, в который отметили дело и записали
- * трату, это один день работы.
+ * что-то происходило, а не события. День, в который отметили дело, записали
+ * трату и разложили три узла, — один день работы.
  *
- * ## Тихий вопрос
+ * ## Тихая догадка
  *
- * У нити, замолчавшей на полтора месяца, под полоской встаёт строка: «Полтора
- * месяца тишины — отложить или бросить?». Не уведомление, не значок и не
- * красное: Askya не канючит. Один раз сказать правду там, где на неё и так
- * смотрят, — этого достаточно.
+ * Под полоской иногда встаёт строка: «похоже, нить тлеет — сменить?». Это
+ * догадка по карте и пульсу ([suggestState]), а не решение: состояние нити —
+ * отношение человека к замыслу, и переставлять его за него приложение не
+ * вправе. Не уведомление, не значок и не красное: Askya не канючит.
  */
 @Composable
-fun ThreadsScreen(onOpenMenu: () -> Unit) {
+fun ThreadsScreen(onOpenMenu: () -> Unit, onOpenThread: (Long) -> Unit) {
     val container = appContainer()
     val viewModel: ThreadsViewModel = viewModel(factory = ThreadsViewModel.factory(container))
 
     val rows by viewModel.rows.collectAsStateWithLifecycle()
-    val parts by viewModel.parts.collectAsStateWithLifecycle()
 
-    // Раскрытая нить и та, что правится. Разные вещи: в первой смотрят, как
-    // идёт, во второй меняют имя и краску.
-    var opened by remember { mutableStateOf<Long?>(null) }
+    // Правится нить или заводится новая. Раскрытой карточки у ленты больше нет:
+    // касание по нити ведёт в её карту, а «как оно идёт» карта показывает сама.
     var editing by remember { mutableStateOf<ThreadItem?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(opened) { viewModel.show(opened ?: 0L) }
-
     val today = LocalDate.now()
-    val live = rows.filter { it.thread.state == ThreadState.LIVE }
-    val paused = rows.filter { it.thread.state == ThreadState.PAUSED }
+    val live = rows.filter { it.thread.state.running }
+    val quiet = rows.filter { it.thread.state.quiet }
     val closed = rows.filter { it.thread.state.closed }
 
     ScreenScaffold(
@@ -137,11 +135,12 @@ fun ThreadsScreen(onOpenMenu: () -> Unit) {
         if (rows.isEmpty()) {
             EmptyState(
                 title = "Нитей пока нет",
-                hint = "Нить — это то, что тянется неделями и умирает не от провала, а от " +
-                    "тишины: выучить язык, доделать ремонт, дописать книгу. Askya не " +
-                    "считает проценты готовности — их нельзя назвать честно. Она " +
-                    "показывает, когда ты трогал нить в последний раз, и тянет к ней " +
-                    "дела, списки и траты, которые у неё уже есть.",
+                hint = "Нить — это замысел, который растёт неделями: выучить язык, " +
+                    "доделать ремонт, записать альбом. Он начинается с искры, обрастает " +
+                    "путями, спотыкается о подводные камни и понемногу превращается в " +
+                    "шаги — всё это раскладывается картой внутри нити. Askya не считает " +
+                    "проценты готовности: их нельзя назвать честно. Она показывает, когда " +
+                    "ты трогал нить в последний раз, и тянет к ней дела, списки и траты.",
             )
         } else {
             FadingColumn(
@@ -149,42 +148,27 @@ fun ThreadsScreen(onOpenMenu: () -> Unit) {
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                part("Идут", live, today, onOpen = { opened = it })
-                part("Отложены", paused, today, onOpen = { opened = it })
-                part("Закрыты", closed, today, onOpen = { opened = it })
+                part("Идут", live, today, onOpen = onOpenThread)
+                part("Затихли", quiet, today, onOpen = onOpenThread)
+                part("Закрыты", closed, today, onOpen = onOpenThread)
 
                 item(key = "tail") { Spacer(Modifier.height(96.dp)) }
             }
         }
     }
 
-    opened?.let { id ->
-        // Нить берётся из живого списка: правка из этой же карточки иначе
-        // ждала бы её закрытия.
-        val row = rows.firstOrNull { it.thread.id == id }
-        if (row == null) {
-            opened = null
-        } else {
-            ThreadCard(
-                row = row,
-                parts = parts,
-                onEdit = { editing = row.thread },
-                onAddDeed = { title -> viewModel.addDeed(id, title) },
-                onAddLine = { text -> viewModel.addLine(row.thread, text) },
-                onState = { state ->
-                    if (state == ThreadState.LIVE) viewModel.revive(row.thread)
-                    else viewModel.close(row.thread, state)
-                },
-                onDismiss = { opened = null },
-            )
-        }
-    }
-
     editing?.let { thread ->
         ThreadEditCard(
             thread = thread,
-            onSave = {
-                viewModel.save(it)
+            onSave = { made ->
+                val fresh = made.id == 0L
+                viewModel.save(made) { id ->
+                    // Заведённая нить открывается сразу: у неё пустая карта и
+                    // одна кнопка — «первый узел», а возвращать человека в
+                    // ленту значило бы заставить его искать глазами то, что он
+                    // только что назвал.
+                    if (fresh && id > 0) onOpenThread(id)
+                }
                 editing = null
             },
             onDelete = if (thread.id == 0L) null else {
@@ -192,11 +176,11 @@ fun ThreadsScreen(onOpenMenu: () -> Unit) {
                     viewModel.delete(thread.id) { done ->
                         if (done) {
                             editing = null
-                            opened = null
                         } else {
-                            notice = "По этой нити уже что-то прошло — дела, строки, " +
-                                "траты. Стереть её значит стереть месяцы, в которые она " +
-                                "шла. Брось её: она уйдёт вниз, а история останется."
+                            notice = "По этой нити уже что-то прошло — узлы карты, дела, " +
+                                "строки, траты. Стереть её значит стереть месяцы, в " +
+                                "которые она шла. Брось её: она уйдёт вниз, а история " +
+                                "останется."
                         }
                     }
                 }
@@ -217,7 +201,11 @@ fun ThreadsScreen(onOpenMenu: () -> Unit) {
 /**
  * Кучка ленты: заголовок и нити под ним.
  *
- * Пустая кучка не показывается вовсе — заголовок «Отложены» над пустотой
+ * Кучки три, а состояний семь: горящее, растущее и плетущееся стоят вместе под
+ * «идут», тлеющее и спящее — под «затихли». Семь заголовков разрезали бы ленту
+ * из четырёх нитей на семь кусков по одной.
+ *
+ * Пустая кучка не показывается вовсе — заголовок «Затихли» над пустотой
  * рассказывал бы о том, чего нет.
  */
 private fun LazyListScope.part(
@@ -247,8 +235,9 @@ private fun LazyListScope.part(
 private fun ThreadTile(row: ThreadRow, today: LocalDate, onClick: () -> Unit) {
     val thread = row.thread
     val mark = markColor(thread.color, thread.title)
-    val quiet = thread.state.closed || thread.state == ThreadState.PAUSED
-    val asks = asksAbout(thread.state, row.pulse, today)
+    val dim = thread.state.closed || thread.state.quiet
+    val guess = suggestState(thread.state, row.pulse, row.signs, today)
+    val asks = guess == null && asksAbout(thread.state, row.pulse, today)
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -261,16 +250,18 @@ private fun ThreadTile(row: ThreadRow, today: LocalDate, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Краска нити и значок состояния стоят рядом и говорят разное:
+                // первая отвечает «которая из них», второй — «что с ней».
                 Box(
                     modifier = Modifier
                         .size(10.dp)
-                        .clip(CircleShape)
-                        .background(if (quiet) Muted.copy(alpha = 0.45f) else mark),
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (dim) Muted.copy(alpha = 0.45f) else mark),
                 )
                 Text(
                     text = thread.title.ifBlank { "Без названия" },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (quiet) Muted else Ink,
+                    color = if (dim) Muted else Ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
@@ -279,6 +270,24 @@ private fun ThreadTile(row: ThreadRow, today: LocalDate, onClick: () -> Unit) {
                     text = corner(row, today),
                     style = MaterialTheme.typography.labelMedium,
                     color = Muted,
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 6.dp),
+            ) {
+                Icon(
+                    imageVector = stateIcon(thread.state),
+                    contentDescription = null,
+                    tint = if (dim) Muted else stateColor(thread.state),
+                    modifier = Modifier.size(15.dp),
+                )
+                Text(
+                    text = thread.state.title + nodeWord(row.signs.nodes),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Muted,
+                    modifier = Modifier.padding(start = 6.dp),
                 )
             }
 
@@ -292,12 +301,12 @@ private fun ThreadTile(row: ThreadRow, today: LocalDate, onClick: () -> Unit) {
                         color = Muted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                     )
                 }
                 PulseStrip(
                     pulse = row.pulse,
-                    dimmed = quiet,
+                    dimmed = dim,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
@@ -308,51 +317,85 @@ private fun ThreadTile(row: ThreadRow, today: LocalDate, onClick: () -> Unit) {
                 )
             }
 
-            if (asks) {
+            if (guess != null) {
+                Quiet(
+                    left = "Похоже, нить ${guess.title.lowercase()}",
+                    right = "Открыть",
+                )
+            } else if (asks) {
                 val silence = row.pulse.silence(today) ?: 0
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(AccentSoft)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "${silenceWord(silence)} тишины",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AccentInk,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = "Отложить или бросить?",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = AccentInk,
-                    )
-                }
+                Quiet(
+                    left = "${silenceWord(silence)} тишины",
+                    right = "Отложить или бросить?",
+                )
             }
         }
     }
 }
 
 /**
+ * Тихая строка под полоской: догадка о состоянии или вопрос о тишине.
+ *
+ * Плашка приглушённого цвета акцента, обычным кеглем, без восклицаний. Нажатие
+ * по ней ничего не делает отдельно: вся карточка ведёт в нить, а состояние
+ * меняют там, где на него смотрят.
+ */
+@Composable
+private fun Quiet(left: String, right: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(AccentSoft)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = left,
+            style = MaterialTheme.typography.bodySmall,
+            color = AccentInk,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = right,
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentInk,
+        )
+    }
+}
+
+/**
  * Что стоит в правом верхнем углу карточки.
  *
- * У идущей — тишина: «вчера», «47 дней». У отложенной и закрытой числа нет,
- * там слово: спрашивать у отложенной нити, давно ли её трогали, незачем — её
+ * У идущей — тишина: «вчера», «47 дней». У затихшей и закрытой числа нет, там
+ * слово или день: спрашивать у спящей нити, давно ли её трогали, незачем — её
  * отложили нарочно.
  */
 private fun corner(row: ThreadRow, today: LocalDate): String = when {
-    row.thread.state == ThreadState.PAUSED -> row.thread.due
+    row.thread.state == ThreadState.SLEEPING -> row.thread.due
         ?.let { "до ${formatRussianDate(it)}" }
-        ?: ThreadState.PAUSED.title.lowercase()
+        ?: "спит"
 
     row.thread.state.closed -> row.thread.closedAt
         ?.let { formatRussianDate(it.toLocalDate()) }
         ?: row.thread.state.title.lowercase()
 
     else -> row.pulse.silence(today)?.let { silenceWord(it) } ?: "ещё не трогали"
+}
+
+/** «· 14 узлов» — или ничего, если карта пуста. */
+private fun nodeWord(count: Int): String {
+    if (count <= 0) return ""
+    val last = count % 10
+    val hundred = count % 100
+    val word = when {
+        hundred in 11..14 -> "узлов"
+        last == 1 -> "узел"
+        last in 2..4 -> "узла"
+        else -> "узлов"
+    }
+    return " · $count $word"
 }
 
 /**

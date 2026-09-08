@@ -44,6 +44,7 @@ import app.askya.ui.scroll.imageedit.ImageEditorScreen
 import app.askya.ui.echo.EchoMini
 import app.askya.ui.echo.EchoScreen
 import app.askya.ui.ledger.LedgerScreen
+import app.askya.ui.threads.ThreadMapScreen
 import app.askya.ui.threads.ThreadsScreen
 import app.askya.ui.video.VideoScreen
 import app.askya.ui.components.UndoBar
@@ -500,7 +501,21 @@ fun AskyaApp(
                     LedgerScreen(onOpenMenu = openDrawer)
                 }
                 composable(Destination.THREADS.route) {
-                    ThreadsScreen(onOpenMenu = openDrawer)
+                    ThreadsScreen(
+                        onOpenMenu = openDrawer,
+                        onOpenThread = { id -> navController.navigate(Routes.thread(id)) },
+                    )
+                }
+
+                composable(
+                    route = Routes.THREAD,
+                    arguments = listOf(navArgument("threadId") { type = NavType.LongType }),
+                ) { entry ->
+                    ThreadMapScreen(
+                        threadId = entry.arguments?.getLong("threadId") ?: 0L,
+                        onBack = { navController.popBackStack() },
+                        onOpenLink = openLink,
+                    )
                 }
                 composable(Routes.WEATHER) {
                     WeatherScreen(onBack = { navController.popBackStack() })

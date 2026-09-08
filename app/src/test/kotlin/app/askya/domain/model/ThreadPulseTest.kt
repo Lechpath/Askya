@@ -82,17 +82,19 @@ class ThreadPulseTest {
         val quiet = pulseOf(touches = listOf(day(7, 1)), through = through)
         val fresh = pulseOf(touches = listOf(day(9, 1)), through = through)
 
-        assertTrue(asksAbout(ThreadState.LIVE, quiet, today))
-        assertFalse(asksAbout(ThreadState.LIVE, fresh, today))
+        assertTrue(asksAbout(ThreadState.GROWING, quiet, today))
+        assertTrue(asksAbout(ThreadState.BURNING, quiet, today))
+        assertFalse(asksAbout(ThreadState.GROWING, fresh, today))
 
-        // У отложенной тишина и есть её состояние, а закрытую спрашивать не о
-        // чем: обе молчат нарочно.
-        assertFalse(asksAbout(ThreadState.PAUSED, quiet, today))
+        // У затихших тишина и есть их состояние, а закрытую спрашивать не о
+        // чем: все трое молчат нарочно.
+        assertFalse(asksAbout(ThreadState.SLEEPING, quiet, today))
+        assertFalse(asksAbout(ThreadState.SMOULDERING, quiet, today))
         assertFalse(asksAbout(ThreadState.DONE, quiet, today))
         assertFalse(asksAbout(ThreadState.DROPPED, quiet, today))
 
         // Нетронутая нить не считается замолчавшей: её ещё не начинали.
-        assertFalse(asksAbout(ThreadState.LIVE, pulseOf(emptyList(), through), today))
+        assertFalse(asksAbout(ThreadState.GROWING, pulseOf(emptyList(), through), today))
     }
 
     @Test
@@ -109,15 +111,23 @@ class ThreadPulseTest {
     }
 
     @Test
-    fun `состояние нити читается из строки, а неизвестное — как идущая`() {
+    fun `состояние нити читается из строки, а прежние имена — переводятся`() {
         assertEquals(ThreadState.DROPPED, ThreadState.of("DROPPED"))
-        assertEquals(ThreadState.LIVE, ThreadState.of(null))
-        assertEquals(ThreadState.LIVE, ThreadState.of("ЧТО-ТО"))
+        assertEquals(ThreadState.GROWING, ThreadState.of(null))
+        assertEquals(ThreadState.GROWING, ThreadState.of("ЧТО-ТО"))
 
-        assertTrue(ThreadState.LIVE.running)
-        assertFalse(ThreadState.PAUSED.running)
+        // Снимок, снятый до карты замысла, приходит со старыми именами:
+        // миграция переписывает их в базе, а читатель обязан пережить и те,
+        // до которых она не дотянулась.
+        assertEquals(ThreadState.GROWING, ThreadState.of("LIVE"))
+        assertEquals(ThreadState.SLEEPING, ThreadState.of("PAUSED"))
+
+        assertTrue(ThreadState.BURNING.running)
+        assertTrue(ThreadState.WEAVING.running)
+        assertFalse(ThreadState.SLEEPING.running)
+        assertTrue(ThreadState.SMOULDERING.quiet)
         assertTrue(ThreadState.DONE.closed)
         assertTrue(ThreadState.DROPPED.closed)
-        assertFalse(ThreadState.PAUSED.closed)
+        assertFalse(ThreadState.SLEEPING.closed)
     }
 }

@@ -1193,3 +1193,72 @@ val MIGRATION_40_41 = object : Migration(40, 41) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_threadId` ON `notes` (`threadId`)")
     }
 }
+/**
+ * Сорок вторая: у нити появилась карта замысла.
+ *
+ * До неё нить была вопросом «как оно идёт», заданным поперёк разделов, и
+ * своего содержимого не имела вовсе. Оказалось, что замысел живёт **до** дел:
+ * сперва искра, вопросы, возможные пути и то, что мешает, — и только потом
+ * часть этого превращается в дела дня. Класть такое было решительно некуда, и
+ * миграция заводит две таблицы: узлы и связи между ними.
+ *
+ * ## Состояния переписываются, а не добавляются
+ *
+ * Прежних было четыре: «идёт», «отложена», «закончена», «брошена». Стало семь,
+ * и три из них разбирают прежнее «идёт» на то, что с замыслом происходит:
+ * горит, растёт, плетётся. Идущие переводятся в «растёт» — самое скромное из
+ * трёх: сказать за человека, что у него горит, приложение не вправе.
+ * Отложенные становятся «спит»: их отложили нарочно, и это ровно оно.
+ * «Закончена» и «брошена» остались собой и переписывания не требуют.
+ *
+ * Читатель перечисления помнит старые имена и без этой миграции
+ * ([app.askya.domain.model.ThreadState.of]): снимок, снятый прежней версией,
+ * приходит со строкой `LIVE` и обязан открыться.
+ */
+val MIGRATION_41_42 = object : Migration(41, 42) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `thread_nodes` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`threadId` INTEGER NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`note` TEXT NOT NULL, " +
+                "`x` REAL NOT NULL, " +
+                "`y` REAL NOT NULL, " +
+                "`link` TEXT, " +
+                "`deedId` INTEGER, " +
+                "`doneAt` TEXT, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_nodes_threadId` " +
+                "ON `thread_nodes` (`threadId`)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `thread_edges` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`threadId` INTEGER NOT NULL, " +
+                "`fromId` INTEGER NOT NULL, " +
+                "`toId` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_edges_threadId` " +
+                "ON `thread_edges` (`threadId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_edges_fromId` " +
+                "ON `thread_edges` (`fromId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_edges_toId` " +
+                "ON `thread_edges` (`toId`)",
+        )
+
+        db.execSQL("UPDATE threads SET state = 'GROWING' WHERE state = 'LIVE'")
+        db.execSQL("UPDATE threads SET state = 'SLEEPING' WHERE state = 'PAUSED'")
+    }
+}

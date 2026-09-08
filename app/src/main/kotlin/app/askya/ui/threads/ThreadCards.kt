@@ -21,9 +21,8 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +41,9 @@ import androidx.compose.ui.unit.sp
 import app.askya.data.entity.ThreadItem
 import app.askya.data.repository.ThreadParts
 import app.askya.data.repository.ThreadRow
+import app.askya.data.repository.ThreadWeb
 import app.askya.domain.model.ThreadState
+import app.askya.domain.model.WinWeight
 import app.askya.domain.model.formatMoney
 import app.askya.domain.model.limitShare
 import app.askya.domain.model.moneyToText
@@ -78,11 +79,17 @@ import java.time.LocalDate
  * вопрос, ради которого её открыли; процент готовности на его месте был бы
  * цифрой, которую никто не может назвать честно.
  *
- * ## Ниже — срезы других разделов
+ * ## Ниже — замысел, победы и срезы других разделов
  *
- * «Дела 4 из 11», «Список 6 из 19», «Траты 12 400 ₽», «Записи 3». Это не
- * содержимое нити, а то, что уже лежит в расписании, списках, книге и Scroll и
- * помечено этой нитью. Своего у неё пять полей — см. [ThreadItem].
+ * «Узлы карты 14 · связей 11» — это её собственное: замысел, разложенный
+ * карточками (`ThreadMapScreen`). За ним победы — не очки, а память о том, как
+ * он двигался. И только потом «Дела 4 из 11», «Список 6 из 19», «Траты
+ * 12 400 ₽»: это не содержимое нити, а то, что уже лежит в расписании,
+ * списках, книге и Scroll и помечено этой нитью.
+ *
+ * Порядок именно такой, потому что раздел про замысел, а не про его учёт. Кто
+ * пришёл посмотреть, как идёт, — читает пульс наверху; кто пришёл подумать —
+ * идёт в карту.
  *
  * ## «Записать» кладёт в нужный раздел, не уводя из нити
  *
@@ -95,6 +102,7 @@ import java.time.LocalDate
 fun ThreadCard(
     row: ThreadRow,
     parts: ThreadParts,
+    web: ThreadWeb,
     onEdit: () -> Unit,
     onAddDeed: (String) -> Unit,
     onAddLine: (String) -> Unit,
@@ -177,6 +185,15 @@ fun ThreadCard(
                 }
             }
 
+            DialogCaption("Замысел")
+            Part(
+                title = "Узлы карты",
+                value = if (web.empty) "нет" else "${web.nodes.size} · связей ${web.edges.size}",
+                any = !web.empty,
+            )
+
+            Wins(web = web)
+
             DialogCaption("Из чего она состоит")
             if (parts.empty) {
                 Text(
@@ -192,6 +209,9 @@ fun ThreadCard(
                 Money(spent = parts.money.spent, budget = thread.budget, any = parts.money.count > 0)
                 Part("Записи", "${parts.notes}", parts.notes > 0)
             }
+
+            DialogCaption("Состояние")
+            States(state = thread.state, onState = onState)
 
             thread.due?.let { due ->
                 DialogCaption("Срок")
@@ -209,14 +229,14 @@ fun ThreadCard(
         }
 
         DialogButtons {
+            ActionButton(icon = Icons.Outlined.Tune, label = "Нить", onClick = onEdit)
+            Spacer(Modifier.weight(1f))
             ActionButton(
                 icon = Icons.Outlined.EditNote,
                 label = "Записать",
+                accent = true,
                 onClick = { writing = true },
             )
-            ActionButton(icon = Icons.Outlined.Tune, label = "Нить", onClick = onEdit)
-            Spacer(Modifier.weight(1f))
-            States(state = thread.state, onState = onState)
         }
     }
 }
@@ -343,44 +363,109 @@ private fun Money(spent: Long, budget: Long, any: Boolean) {
 }
 
 /**
- * Что сделать с нитью: отложить, оживить, бросить, закончить.
+ * Состояние нити — рядом слов, а не кнопками «отложить» и «закончить».
  *
- * Идущая умеет отложиться и закрыться; отложенная и закрытая — ожить. Кнопки
- * меняются вместе с состоянием, а не гаснут: погашенная кнопка занимает место
- * и заставляет гадать, чем она погашена.
+ * Прежде тут стояли действия: отложить, бросить, закончить, вернуть. Действие
+ * подразумевает переход по стадиям — из работы в архив, — а состояний семь, и
+ * переходить между ними можно в любую сторону: нить, которая тлела и вдруг
+ * загорелась, ничего не «возобновляет», она горит.
  *
- * «Бросить» стоит рядом с «Закончить» и не красное: брошенная нить не потеря
- * и не ошибка, а честный конец, и пугать им незачем.
+ * Поэтому здесь ряд равных слов с пояснением у выбранного, и нынешнее просто
+ * подсвечено. «Брошена» стоит в том же ряду и не красным: брошенный замысел не
+ * потеря и не ошибка, а честный конец.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun States(state: ThreadState, onState: (ThreadState) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        ThreadState.entries.forEach { one ->
+            val picked = one == state
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (picked) AccentSoft else MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                    .clickable { onState(one) }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                Icon(
+                    imageVector = stateIcon(one),
+                    contentDescription = null,
+                    tint = if (picked) stateColor(one) else Muted,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = one.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (picked) AccentInk else Ink,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+        }
+    }
+    Text(
+        text = state.about,
+        style = MaterialTheme.typography.bodySmall,
+        color = Muted,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+/**
+ * Победы нити: не очки, а память о том, как замысел двигался.
+ *
+ * Тремя весами и без чисел. Сделанный шаг — маленькая победа; открытие —
+ * настоящая; поворот и достигнутый результат — большие. Отдельно стоит путь,
+ * выросший из подводного камня: препятствие, ставшее дорогой, — это то, ради
+ * чего камни в разделе вообще заведены.
+ *
+ * Показываются пять свежих. Не все: список побед во весь экран превращается в
+ * табло, а табло — это уже игра в достижения, которой в Askya нет ни здесь, ни
+ * в «Прожитом».
  */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.States(
-    state: ThreadState,
-    onState: (ThreadState) -> Unit,
-) {
-    if (state.running) {
-        ActionButton(
-            icon = Icons.Outlined.Pause,
-            label = "Отложить",
-            onClick = { onState(ThreadState.PAUSED) },
-        )
-        ActionButton(
-            icon = Icons.Outlined.Close,
-            label = "Бросить",
-            onClick = { onState(ThreadState.DROPPED) },
-        )
-        ActionButton(
-            icon = Icons.Outlined.Check,
-            label = "Закончить",
-            accent = true,
-            onClick = { onState(ThreadState.DONE) },
-        )
-    } else {
-        ActionButton(
-            icon = Icons.Outlined.PlayArrow,
-            label = if (state.closed) "Открыть снова" else "Вернуть",
-            accent = true,
-            onClick = { onState(ThreadState.LIVE) },
-        )
+private fun Wins(web: ThreadWeb) {
+    val wins = web.wins
+    if (wins.isEmpty()) return
+
+    DialogCaption("Победы")
+    wins.take(5).forEach { win ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(
+                        when (win.weight) {
+                            WinWeight.SMALL -> 7.dp
+                            WinWeight.REAL -> 10.dp
+                            WinWeight.BIG -> 13.dp
+                        },
+                    )
+                    .clip(CircleShape)
+                    .background(nodeColor(win.kind)),
+            )
+            Text(
+                text = win.title.ifBlank { win.kind.title },
+                style = MaterialTheme.typography.bodyMedium,
+                color = Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 10.dp),
+            )
+            Text(
+                text = formatRussianDate(win.at),
+                style = MaterialTheme.typography.labelSmall,
+                color = Muted,
+            )
+        }
     }
 }
 

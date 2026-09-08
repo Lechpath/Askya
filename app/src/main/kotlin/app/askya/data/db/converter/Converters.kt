@@ -8,6 +8,7 @@ import app.askya.domain.model.MarkColor
 import app.askya.domain.model.EntryKind
 import app.askya.domain.model.ListMark
 import app.askya.domain.model.Priority
+import app.askya.domain.model.ThreadNodeKind
 import app.askya.domain.model.ThreadState
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -140,4 +141,11 @@ class Converters {
 
     @TypeConverter
     fun stringToThreadState(value: String?): ThreadState = ThreadState.of(value)
+
+    /** Тип узла карты замысла — тем же правилом: именем, а не номером. */
+    @TypeConverter
+    fun threadNodeKindToString(value: ThreadNodeKind): String = value.name
+
+    @TypeConverter
+    fun stringToThreadNodeKind(value: String?): ThreadNodeKind = ThreadNodeKind.of(value)
 }
