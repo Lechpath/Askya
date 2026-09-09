@@ -32,12 +32,12 @@ class YetViewModel(private val yet: YetRepository) : ViewModel() {
      * Заводит список и отдаёт его номер: сразу после создания он открывается,
      * иначе человек возвращался бы к оглавлению и тыкал в только что заведённое.
      */
-    fun addList(title: String, mark: ListMark, threadId: Long?, onCreated: (Long) -> Unit) {
-        viewModelScope.launch { onCreated(yet.addList(title, mark, threadId)) }
+    fun addList(title: String, mark: ListMark, onCreated: (Long) -> Unit) {
+        viewModelScope.launch { onCreated(yet.addList(title, mark)) }
     }
 
-    fun updateList(list: YetList, title: String, mark: ListMark, threadId: Long?) {
-        viewModelScope.launch { yet.updateList(list, title, mark, threadId) }
+    fun updateList(list: YetList, title: String, mark: ListMark) {
+        viewModelScope.launch { yet.updateList(list, title, mark) }
     }
 
     fun deleteList(id: Long) {

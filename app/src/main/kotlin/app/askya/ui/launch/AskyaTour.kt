@@ -507,13 +507,6 @@ private val STEPS = listOf(
         about = "Расход, доход, счета, статистика.",
     ),
     TourStep(
-        mark = TourMark.SECTION,
-        destination = Destination.THREADS,
-        title = "Threads — нити",
-        about = "То, что тянется неделями: ремонт, язык, книга. Нить тянет к себе дела, " +
-            "списки и траты из других разделов и показывает, когда ты трогал её в последний раз.",
-    ),
-    TourStep(
         mark = TourMark.BOTTOM,
         title = "Меню и настройки",
         about = "Быстрые действия и раздел настроек.",

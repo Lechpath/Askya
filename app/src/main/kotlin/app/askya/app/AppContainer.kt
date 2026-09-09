@@ -19,7 +19,6 @@ import app.askya.data.repository.BridgeRepository
 import app.askya.data.repository.DeedTaskRepository
 import app.askya.data.repository.EchoRepository
 import app.askya.data.repository.LedgerRepository
-import app.askya.data.repository.ThreadRepository
 import app.askya.data.repository.NoteRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
@@ -110,7 +109,6 @@ class AppContainer(context: Context) {
      * списки, книгу и записи, и завести дело «в нить» значит написать строку в
      * чужую таблицу под общей транзакцией.
      */
-    val threadRepository: ThreadRepository by lazy { ThreadRepository(database) }
 
     /**
      * Корзина на сутки — то, что заменило собой вопрос «вы уверены?».

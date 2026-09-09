@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -66,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -89,8 +92,8 @@ import app.askya.ui.theme.AccentInk
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.CardWhite
 import app.askya.ui.theme.Cream
-import app.askya.ui.theme.SpineBlue
-import app.askya.ui.theme.PaperPanel
+import app.askya.ui.theme.CoralSoft
+import app.askya.ui.theme.PaperMuted
 import app.askya.ui.theme.CoralInk
 import app.askya.ui.theme.CoralAccent
 import app.askya.ui.theme.FlowerInk
@@ -179,7 +182,6 @@ internal fun SectionScene(destination: Destination, modifier: Modifier = Modifie
                 Destination.ECHO -> EchoScene()
                 Destination.VIDEO -> VideoScene()
                 Destination.LEDGER -> LedgerScene()
-                Destination.THREADS -> ThreadsScene()
             }
         }
     }
@@ -1379,133 +1381,6 @@ private fun SpendingRow(title: String, sum: String, tint: Color) {
 }
 
 /** Название страницы и точки: сколько их у раздела и где мы. */
-// ---------------------------------------------------------------------------
-// Threads
-// ---------------------------------------------------------------------------
-
-/**
- * Нити одним кадром: две карточки, у каждой полоска месяцев и ближайший шаг.
- *
- * Кадр один, а не два, как у книги: у нитей нет второй страницы — весь раздел
- * это лента, а раскрытая нить лежит карточкой поверх неё. Показывать в
- * знакомстве карточку поверх карточки значило бы объяснять устройство окон, а
- * не то, зачем раздел.
- *
- * Третья нить нарочно молчит: тишина и есть то, о чём Threads говорят, и без
- * неё сцена рассказывала бы про ещё один список дел.
- */
-@Composable
-private fun ColumnScope.ThreadsScene() {
-    val show = entrance(1000)
-
-    PageTitle(title = "Идут", at = 0)
-
-    THREADS_SCENE.forEachIndexed { at, thread ->
-        Appearing(
-            progress = part(show, at, THREADS_SCENE.size),
-            modifier = Modifier.padding(bottom = 8.dp),
-        ) {
-            ThreadSceneCard(thread)
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-        NewCardPill(modifier = Modifier.align(Alignment.BottomEnd), label = "нить")
-    }
-}
-
-@Composable
-private fun ThreadSceneCard(thread: SceneThread) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .cardShade(RoundedCornerShape(14.dp))
-            .clip(RoundedCornerShape(14.dp))
-            .background(CardWhite)
-            .cardEdge(RoundedCornerShape(14.dp))
-            .padding(horizontal = 10.dp, vertical = 9.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(thread.mark),
-            )
-            Text(
-                text = thread.title,
-                style = MaterialTheme.typography.labelLarge,
-                color = Ink,
-                maxLines = 1,
-                modifier = Modifier.weight(1f).padding(start = 6.dp),
-            )
-            Text(
-                text = thread.silence,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (thread.quiet) CoralInk else Muted,
-                maxLines = 1,
-            )
-        }
-        Text(
-            text = thread.next,
-            style = MaterialTheme.typography.labelSmall,
-            color = Muted,
-            maxLines = 1,
-            modifier = Modifier.padding(top = 3.dp),
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.Bottom,
-            modifier = Modifier.fillMaxWidth().height(20.dp).padding(top = 7.dp),
-        ) {
-            thread.pulse.forEach { share ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(if (share == 0f) 3.dp else (13.dp * share).coerceAtLeast(4.dp))
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (share == 0f) PaperPanel else CoralAccent),
-                )
-            }
-        }
-    }
-}
-
-/** Нить в сцене знакомства: только то, что на карточке видно. */
-private data class SceneThread(
-    val title: String,
-    val next: String,
-    val silence: String,
-    val mark: androidx.compose.ui.graphics.Color,
-    val pulse: List<Float>,
-    val quiet: Boolean = false,
-)
-
-private val THREADS_SCENE = listOf(
-    SceneThread(
-        title = "Кухня",
-        next = "Дальше — замерить фартук",
-        silence = "вчера",
-        mark = CoralAccent,
-        pulse = listOf(0f, 0f, 0.7f, 1f, 0.65f, 0.6f),
-    ),
-    SceneThread(
-        title = "Испанский",
-        next = "Дальше — тридцать слов",
-        silence = "3 дня",
-        mark = SpineBlue,
-        pulse = listOf(0.85f, 0.75f, 1f, 0.5f, 0.7f, 0.45f),
-    ),
-    SceneThread(
-        title = "Гараж",
-        next = "Дальше — вывезти плитку",
-        silence = "47 дней",
-        mark = CoralInk,
-        pulse = listOf(0.9f, 0.6f, 0.35f, 0f, 0f, 0f),
-        quiet = true,
-    ),
-)
-
 @Composable
 private fun PageTitle(title: String, at: Int) {
     Row(

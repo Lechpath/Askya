@@ -1262,3 +1262,269 @@ val MIGRATION_41_42 = object : Migration(41, 42) {
         db.execSQL("UPDATE threads SET state = 'SLEEPING' WHERE state = 'PAUSED'")
     }
 }
+
+/**
+ * 42 → 43. Threads пересобраны от искры.
+ *
+ * ## Почему таблицы не правятся, а сносятся
+ *
+ * У нити больше нет ни названия, ни цвета, ни срока, ни сметы: её зовут
+ * словами искры, с которой она началась, и вся анкета, которую прежде
+ * заполняли до первой мысли, ушла целиком. Колонка `sparkId` появилась вместо
+ * них, и заполнить её у старых нитей нечем: у прежних искр не было ни
+ * обязанности быть первыми, ни обязанности быть вовсе.
+ *
+ * Перекладывать такое переписыванием колонок значит писать миграцию, которая
+ * угадывает, что у человека было в голове. Раздел прожил две версии и
+ * пересобран целиком по прямой просьбе — вместе с ним уходит и то, что в нём
+ * лежало.
+ *
+ * ## Чужое не трогается, а отвязывается
+ *
+ * Дела, траты, записи и списки, привязанные к прежним нитям, остаются на своих
+ * местах: они принадлежат дню, книге и полке. Снимается только привязка —
+ * иначе она указывала бы на номер, которого больше нет, и «дело нити» тянуло
+ * бы в пустоту.
+ */
+val MIGRATION_42_43 = object : Migration(42, 43) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("UPDATE schedule_items SET link = NULL WHERE link LIKE 'thread:%'")
+        db.execSQL("UPDATE routine_items SET link = NULL WHERE link LIKE 'thread:%'")
+        db.execSQL("UPDATE yet_lists SET threadId = NULL")
+        db.execSQL("UPDATE ledger_entries SET threadId = NULL")
+        db.execSQL("UPDATE notes SET threadId = NULL")
+
+        db.execSQL("DROP TABLE IF EXISTS thread_edges")
+        db.execSQL("DROP TABLE IF EXISTS thread_nodes")
+        db.execSQL("DROP TABLE IF EXISTS threads")
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `threads` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sparkId` INTEGER NOT NULL, " +
+                "`state` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`closedAt` TEXT)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `thread_nodes` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`threadId` INTEGER NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`note` TEXT NOT NULL, " +
+                "`x` REAL NOT NULL, " +
+                "`y` REAL NOT NULL, " +
+                "`link` TEXT, " +
+                "`deedId` INTEGER, " +
+                "`doneAt` TEXT, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_nodes_threadId` " +
+                "ON `thread_nodes` (`threadId`)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `thread_ties` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`threadId` INTEGER NOT NULL, " +
+                "`fromId` INTEGER NOT NULL, " +
+                "`toId` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_ties_threadId` " +
+                "ON `thread_ties` (`threadId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_ties_fromId` " +
+                "ON `thread_ties` (`fromId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_thread_ties_toId` " +
+                "ON `thread_ties` (`toId`)",
+        )
+    }
+}
+
+/**
+ * 43 → 44. У узла нити появляются срок, отставка и память о строке в списке.
+ *
+ * Четыре колонки, и ни одна не трогает того, что уже записано: пустое значение
+ * у старых узлов — правда, а не пробел. Узел, заведённый вчера, не отставлен,
+ * срока у него нет, и в списке он не стоит — ровно это и говорят `NULL`.
+ *
+ * `asideAt` — не «удалён» и не «сделан». Путь, от которого человек отказался,
+ * остаётся на полотне зачёркнутым: он часть того, как замысел стал нынешним.
+ * Хранится временем, а не флажком, по той же причине, что и `doneAt`: «когда
+ * отставили» — это сведения, а `1` в колонке — нет.
+ *
+ * `lineId` доводит до конца то, что раньше делалось наполовину: шаг уходил
+ * строкой в список Yet и терялся из виду. Старым узлам его не восстановить —
+ * строки уходили без обратного адреса, — и придумывать связь по совпадению
+ * слов не станем: угадавшая неверно связь хуже отсутствующей.
+ */
+val MIGRATION_43_44 = object : Migration(43, 44) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE thread_nodes ADD COLUMN lineId INTEGER")
+        db.execSQL("ALTER TABLE thread_nodes ADD COLUMN due TEXT")
+        db.execSQL("ALTER TABLE thread_nodes ADD COLUMN asideAt TEXT")
+    }
+}
+
+/**
+ * 44 → 45. Раздела Threads больше нет — вместе с тем, что в нём лежало.
+ *
+ * ## Оба решения приняты разом
+ *
+ * С Active было в два шага: сперва убрали раздел, а записанное оставили лежать,
+ * и стереть его человек попросил отдельной просьбой полгода спустя. Здесь он
+ * попросил сразу и то и другое — «удали полностью раздел и все записи по нему»,
+ * — и откладывать половину значило бы решать за него, что он передумает.
+ *
+ * Уходят `threads`, `thread_nodes`, `thread_ties` — искры, полотна замыслов,
+ * связи между узлами. Вернуть будет нечем.
+ *
+ * ## Чужое здесь тоже уходит, и это не общее правило
+ *
+ * Прежде при удалении нити чужое **отвязывалось**: дело принадлежит дню, список
+ * — полке, трата — книге, и нить лишь тянулась через них. В этот раз человек
+ * попросил иначе, и просьба звучала именно так: «и все записи по нему». Поэтому
+ * стираются
+ *
+ * - дела расписания с привязкой `thread:…` — вместе с их подсписками
+ *   (`deed_tasks`) и напоминаниями (`reminders`): напоминание, пережившее своё
+ *   дело, звонило бы в пустоту;
+ * - повторы (`routine_items`) с той же привязкой;
+ * - списки Yet, тянувшие нить, — целиком, со всеми строками;
+ * - траты, записанные по нити.
+ *
+ * Уже поставленные будильники Android отменить отсюда нечем, но и беды в этом
+ * нет: получатель ищет напоминание по номеру и молча уходит, не найдя строки.
+ *
+ * **Записи Scroll остаются.** Это единственное исключение, и оно не от
+ * непоследовательности: заметка — то, что человек написал руками, а не то, чем
+ * приложение обвесило нить. Стирают такое, только когда просят стереть именно
+ * его. У записей снимается привязка — вместе с колонкой.
+ *
+ * ## Колонки убираются перестройкой
+ *
+ * `threadId` был у списков, трат и записей. `ALTER TABLE … DROP COLUMN` в
+ * SQLite появился поздно, а приложение живёт с Android 8, — поэтому три таблицы
+ * пересобираются заново и данные переливаются. Индексы восстанавливаются
+ * следом: без них Room при первом же запуске скажет, что схема не та.
+ */
+val MIGRATION_44_45 = object : Migration(44, 45) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // ---- Дела нити: подсписки, напоминания, сами дела ----
+        db.execSQL(
+            "DELETE FROM reminders WHERE itemId IN " +
+                "(SELECT id FROM schedule_items WHERE link LIKE 'thread:%')",
+        )
+        db.execSQL(
+            "DELETE FROM deed_tasks WHERE deedId IN " +
+                "(SELECT id FROM schedule_items WHERE link LIKE 'thread:%')",
+        )
+        db.execSQL("DELETE FROM schedule_items WHERE link LIKE 'thread:%'")
+        db.execSQL("DELETE FROM routine_items WHERE link LIKE 'thread:%'")
+
+        // ---- Списки Yet, тянувшие нить, — целиком ----
+        db.execSQL(
+            "DELETE FROM yet_items WHERE listId IN " +
+                "(SELECT id FROM yet_lists WHERE threadId IS NOT NULL)",
+        )
+        db.execSQL("DELETE FROM yet_lists WHERE threadId IS NOT NULL")
+
+        // ---- Траты по нити ----
+        db.execSQL("DELETE FROM ledger_entries WHERE threadId IS NOT NULL")
+
+        // ---- Колонка threadId у списков ----
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `yet_lists_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`mark` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`updatedAt` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO yet_lists_new (id, title, mark, createdAt, updatedAt) " +
+                "SELECT id, title, mark, createdAt, updatedAt FROM yet_lists",
+        )
+        db.execSQL("DROP TABLE yet_lists")
+        db.execSQL("ALTER TABLE yet_lists_new RENAME TO yet_lists")
+
+        // ---- Колонка threadId у трат ----
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ledger_entries_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`date` TEXT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`amount` INTEGER NOT NULL, " +
+                "`accountId` INTEGER NOT NULL, " +
+                "`toAccountId` INTEGER, " +
+                "`categoryId` INTEGER, " +
+                "`note` TEXT NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`removedAt` TEXT)",
+        )
+        db.execSQL(
+            "INSERT INTO ledger_entries_new (id, date, kind, amount, accountId, toAccountId, " +
+                "categoryId, note, createdAt, removedAt) " +
+                "SELECT id, date, kind, amount, accountId, toAccountId, categoryId, note, " +
+                "createdAt, removedAt FROM ledger_entries",
+        )
+        db.execSQL("DROP TABLE ledger_entries")
+        db.execSQL("ALTER TABLE ledger_entries_new RENAME TO ledger_entries")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_date` ON `ledger_entries` (`date`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_accountId` " +
+                "ON `ledger_entries` (`accountId`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ledger_entries_categoryId` " +
+                "ON `ledger_entries` (`categoryId`)",
+        )
+
+        // ---- Колонка threadId у записей. Сами записи остаются ----
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `notes_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`body` TEXT NOT NULL, " +
+                "`tags` TEXT NOT NULL, " +
+                "`topicId` INTEGER, " +
+                "`albumId` INTEGER, " +
+                "`uri` TEXT, " +
+                "`mime` TEXT NOT NULL, " +
+                "`isImage` INTEGER NOT NULL, " +
+                "`durationMs` INTEGER NOT NULL, " +
+                "`createdAt` TEXT NOT NULL, " +
+                "`updatedAt` TEXT NOT NULL, " +
+                "`removedAt` TEXT)",
+        )
+        db.execSQL(
+            "INSERT INTO notes_new (id, title, body, tags, topicId, albumId, uri, mime, " +
+                "isImage, durationMs, createdAt, updatedAt, removedAt) " +
+                "SELECT id, title, body, tags, topicId, albumId, uri, mime, isImage, " +
+                "durationMs, createdAt, updatedAt, removedAt FROM notes",
+        )
+        db.execSQL("DROP TABLE notes")
+        db.execSQL("ALTER TABLE notes_new RENAME TO notes")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_updatedAt` ON `notes` (`updatedAt`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_topicId` ON `notes` (`topicId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_notes_albumId` ON `notes` (`albumId`)")
+
+        // ---- И сами нити ----
+        db.execSQL("DROP TABLE IF EXISTS thread_ties")
+        db.execSQL("DROP TABLE IF EXISTS thread_nodes")
+        db.execSQL("DROP TABLE IF EXISTS threads")
+    }
+}

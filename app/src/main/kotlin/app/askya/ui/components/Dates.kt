@@ -50,7 +50,11 @@ private val MONTH_SHORT = listOf(
 
 fun formatMonthShort(month: YearMonth): String = MONTH_SHORT[month.monthValue - 1]
 
-private val WEEKDAYS = listOf(
+/**
+ * Дни недели именительным падежом. Не `private`: их читает обратно и разбор
+ * напечатанной даты ([parseTypedDate]) — «суббота» там значит ближайшую.
+ */
+internal val WEEKDAYS = listOf(
     "понедельник", "вторник", "среда", "четверг",
     "пятница", "суббота", "воскресенье",
 )

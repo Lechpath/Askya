@@ -32,11 +32,6 @@ fun routeOf(link: DeedLink, note: Note?): String? = when (link.kind) {
     LinkKind.YET -> Routes.yetList(link.id)
     LinkKind.ECHO -> Destination.ECHO.route
     LinkKind.VIDEO -> Destination.VIDEO.route
-
-    // Нить ведёт прямо в свою карту: с тех пор как у замысла появился свой
-    // экран, вести в ленту раздела значило бы бросить человека на пороге —
-    // он шёл в эту нить, а не смотреть, какие вообще есть.
-    LinkKind.THREAD -> Routes.thread(link.id)
 }
 
 /** Нужно ли спрашивать запись, прежде чем считать маршрут. */

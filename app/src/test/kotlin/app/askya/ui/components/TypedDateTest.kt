@@ -118,4 +118,39 @@ class TypedDateTest {
         assertNull(parseTypedDate("32.01", today))
         assertNull(parseTypedDate("3 сортября", today))
     }
+
+    @Test
+    fun `днём недели — ближайшим вперёд`() {
+        // 20 августа 2026 — четверг.
+        assertEquals(LocalDate.of(2026, 8, 22), parseTypedDate("суббота", today))
+        assertEquals(LocalDate.of(2026, 8, 22), parseTypedDate("в субботу", today))
+        assertEquals(LocalDate.of(2026, 8, 22), parseTypedDate("сб", today))
+        // Понедельник уже прошёл на этой неделе — значит, следующий.
+        assertEquals(LocalDate.of(2026, 8, 24), parseTypedDate("понедельник", today))
+    }
+
+    @Test
+    fun `сегодняшний день недели значит сегодня`() {
+        // Сказавший в четверг «в четверг» имеет в виду этот день, а не тот же
+        // день следующей недели.
+        assertEquals(today, parseTypedDate("четверг", today))
+    }
+
+    @Test
+    fun `в расходной книге день недели смотрит назад`() {
+        assertEquals(
+            LocalDate.of(2026, 8, 15),
+            parseTypedDate("суббота", today, DateLean.BEHIND),
+        )
+        assertEquals(
+            LocalDate.of(2026, 8, 17),
+            parseTypedDate("понедельник", today, DateLean.BEHIND),
+        )
+    }
+
+    @Test
+    fun `одна буква днём недели не считается`() {
+        // «в» — это и вторник, и воскресенье; угадывать тут нечего.
+        assertNull(parseTypedDate("в", today))
+    }
 }
