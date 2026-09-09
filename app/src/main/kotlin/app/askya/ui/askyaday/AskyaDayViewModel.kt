@@ -10,7 +10,6 @@ import app.askya.data.entity.DeedTask
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import app.askya.data.repository.DayRepository
-import app.askya.data.repository.DayTraceRepository
 import app.askya.data.repository.DeedTaskRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
@@ -20,7 +19,6 @@ import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.DayPlan
 import app.askya.domain.model.RemindAt
 import app.askya.domain.plan.DayLayout
-import app.askya.domain.trace.DayEvent
 import app.askya.domain.plan.sameDeed
 import app.askya.reminders.ReminderAlarms
 import app.askya.reminders.dropReminders
@@ -45,7 +43,6 @@ class AskyaDayViewModel(
     private val day: DayRepository,
     private val reminders: ReminderRepository,
     private val deedTasks: DeedTaskRepository,
-    private val dayTrace: DayTraceRepository,
 ) : ViewModel() {
 
     /** Идёт сборка дня — на это время в шапке дышит цветок. */
@@ -90,13 +87,6 @@ class AskyaDayViewModel(
     /** План одного дня. Экран листает дни, поэтому поток строится на дату. */
     fun plan(date: LocalDate): Flow<DayPlan> =
         schedule.itemsOn(date).map { items -> DayPlan(date, items) }
-
-    /**
-     * «Что было» в этом дне: следы всех разделов одним списком.
-     *
-     * Потоком на дату, как и план: экран листает дни, и след у каждого свой.
-     */
-    fun trace(date: LocalDate): Flow<List<DayEvent>> = dayTrace.trace(date)
 
     /**
      * Списки всех дел этого дня, разложенные по делам.
@@ -413,7 +403,6 @@ class AskyaDayViewModel(
                     container.dayRepository,
                     container.reminderRepository,
                     container.deedTaskRepository,
-                    container.dayTrace,
                 )
             }
         }
