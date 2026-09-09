@@ -1,12 +1,6 @@
 package app.askya.app
 
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.provider.OpenableColumns
-import app.askya.domain.docs.DocFormat
-import app.askya.domain.docs.documentFormat
-import app.askya.video.VideoFormats
 
 /** Ключ намерения: с каким разделом Askya просят открыться. */
 const val OPEN_ROUTE = "askya.open"
@@ -38,6 +32,13 @@ const val OPEN_DEED = "askya.deed"
  * строка рядом просто открывает раздел.
  */
 const val OPEN_VOICE = "voice"
+
+/**
+ * AskyaEcho. Сюда уходит песня, открытая снаружи: её не показывают листом
+ * поверх приложения, как книгу или картинку, — её включают, и человек остаётся
+ * в плеере, где очередь, обложка и всё прочее.
+ */
+const val OPEN_ECHO = "echo"
 
 /**
  * Ключ намерения: открыть «Голос» и сразу начать писать.
@@ -88,107 +89,3 @@ fun openRouteOf(incoming: Intent?): String? {
     intent.removeExtra(OPEN_ROUTE)
     return route.takeIf { it.isNotBlank() }
 }
-
-/**
- * Файл, с которым Askya открыли снаружи.
- *
- * [format] — то же, чем Askya меряет всякий документ; [video] стоит отдельно,
- * потому что для видео формата в [DocFormat] нет вовсе: в Scroll видео не
- * заводят, его смотрят в AskyaV.
- */
-data class IncomingFile(
-    val uri: String,
-    val name: String,
-    val mime: String,
-    val format: DocFormat,
-    val video: Boolean,
-) {
-    /** Есть ли чем это показать своими силами. */
-    val readable: Boolean
-        get() = video || format != DocFormat.OTHER
-}
-
-/**
- * Разбор намерения, с которым запустили приложение.
- *
- * Два случая, и оба означают одно и то же — «открой это»:
- *
- * — `VIEW` приходит из проводника и из «Открыть с помощью»;
- * — `SEND` — из кнопки «Поделиться» в любом чужом приложении.
- *
- * Больше ничего Askya снаружи не принимает: она не редактор по вызову и не
- * обработчик ссылок.
- *
- * ## Про доступ к файлу
- *
- * Доступ приходит вместе с намерением и живёт ровно столько, сколько живёт
- * задача приложения. Постоянное право можно взять только у того, кто сам его
- * предложил (`FLAG_GRANT_PERSISTABLE_URI_PERMISSION`), а проводники его почти
- * никогда не ставят.
- *
- * Отсюда правило: **файл, открытый снаружи, показывается, но не заводится
- * записью.** Запись со ссылкой, которая перестанет открываться завтра, — это
- * не «добавили в Библиотеку», а поломка с отсрочкой. Оставить у себя можно
- * отдельным действием, и вот оно уже копирует файл, а не ссылку.
- */
-fun incomingFileOf(context: Context, incoming: Intent?): IncomingFile? {
-    val intent = incoming ?: return null
-    val uri = when (intent.action) {
-        Intent.ACTION_VIEW -> intent.data
-        Intent.ACTION_SEND -> intent.getParcelableExtraCompat(Intent.EXTRA_STREAM)
-        else -> null
-    } ?: return null
-
-    // Право, если его всё-таки дали. Не дали — не беда: сейчас файл открыт, а
-    // навсегда его никто и не обещал.
-    runCatching {
-        if (intent.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0) {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }
-    }
-
-    val name = context.displayName(uri)
-    // Тип от того, кто прислал, вернее, чем от провайдера: он знает, что
-    // отправляет. Пустой — спрашиваем провайдера, как и везде.
-    val mime = intent.type
-        ?: runCatching { context.contentResolver.getType(uri) }.getOrNull()
-        ?: ""
-
-    return IncomingFile(
-        uri = uri.toString(),
-        name = name,
-        mime = mime,
-        format = documentFormat(name, mime),
-        // Видео узнаётся по имени и по типу: у экзотических контейнеров
-        // провайдер отдаёт `application/octet-stream`, а VLC их открывает.
-        video = VideoFormats.isVideo(name) || mime.startsWith("video/"),
-    )
-}
-
-/** Имя файла: в ссылке его нет — спрашивается у провайдера. */
-private fun Context.displayName(uri: Uri): String {
-    val asked = runCatching {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-    }.getOrNull()
-    return asked?.takeIf { it.isNotBlank() }
-        ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
-        ?: "Файл"
-}
-
-/**
- * `getParcelableExtra` без предупреждения о старости.
- *
- * С Android 13 у него появился вариант с типом, а прежний объявлен устаревшим;
- * до неё есть только прежний. Оба здесь, и выбор делается по версии.
- */
-@Suppress("DEPRECATION")
-private fun Intent.getParcelableExtraCompat(name: String): Uri? =
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-        getParcelableExtra(name, Uri::class.java)
-    } else {
-        getParcelableExtra(name)
-    }

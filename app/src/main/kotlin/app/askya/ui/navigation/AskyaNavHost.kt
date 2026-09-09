@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.askya.app.OPEN_ECHO
 import app.askya.app.OPEN_TODAY
 import app.askya.app.OPEN_VOICE
 import app.askya.app.OPEN_WEATHER
@@ -161,6 +162,7 @@ fun AskyaApp(
     LaunchedEffect(openRoute, openDeed) {
         when (openRoute) {
             OPEN_WEATHER -> navController.navigate(Routes.WEATHER)
+            OPEN_ECHO -> navController.navigate(Destination.ECHO.route)
             OPEN_VOICE -> {
                 sayNow = saying
                 navController.navigate(Routes.VOICE)

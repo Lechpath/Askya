@@ -249,19 +249,27 @@
             <!--
                 Askya в системном «Открыть с помощью».
 
-                Объявлено ровно то, что она показывает своими силами: книги,
-                документы, картинки, видео. Ни `*/*`, ни «на всякий случай»:
-                приложение, которое предлагает себя для всякого файла, человек
-                учится пролистывать, и в тот раз, когда оно действительно
-                нужно, он его уже не читает.
+                Объявлено ровно то, что она показывает своими силами: музыка,
+                книги, документы, картинки, видео. Ни `*/*`, ни «на всякий
+                случай»: приложение, которое предлагает себя для всякого файла,
+                человек учится пролистывать, и в тот раз, когда оно
+                действительно нужно, он его уже не читает.
 
-                Открытый так файл не заводится записью — он показывается и
-                уходит; почему именно так, написано в `app/Incoming.kt`.
+                Разбор того, что пришло, — в одном месте
+                (`app/FileOpenRouter.kt`), и оно же решает, в какой раздел файл
+                отдать.
 
-                Два фильтра, а не один, потому что подходят они по-разному:
-                первый — по типу, который прислал проводник, второй — по
-                расширению, когда типа он не знает (а не знает он его у всего,
-                кроме mp4 и pdf).
+                ## Первый фильтр — по типу, и это главный
+
+                Прежде первым стоял фильтр по расширению **в самой ссылке**
+                (`pathPattern`), и работал он, пока файл приходил из проводника:
+                там в ссылке есть путь, а в пути имя. Из «Загрузок», из Drive,
+                из мессенджера приходит `content://…/document/1247` — имени в
+                ней нет вовсе, фильтр не срабатывает, и Askya просто не
+                появляется в списке. Молча: человек видит, что его приложения
+                там нет, и не может знать почему.
+
+                Тип провайдеры отдают почти всегда, и потому он первый.
             -->
             <intent-filter android:label="Открыть в Askya">
                 <action android:name="android.intent.action.VIEW" />
@@ -269,6 +277,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="image/*" />
                 <data android:mimeType="application/x-fictionbook+xml" />
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
@@ -276,28 +287,123 @@
                 <data android:mimeType="text/plain" />
                 <data android:mimeType="text/markdown" />
                 <data android:mimeType="text/csv" />
-                <data android:mimeType="image/*" />
-                <data android:mimeType="video/*" />
+
+                <!-- Списки песен: система зовёт их то так, то этак. -->
+                <data android:mimeType="audio/x-mpegurl" />
+                <data android:mimeType="audio/mpegurl" />
+                <data android:mimeType="application/vnd.apple.mpegurl" />
             </intent-filter>
 
             <!--
-                Тот же вход, но по имени файла. Регистр в pathPattern значим,
-                поэтому каждое расширение стоит дважды: файлы, скачанные с
-                разных сайтов, приходят и так, и так.
+                Второй фильтр — для того, у чего типа нет.
+
+                `application/octet-stream` провайдеры отдают за всё, чего не
+                узнали: за mkv, за flac, за fb2. Такой файл ловится по концу
+                имени — `pathSuffix`, а не прежний `pathPattern` с обязательной
+                звёздочкой впереди: то же самое, но без строки, в которой можно
+                ошибиться.
+
+                Оговорка честная: `pathSuffix` появился в Android 12. На
+                версиях старше система его не понимает и пропускает — а фильтр
+                без единого ограничения по пути начинает подходить ко всякому
+                `octet-stream`. Askya пишется под телефон, который у человека в
+                руках, и он новее; знать об этом всё же стоит.
+            -->
+            <intent-filter android:label="Открыть в Askya">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
+
+                <data android:pathSuffix=".fb2" />
+                <data android:pathSuffix=".mp3" />
+                <data android:pathSuffix=".m4a" />
+                <data android:pathSuffix=".m4b" />
+                <data android:pathSuffix=".flac" />
+                <data android:pathSuffix=".wav" />
+                <data android:pathSuffix=".ogg" />
+                <data android:pathSuffix=".oga" />
+                <data android:pathSuffix=".opus" />
+                <data android:pathSuffix=".aac" />
+                <data android:pathSuffix=".wma" />
+                <data android:pathSuffix=".ape" />
+                <data android:pathSuffix=".mka" />
+                <data android:pathSuffix=".m3u" />
+                <data android:pathSuffix=".m3u8" />
+                <data android:pathSuffix=".cue" />
+                <data android:pathSuffix=".mkv" />
+                <data android:pathSuffix=".avi" />
+                <data android:pathSuffix=".mp4" />
+                <data android:pathSuffix=".m4v" />
+                <data android:pathSuffix=".mov" />
+                <data android:pathSuffix=".webm" />
+                <data android:pathSuffix=".ts" />
+                <data android:pathSuffix=".m2ts" />
+                <data android:pathSuffix=".flv" />
+                <data android:pathSuffix=".wmv" />
+                <data android:pathSuffix=".mpg" />
+                <data android:pathSuffix=".mpeg" />
+                <data android:pathSuffix=".3gp" />
+                <data android:pathSuffix=".ogv" />
+                <data android:pathSuffix=".rmvb" />
+                <data android:pathSuffix=".vob" />
+                <data android:pathSuffix=".divx" />
+                <data android:pathSuffix=".asf" />
+            </intent-filter>
+
+            <!--
+                Третий — запасной, и только для `file://`.
+
+                Такие ссылки приходят от старых приложений: между приложениями
+                Android их давно не пропускает. Здесь остался `pathPattern` —
+                на этих версиях он и работал, — и потому каждое расширение
+                стоит дважды: регистр в нём значим, а файлы, скачанные с разных
+                сайтов, приходят и так, и так.
             -->
             <intent-filter android:label="Открыть в Askya">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:host="*" />
-                <data android:mimeType="application/octet-stream" />
-                <data android:mimeType="application/zip" />
 
                 <data android:pathPattern=".*\.fb2" />
                 <data android:pathPattern=".*\.FB2" />
+                <data android:pathPattern=".*\.mp3" />
+                <data android:pathPattern=".*\.MP3" />
+                <data android:pathPattern=".*\.m4a" />
+                <data android:pathPattern=".*\.M4A" />
+                <data android:pathPattern=".*\.m4b" />
+                <data android:pathPattern=".*\.M4B" />
+                <data android:pathPattern=".*\.flac" />
+                <data android:pathPattern=".*\.FLAC" />
+                <data android:pathPattern=".*\.wav" />
+                <data android:pathPattern=".*\.WAV" />
+                <data android:pathPattern=".*\.ogg" />
+                <data android:pathPattern=".*\.OGG" />
+                <data android:pathPattern=".*\.oga" />
+                <data android:pathPattern=".*\.OGA" />
+                <data android:pathPattern=".*\.opus" />
+                <data android:pathPattern=".*\.OPUS" />
+                <data android:pathPattern=".*\.aac" />
+                <data android:pathPattern=".*\.AAC" />
+                <data android:pathPattern=".*\.wma" />
+                <data android:pathPattern=".*\.WMA" />
+                <data android:pathPattern=".*\.ape" />
+                <data android:pathPattern=".*\.APE" />
+                <data android:pathPattern=".*\.mka" />
+                <data android:pathPattern=".*\.MKA" />
+                <data android:pathPattern=".*\.m3u" />
+                <data android:pathPattern=".*\.M3U" />
+                <data android:pathPattern=".*\.m3u8" />
+                <data android:pathPattern=".*\.M3U8" />
+                <data android:pathPattern=".*\.cue" />
+                <data android:pathPattern=".*\.CUE" />
                 <data android:pathPattern=".*\.mkv" />
                 <data android:pathPattern=".*\.MKV" />
                 <data android:pathPattern=".*\.avi" />

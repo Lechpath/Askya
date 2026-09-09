@@ -1,5 +1,7 @@
 package app.askya.ui.open
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,10 +20,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.IncomingFile
 import app.askya.app.appContainer
 import app.askya.domain.docs.DocFormat
+import app.askya.echo.OutsideAudio
+import app.askya.echo.playFromOutside
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.HeaderIcon
@@ -44,7 +49,7 @@ import kotlinx.coroutines.launch
  * оставив всё как было: ни новой записи, ни следа в «Недавнем».
  *
  * Так — потому что доступ к чужому файлу приходит вместе с намерением и
- * кончается вместе с задачей приложения (см. [app.askya.app.incomingFileOf]).
+ * кончается вместе с задачей приложения (см. [app.askya.app.FileOpenRouter]).
  * Запись, заведённая на такую ссылку, назавтра открывалась бы ошибкой, и
  * человек винил бы в этом Askya, а не проводник.
  *
@@ -53,6 +58,15 @@ import kotlinx.coroutines.launch
  * «оставить» здесь означает ровно то, что обещает. Для книг и документов
  * такого хранилища нет — они в Scroll живут ссылками, — и обещать «оставлю»
  * там было бы враньём.
+ *
+ * ## Два выхода из этого листа
+ *
+ * Кино и музыка сквозь него проходят насквозь, и по-разному. Кино открывается
+ * прямо здесь, во весь экран: фильм смотрят и закрывают, и лист — ровно та
+ * мера жизни, которая ему нужна. А музыку включают и **уходят**, и лист поверх
+ * приложения живёт до первого шага назад. Поэтому песня отдаётся плееру и
+ * уводит человека в AskyaEcho, а лист закрывается за ней
+ * (`echo/EchoOutside.kt`).
  *
  * Экран поверх всего приложения, а не маршрутом: он приходит не от нажатия
  * внутри Askya, а снаружи, и возвращаться из него надо туда, где человек был,
@@ -65,12 +79,19 @@ import kotlinx.coroutines.launch
  * спрятанному под ним разделу.
  */
 @Composable
-fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit) {
+fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit, onEcho: () -> Unit) {
     val container = appContainer()
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var notice by remember(file.uri) { mutableStateOf<String?>(null) }
     var kept by remember(file.uri) { mutableStateOf(false) }
+
+    /**
+     * Почему не заиграло. Пока `null` и файл — музыка, лист пуст: разбор
+     * длится доли секунды, и мелькнувшая на них надпись читалась бы как ошибка.
+     */
+    var unplayable by remember(file.uri) { mutableStateOf<String?>(null) }
 
     BackHandler(onBack = onClose)
 
@@ -81,6 +102,15 @@ fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit) {
     LaunchedEffect(file.uri) {
         if (file.video) {
             engine.open(VideoSource(uri = file.uri, title = file.name.substringBeforeLast('.', file.name)))
+        }
+    }
+
+    // Музыка уходит в AskyaEcho и уводит человека за собой.
+    LaunchedEffect(file.uri) {
+        if (!file.audio) return@LaunchedEffect
+        when (val result = playFromOutside(context, container.echoPlayer, file.uri, file.name)) {
+            is OutsideAudio.Playing -> onEcho()
+            is OutsideAudio.Failed -> unplayable = result.reason
         }
     }
 
@@ -107,6 +137,10 @@ fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit) {
                 )
             }
 
+            // Музыка ещё разбирается: пусто. Не заигравшая падает ниже, в
+            // общий разговор о том, чего Askya не открыла.
+            file.audio && unplayable == null -> Unit
+
             // У книги своя шапка — с оглавлением, поиском и кеглем. Накрывать
             // её ещё одной значило бы отнять у читалки полосу экрана ради
             // имени файла, которое и так стоит на её собственной обложке.
@@ -116,11 +150,13 @@ fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit) {
             else -> OpenedDocument(
                 file = file,
                 kept = kept,
+                unplayable = unplayable,
                 onClose = onClose,
+                onElsewhere = { openElsewhere(context, file) },
                 onKeep = {
                     scope.launch {
                         val copy = container.imageStore
-                            .importFrom(android.net.Uri.parse(file.uri), file.name, file.mime)
+                            .importFrom(Uri.parse(file.uri), file.name, file.mime)
                         if (copy == null) {
                             notice = "Скопировать картинку не вышло"
                         } else {
@@ -149,12 +185,38 @@ fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit) {
     }
 }
 
+/**
+ * Отдать файл тому, кто его откроет.
+ *
+ * Тупик — худшее, чем может кончиться «Открыть с помощью»: человек выбрал
+ * Askya, Askya не смогла, и он остался с ней наедине. Поэтому вместе с отказом
+ * стоит выход: то же намерение уходит обратно в систему, и она предлагает
+ * остальных.
+ *
+ * Право на чтение передаётся вместе с намерением — без него выбранное
+ * приложение получит ссылку, которую ему нечем открыть.
+ *
+ * Открывать некому — не беда и не ошибка: приложений для этого формата на
+ * телефоне просто нет, и сказано об этом уже на самом листе.
+ */
+private fun openElsewhere(context: android.content.Context, file: IncomingFile) {
+    val uri = Uri.parse(file.uri)
+    val view = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, file.mime.ifBlank { "*/*" })
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    runCatching {
+        context.startActivity(Intent.createChooser(view, "Открыть файл"))
+    }
+}
+
 /** Сам файл под шапкой с его именем — всё, кроме книги и кино. */
 @Composable
 private fun OpenedDocument(
     file: IncomingFile,
     kept: Boolean,
+    unplayable: String?,
     onClose: () -> Unit,
+    onElsewhere: () -> Unit,
     onKeep: () -> Unit,
 ) {
     ScreenScaffold(
@@ -171,18 +233,26 @@ private fun OpenedDocument(
             }
         },
     ) {
-        when (file.format) {
-            DocFormat.IMAGE -> ImageView(file.uri)
-            DocFormat.PDF -> PdfView(file.uri)
-            DocFormat.TEXT -> TextView(file.uri)
-            DocFormat.WORD -> OfficeView(file.uri, DocFormat.WORD)
-            DocFormat.EXCEL -> OfficeView(file.uri, DocFormat.EXCEL)
+        when {
+            unplayable != null -> EmptyState(
+                title = "Не заиграло",
+                hint = unplayable,
+                actionLabel = "Открыть другим приложением",
+                onAction = onElsewhere,
+            )
+
+            file.format == DocFormat.IMAGE -> ImageView(file.uri)
+            file.format == DocFormat.PDF -> PdfView(file.uri)
+            file.format == DocFormat.TEXT -> TextView(file.uri)
+            file.format == DocFormat.WORD -> OfficeView(file.uri, DocFormat.WORD)
+            file.format == DocFormat.EXCEL -> OfficeView(file.uri, DocFormat.EXCEL)
 
             else -> EmptyState(
                 title = "Askya это не читает",
                 hint = "Формат «${file.name.substringAfterLast('.', "без расширения")}» " +
-                    "она открыть не берётся. Верните файл проводнику — он предложит другое " +
-                    "приложение.",
+                    "она открыть не берётся. Телефон предложит другое приложение.",
+                actionLabel = "Открыть другим приложением",
+                onAction = onElsewhere,
             )
         }
     }

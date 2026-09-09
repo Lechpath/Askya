@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handOverSplash()
-        incoming = incomingFileOf(this, intent)
+        incoming = FileOpenRouter.route(this, intent)
         opening = openRouteOf(intent)
         saying = sayNowOf(intent)
         deed = openDeedOf(intent)
@@ -161,7 +161,17 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (opened != null) {
-                        OpenedFileScreen(file = opened, onClose = { incoming = null })
+                        OpenedFileScreen(
+                            file = opened,
+                            onClose = { incoming = null },
+                            // Песня уже играет: лист закрывается за ней, а
+                            // человек оказывается в плеере — там очередь,
+                            // обложка и всё, зачем в Echo приходят.
+                            onEcho = {
+                                incoming = null
+                                opening = OPEN_ECHO
+                            },
+                        )
                     }
 
                     // Поверх приложения, но под заставкой и под открытым
@@ -200,7 +210,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        incoming = incomingFileOf(this, intent)
+        incoming = FileOpenRouter.route(this, intent)
         openRouteOf(intent)?.let {
             opening = it
             saying = sayNowOf(intent)
