@@ -8,12 +8,12 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.ContextCompat
+import app.askya.data.files.ALREADY_STAMPED
+import app.askya.data.files.stampedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /**
  * Библиотека Askya — одна папка в корне памяти телефона.
@@ -342,12 +342,8 @@ class AskyaLibrary(private val context: Context) {
             .takeIf { it.isNotEmpty() && it.length <= 5 && it.all(Char::isLetterOrDigit) }
             ?: MimeTypeMap.getSingleton().getExtensionFromMimeType(mime.lowercase())
             ?: ""
-        val base = clean.substringBeforeLast('.', clean)
-            .replace(UNSAFE, "_")
-            .trim('_')
-            .take(48)
-            .ifBlank { "askya" }
-        return STAMP.format(LocalDateTime.now()) + "-" + base + if (ext.isEmpty()) "" else ".$ext"
+        val stem = stampedName(clean, "askya")
+        return stem + if (ext.isEmpty()) "" else ".$ext"
     }
 
     /** Свободное имя в папке: занятое разводится числом, а не затирается. */
@@ -366,8 +362,5 @@ class AskyaLibrary(private val context: Context) {
     private companion object {
         const val FOLDER = "Askya"
         const val SCAN_PATIENCE_MS = 1500L
-        val STAMP: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-        val ALREADY_STAMPED = Regex("^\\d{8}-\\d{6}-")
-        val UNSAFE = Regex("[^\\p{L}\\p{N}._-]+")
     }
 }

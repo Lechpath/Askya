@@ -6,12 +6,12 @@ import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
+import app.askya.data.files.legacyAppDir
+import app.askya.data.files.stampedName
 import app.askya.data.library.AskyaLibrary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /**
  * Куда AskyaV кладёт сделанное: куски, повороты, снятый звук и скачанное.
@@ -214,26 +214,14 @@ class VideoStore(
         }.getOrNull() ?: 0L
     }
 
-    private fun legacyDir(): File {
-        val external = runCatching { context.getExternalFilesDir(LEGACY_DIR) }.getOrNull()
-        val dir = external ?: File(context.filesDir, LEGACY_DIR)
-        if (!dir.exists()) dir.mkdirs()
-        return dir
-    }
+    private fun legacyDir(): File = legacyAppDir(context, LEGACY_DIR)
 
     /**
      * Имя с отметкой времени в начале — как у картинок: по ней файлы в папке
      * идут по порядку и не затирают друг друга, сколько бы кусков ни вырезали
      * из одного фильма.
      */
-    private fun stamped(name: String): String {
-        val base = name.substringBeforeLast('.', name)
-            .replace(UNSAFE, "_")
-            .trim('_')
-            .take(48)
-            .ifBlank { "video" }
-        return STAMP.format(LocalDateTime.now()) + "-" + base
-    }
+    private fun stamped(name: String): String = stampedName(name, "video")
 
     /**
      * Хвост имени по подписи содержимого.
@@ -267,8 +255,6 @@ class VideoStore(
          */
         const val AUDIO_FOLDER = "Music/Askya"
         const val LEGACY_DIR = "Askya"
-        val STAMP: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-        val UNSAFE = Regex("[^\\p{L}\\p{N}._-]+")
     }
 }
 

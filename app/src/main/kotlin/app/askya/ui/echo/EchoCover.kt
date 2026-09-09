@@ -104,25 +104,6 @@ fun CoverPlaceholder(modifier: Modifier = Modifier) {
     }
 }
 
-/** Обложка внутри квадрата: картинка, а если её нет — цветок Askya. */
-@Composable
-fun CoverImage(track: Track?, modifier: Modifier = Modifier) {
-    val cover = rememberCover(track)
-
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (cover == null) {
-            CoverPlaceholder(modifier = Modifier.fillMaxSize())
-        } else {
-            Image(
-                bitmap = cover,
-                contentDescription = "Обложка",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-}
-
 /**
  * Обложка размером с ноготь — для строк списка и карточек плейлистов.
  *

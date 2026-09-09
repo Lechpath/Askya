@@ -301,5 +301,3 @@ private fun rateLabel(rate: Float): String =
 private val RATES = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 3f)
 
 private val STEPS = listOf(5, 10, 15, 30, 60)
-
-private val TURNS = listOf(0, 90, 180, 270)

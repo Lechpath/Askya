@@ -201,10 +201,6 @@ fun formatMoney(
     return "$sign$grouped ${currency.sign}"
 }
 
-/** То же, но пусто вместо нуля: в строке, где сумма не важна, ноль — шум. */
-fun formatMoneyOrBlank(kopecks: Long, currency: Currency = Currency.RUB): String =
-    if (kopecks == 0L) "" else formatMoney(kopecks, currency = currency)
-
 /**
  * Написанное — в копейки: «1 234,5» → 123450, «300» → 30000.
  *

@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import app.askya.app.appContainer
 import app.askya.data.backup.SnapshotAlarms
 import app.askya.data.backup.Snapshots
+import app.askya.data.backup.snapshotWhen
 import app.askya.data.preferences.AppSettings
 import app.askya.reminders.ReminderAlarms
 import app.askya.ui.components.AskyaAsk
@@ -29,7 +30,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * «Слепок» в настройках: записать, прочитать, напоминать.
@@ -252,10 +252,8 @@ private fun weigh(bytes: Long): String = when {
     else -> bytes.toString() + " Б"
 }
 
-private val WHEN: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM, HH:mm")
-
 private fun lastSnapshot(at: Long): String {
     if (at <= 0L) return "не было"
     val moment = LocalDateTime.ofInstant(Instant.ofEpochMilli(at), ZoneId.systemDefault())
-    return WHEN.format(moment)
+    return snapshotWhen(moment)
 }

@@ -29,22 +29,21 @@ import app.askya.data.entity.LedgerAccount
 import app.askya.data.entity.LedgerCategory
 import app.askya.data.entity.LedgerEntry
 import app.askya.data.entity.Note
-import app.askya.data.entity.InterviewMessage
-import app.askya.data.entity.ProfileSection
 import app.askya.data.entity.Reminder
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import app.askya.data.entity.ScrollTopic
-import app.askya.data.entity.SelfAnswer
 import app.askya.data.entity.VideoPlaylist
 import app.askya.data.entity.VideoPlaylistClip
 import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
 
 /**
- * Таблицы `profile_sections`, `interview_messages` и `self_answers` остались,
- * хотя разговор с моделью из приложения убран: в них лежит то, что человек
- * когда-то рассказал, а удаление таблицы необратимо. Они просто не читаются.
+ * Таблиц разговора с моделью — `profile_sections`, `interview_messages`,
+ * `self_answers` — здесь нет и в базе тоже нет. Разговор и опросник убрали из
+ * приложения давно, а записанное ими оставили лежать: в нём человек говорил о
+ * себе, и стереть такое за него нельзя. Стереть совсем он попросил отдельно, и
+ * это отдельная миграция 45 → 46.
  *
  * Таблиц раздела Active — `workouts`, `workout_sets`, `run_points`,
  * `body_checks`, `activity_days`, `exercises` — здесь нет и в базе тоже нет.
@@ -76,9 +75,6 @@ import app.askya.data.entity.YetList
         Reminder::class,
         RoutineItem::class,
         GeneratedDay::class,
-        ProfileSection::class,
-        InterviewMessage::class,
-        SelfAnswer::class,
         ScrollTopic::class,
         ImageAlbum::class,
         YetList::class,
@@ -120,11 +116,11 @@ abstract class AppDatabase : RoomDatabase() {
          * сверяет при чтении, а два числа об одном разошлись бы в первый же
          * раз, когда правят одно из них.
          */
-        const val VERSION = 45
+        const val VERSION = 46
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40, MIGRATION_40_41, MIGRATION_41_42, MIGRATION_42_43, MIGRATION_43_44, MIGRATION_44_45, MIGRATION_45_46)
                 .build()
     }
 }

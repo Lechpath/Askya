@@ -19,6 +19,17 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
+ * Когда слепок сделан — словами, а не машинной записью.
+ *
+ * Стоит здесь, а не в двух местах: те же слова показывает окно подтверждения
+ * при восстановлении и строка «последний слепок» в настройках, и разойтись им
+ * нельзя — человек сверяет одно с другим глазами.
+ */
+fun snapshotWhen(moment: LocalDateTime): String = SNAPSHOT_WHEN.format(moment)
+
+private val SNAPSHOT_WHEN: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM, HH:mm")
+
+/**
  * «Слепок» — всё, что помнит Askya, одним файлом.
  *
  * ## Зачем он есть
@@ -351,7 +362,7 @@ class Snapshots(
      * окне подтверждения ничего не говорит, а решает он по ней.
      */
     private fun whenMade(iso: String): String = runCatching {
-        WHEN.format(LocalDateTime.parse(iso.take(19)))
+        snapshotWhen(LocalDateTime.parse(iso.take(19)))
     }.getOrDefault(iso.take(16).replace('T', ' '))
 
     private fun storeFile(name: String) =
@@ -395,8 +406,6 @@ class Snapshots(
     }
 
     private companion object {
-        val WHEN: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM, HH:mm")
-
         /** Формат самого слепка — не версия схемы и не версия приложения. */
         const val FORMAT = 1
 

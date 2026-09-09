@@ -8,9 +8,9 @@ import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.askya.data.files.legacyAppDir
+import app.askya.data.files.stampedName
 import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 /**
  * Своя папка Askya под голос: «Внутренняя память → Music → Askya».
@@ -110,26 +110,15 @@ class VoiceStore(private val context: Context) {
         }
     }
 
-    private fun legacyDir(): File {
-        val external = runCatching { context.getExternalFilesDir(LEGACY_DIR) }.getOrNull()
-        val dir = external ?: File(context.filesDir, LEGACY_DIR)
-        if (!dir.exists()) dir.mkdirs()
-        return dir
-    }
+    private fun legacyDir(): File = legacyAppDir(context, LEGACY_DIR)
 
     /**
      * Имя с отметкой времени в начале — как у картинок и кусков видео: по ней
      * файлы в папке идут по порядку и не затирают друг друга, сколько бы
-     * заметок ни наговорили в один день.
+     * заметок ни наговорили в один день. Само правило одно на всю Askya —
+     * `data/files/FileNames.kt`.
      */
-    private fun stamped(name: String): String {
-        val base = name.substringBeforeLast('.', name)
-            .replace(UNSAFE, "_")
-            .trim('_')
-            .take(48)
-            .ifBlank { "golos" }
-        return STAMP.format(LocalDateTime.now()) + "-" + base
-    }
+    private fun stamped(name: String): String = stampedName(name, "golos")
 
     companion object {
         /**
@@ -143,8 +132,6 @@ class VoiceStore(private val context: Context) {
         val MODERN = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         const val FOLDER = "Music/Askya"
         const val LEGACY_DIR = "Askya"
-        val STAMP: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-        val UNSAFE = Regex("[^\\p{L}\\p{N}._-]+")
     }
 }
 

@@ -45,7 +45,6 @@ val CoralInk = Color(0xFF8A4B32)
 val ModeRed = Color(0xFFB33C2E)
 val ModeRedSoft = Color(0xFFF7E3DF)
 val ModeYellow = Color(0xFF9A7318)
-val ModeYellowSoft = Color(0xFFF6EEDA)
 val ModeGreen = Color(0xFF3E7A4F)
 val ModeGreenSoft = Color(0xFFE5EFE5)
 
@@ -354,17 +353,9 @@ fun Modifier.cardShade(shape: Shape, elevation: Dp = 4.dp): Modifier =
 val Cream: Color
     @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.background
 
-/** Подложка: боковое меню, слово-переключатель, ячейка часа в погоде. */
-val Panel: Color
-    @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceVariant
-
 /** Карточка, лежащая на бумаге. */
 val CardWhite: Color
     @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surface
-
-/** Черта, отделяющая одно от другого. */
-val Border: Color
-    @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.outline
 
 /** Буква. */
 val Ink: Color
