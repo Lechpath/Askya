@@ -26,6 +26,10 @@ class NoteRepository(
 
     fun notes(): Flow<List<Note>> = dao.observeAll()
 
+    /** Записи, заведённые в этот день, — «Что было» в AskyaDay. */
+    fun createdOn(date: java.time.LocalDate): Flow<List<Note>> =
+        dao.observeCreatedBetween(date.atStartOfDay(), date.plusDays(1).atStartOfDay())
+
     fun notes(query: String, tag: String): Flow<List<Note>> =
         dao.observeFiltered(query.trim(), tag.trim())
 

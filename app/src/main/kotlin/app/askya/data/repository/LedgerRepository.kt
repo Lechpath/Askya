@@ -10,6 +10,7 @@ import app.askya.domain.model.EntryKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
 
@@ -56,6 +57,9 @@ class LedgerRepository(private val dao: LedgerDao) {
         }
 
     fun categories(): Flow<List<LedgerCategory>> = dao.observeCategories()
+
+    /** Записи одного дня — «Что было» в AskyaDay. */
+    fun entriesOn(date: LocalDate): Flow<List<LedgerEntry>> = dao.observeIn(date, date)
 
     /**
      * Самый поздний месяц, в котором есть запись, — граница листания вперёд.

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -80,8 +81,15 @@ import app.askya.ui.components.blockIconOf
 import app.askya.ui.components.formatRange
 import app.askya.ui.components.formatRemind
 import app.askya.ui.components.formatRussianDate
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.style.TextOverflow
+import app.askya.domain.trace.DayEvent
+import app.askya.ui.components.formatTime
 import app.askya.ui.theme.Accent
+import app.askya.ui.theme.CardWhite
 import app.askya.ui.theme.Ink
+import app.askya.ui.theme.Muted
+import app.askya.ui.theme.cardEdge
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import androidx.compose.material.icons.outlined.Add
@@ -491,9 +499,15 @@ fun AskyaDayScreen(
             val pageTasks by remember(date) { viewModel.tasks(date) }
                 .collectAsStateWithLifecycle(initialValue = emptyMap())
 
+            // След дня: что было в этот день во всех разделах. Своей подпиской
+            // на страницу — по той же причине, что и списки дел.
+            val pageTrace by remember(date) { viewModel.trace(date) }
+                .collectAsStateWithLifecycle(initialValue = emptyList())
+
             DayContent(
                 date = date,
                 plan = plan,
+                trace = pageTrace,
                 // Подсветка «сейчас» имеет смысл только у сегодняшнего дня.
                 currentBlockId = if (date == now.toLocalDate()) {
                     plan?.currentBlock(now.toLocalTime())?.id
@@ -764,6 +778,8 @@ private data class Editing(
 private fun DayContent(
     date: LocalDate,
     plan: DayPlan?,
+    /** Что было в этот день во всех разделах — карточка внизу списка. */
+    trace: List<DayEvent>,
     currentBlockId: Long?,
     nowTime: LocalTime?,
     isToday: Boolean,
@@ -922,6 +938,84 @@ private fun DayContent(
                         hasTarget = hasTarget,
                         onCross = onCross,
                         taskCount = taskCount,
+                    )
+                }
+            }
+        }
+
+        // «Что было» — след дня, собранный из всех разделов сразу.
+        //
+        // Внизу и последним: день читают сверху вниз, от того, что предстоит,
+        // к тому, что уже случилось, и карточка о прошедшем не должна стоять
+        // между человеком и его вечером.
+        //
+        // Пустой след карточки не заводит вовсе. «В этот день ничего не было»
+        // — неправда: было, просто Askya об этом не спрашивали.
+        if (trace.isNotEmpty()) {
+            item(key = "trace") { TraceCard(trace) }
+        }
+    }
+}
+
+/**
+ * Карточка «Что было»: строки дня по часам.
+ *
+ * Тот же белый лист с той же скруглённой рамкой, что у остальных карточек
+ * Askya, — нового языка здесь нет и не должно быть: это не отдельная страница,
+ * а последняя карточка дня.
+ *
+ * Три столбца: час, суть, приписка. Час у левого края — по нему список и
+ * читают; безчасовое оставляет столбец пустым, а не пишет прочерк: прочерк
+ * читается как «нет часа у события», а верно «часа никто не записывал».
+ */
+@Composable
+private fun TraceCard(events: List<DayEvent>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp)
+            .cardEdge(RoundedCornerShape(16.dp))
+            .background(CardWhite, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "Что было",
+            style = MaterialTheme.typography.titleMedium,
+            color = Ink,
+        )
+
+        events.forEach { event ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = event.at?.let(::formatTime).orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted,
+                    modifier = Modifier.width(44.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = event.gist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = event.part.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Muted,
+                    )
+                }
+                if (event.aside.isNotBlank()) {
+                    Text(
+                        text = event.aside,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Muted,
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
             }

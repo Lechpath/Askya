@@ -25,6 +25,21 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE removedAt IS NULL ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<Note>>
 
+    /**
+     * Записи, заведённые в один день, — для карточки «Что было».
+     *
+     * По `createdAt`, а не по индексированному `updatedAt`: спрашивают
+     * «что я записал в тот день», а не «что я в тот день правил». Правка
+     * старой заметки — не сегодняшнее событие, сколько бы её ни правили.
+     *
+     * Границы полуоткрытые: `BETWEEN` захватил бы полночь следующего дня.
+     */
+    @Query(
+        "SELECT * FROM notes WHERE removedAt IS NULL " +
+            "AND createdAt >= :from AND createdAt < :until ORDER BY createdAt",
+    )
+    fun observeCreatedBetween(from: LocalDateTime, until: LocalDateTime): Flow<List<Note>>
+
     /** Раздел «Изображения» — все картинки разом, и в альбомах, и без. */
     @Query("SELECT * FROM notes WHERE isImage = 1 AND removedAt IS NULL ORDER BY updatedAt DESC")
     fun observeImages(): Flow<List<Note>>

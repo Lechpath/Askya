@@ -23,6 +23,7 @@ import app.askya.data.repository.NoteRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
 import app.askya.data.repository.DayRepository
+import app.askya.data.repository.DayTraceRepository
 import app.askya.data.repository.ScheduleRepository
 import app.askya.data.repository.Trash
 import app.askya.data.repository.VideoRepository
@@ -103,6 +104,22 @@ class AppContainer(context: Context) {
 
     /** Расходная книга Ledger: счета, статьи и записи. */
     val ledgerRepository: LedgerRepository by lazy { LedgerRepository(database.ledgerDao()) }
+
+    /**
+     * «Что было» — день, собранный из следов всех разделов.
+     *
+     * Стоит на репозиториях, а не на базе: своих таблиц у него нет и не будет,
+     * он спрашивает у тех же, из которых читают сами разделы.
+     */
+    val dayTrace: DayTraceRepository by lazy {
+        DayTraceRepository(
+            schedule = scheduleRepository,
+            notes = noteRepository,
+            ledger = ledgerRepository,
+            yet = yetRepository,
+            reminders = reminderRepository,
+        )
+    }
 
     /**
      * Нити. База целиком, а не один DAO: нить проходит через расписание,
