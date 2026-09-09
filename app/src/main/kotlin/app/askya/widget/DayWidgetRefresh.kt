@@ -90,7 +90,11 @@ class DayWidgetAlarmReceiver : BroadcastReceiver() {
  */
 class DayWidgetBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        // Обновление приложения снимает будильники так же, как перезагрузка, —
+        // и виджет замирал на том, что показывал до новой сборки.
+        val known = intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+        if (!known) return
         DayWidgetProvider.refresh(context)
         DayWidgetRefresh.scheduleNext(context)
     }

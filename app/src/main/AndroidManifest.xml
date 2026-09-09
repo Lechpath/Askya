@@ -29,6 +29,34 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
+        Будильник, который звонит в названную минуту.
+
+        Прежде напоминания ставились неточным будильником — нарочно, чтобы не
+        просить лишнего. Оказалось, что просить было надо: неточный будильник в
+        дремоте ждёт, пока телефон проснётся сам, а лежащий экраном вниз
+        телефон не просыпается по четверти часа. «Напомни в 19:00» звонило в
+        19:09, и это уже не напоминание.
+
+        Два разрешения, а не одно, потому что Android поменял правила посреди
+        дороги. USE_EXACT_ALARM (Android 13 и новее) система выдаёт сама при
+        установке, и выпрашивать его не приходится — оно для того и заведено,
+        чтобы будильникам и напоминаниям не пришлось. На версиях старше его не
+        существует, и там работает SCHEDULE_EXACT_ALARM: оно тоже выдаётся по
+        умолчанию, но человек может снять его в настройках телефона. Тогда
+        Askya не падает в неточный будильник втихую — экран напоминаний
+        говорит, что случилось, и ведёт туда, где переключатель
+        (`reminders/ReminderAlarms.kt`).
+
+        maxSdkVersion у второго — не осторожность, а точность: на новых Android
+        его роль занята первым, и объявлять оба значило бы просить одно и то же
+        дважды.
+    -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+
+    <!--
         Музыка для AskyaEcho. С Android 13 у аудио своё разрешение; на
         версиях до неё общее чтение хранилища, ограниченное maxSdkVersion:
         на новых система его всё равно не даёт, а в списке разрешений оно
@@ -162,43 +190,42 @@
     </queries>
 
     <!--
-        usesCleartextTraffic — ради одной вещи: ссылки на видео, которую человек
-        принёс сам.
+        По http приложение не ходит вовсе — что и почему, написано в
+        `xml/network_security_config.xml`. Прежде здесь стояло
+        usesCleartextTraffic="true" ради скачивания видео по ссылке, и снимало
+        оно запрет заодно с погоды и проверки обновлений.
 
-        С Android 9 приложение по умолчанию ходит только по https, и «Смотреть
-        по ссылке» в AskyaV молча не открывало бы всё, что дают по http, —
-        а дают по нему до сих пор и потоки с камер, и записи с домашних
-        серверов. Своих обращений по http у Askya нет ни одного: погода
-        спрашивается по https, и больше она в сеть не выходит никуда.
-
-        Разрешение это касается только того адреса, который набрали руками в
-        окне ссылки: ни одна запись, ни одна настройка и ни один файл никуда не
-        уходят по-прежнему.
+        Отдельным файлом, а не строкой в манифесте: запрет — это решение, и у
+        него должно быть место, где его объясняют.
     -->
 
     <!--
-        allowBackup остаётся включённым, но теперь с описанными правилами
-        (`xml/data_extraction_rules.xml` для Android 12 и новее,
-        `xml/backup_rules.xml` для тех, что старше).
+        Резервная копия Google выключена.
 
-        Прежде правил не было вовсе, и в копию уезжало всё подряд — включая
-        ключ от убранной модели и рассказ о себе, которые к тому времени уже
-        никто не читал. Ключ и рассказ теперь стираются при запуске
-        (`SettingsPreferences.dropRemovedModelSecrets`), а копия перестала быть
-        «всё, что нашлось»: что именно из неё исключено и почему, написано в
-        самих правилах.
+        Прежде она была включена, с описанными исключениями, и держалась на
+        одном доводе: своей выгрузки у Askya нет, а телефон бьётся. Довод
+        кончился вместе со «Слепком» — человек делает его руками и кладёт туда,
+        куда сам решил.
+
+        А цена осталась. В копию уезжает база целиком: Ledger, «Прожитое»,
+        записи Scroll, расписание за годы. Это чужой диск, привязанный к
+        аккаунту Google, и включённым он был не выбором, а значением по
+        умолчанию.
+
+        Вместе с копией убраны и правила к ней: списки исключений без копии не
+        значат ничего.
     -->
     <application
         android:name=".app.AskyaApplication"
-        android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
         android:requestLegacyExternalStorage="true"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Askya">
 
         <!--
@@ -388,11 +415,21 @@
             android:name=".data.backup.SnapshotReceiver"
             android:exported="false" />
 
+        <!--
+            Будильники стирают два события, и оба здесь. Перезагрузка — та, о
+            которой помнят все. Обновление приложения (MY_PACKAGE_REPLACED) —
+            та, о которой не помнит никто: поставленную поверх сборку система
+            считает новым приложением и снимает всё, что заводило прежнее.
+            Askya обновляется сама (`app/update/`), и без этой строки
+            напоминания переставали звонить после каждой новой сборки — молча,
+            и заметить это можно было только по тому, чего не случилось.
+        -->
         <receiver
             android:name=".reminders.ReminderBootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
@@ -401,6 +438,7 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

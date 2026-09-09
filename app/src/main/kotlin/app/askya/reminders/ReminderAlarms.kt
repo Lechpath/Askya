@@ -10,7 +10,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import app.askya.R
 import app.askya.app.AskyaApplication
@@ -32,10 +34,20 @@ import java.time.ZoneId
  * WorkManager обещает выполнить работу «когда-нибудь около» и в дремлющем
  * телефоне откладывает её на четверть часа. Для «напомни в 19:00» это негодно.
  *
- * Будильник неточный (`set`, а не `setExact`): точный требует разрешения
- * `SCHEDULE_EXACT_ALARM`, которое с Android 14 выпрашивают отдельным экраном
- * системных настроек. Неточный система сдвигает на минуты, и для напоминания
- * о деле это приемлемая цена за то, что оно просто работает без уговоров.
+ * Будильник точный ([AlarmManager.setExactAndAllowWhileIdle]). Прежде здесь
+ * стоял обычный `set` — ради того, чтобы не выпрашивать разрешение отдельным
+ * экраном системных настроек, — и цена оказалась не «минуты», как думалось: в
+ * дремоте система откладывает неточный будильник до следующего пробуждения
+ * телефона, а лежащий экраном вниз телефон не просыпается по четверти часа.
+ * «Напомни в 19:00» звонило в 19:09, и это уже не напоминание.
+ *
+ * Разрешения теперь два, и выпрашивать их не приходится:
+ * `USE_EXACT_ALARM` система выдаёт сама при установке (Android 13 и новее), а
+ * `SCHEDULE_EXACT_ALARM` для тех, что старше, выдаётся по умолчанию. Отнять
+ * второе человек всё же может — руками, в настройках телефона. Тогда
+ * [canBeExact] отвечает «нет», экран напоминаний предлагает вернуть право
+ * ([exactAlarmSettings]), а будильник ставится неточным: молча не звонить
+ * хуже, чем звонить с опозданием.
  *
  * Канал под каждую мелодию: звук уведомления в Android задаётся каналом, и
  * после создания канал уже не переделать. Одним каналом на все напоминания
@@ -145,8 +157,41 @@ object ReminderAlarms {
         if (at <= System.currentTimeMillis()) return
 
         val manager = context.getSystemService(AlarmManager::class.java) ?: return
-        manager.set(AlarmManager.RTC_WAKEUP, at, pendingIntent(context, reminder.id))
+        val alarm = pendingIntent(context, reminder.id)
+
+        // Право могли отнять между проверкой и постановкой — отказ системы
+        // здесь не повод потерять напоминание вовсе.
+        val exact = exactAllowed(manager) && runCatching {
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, alarm)
+        }.isSuccess
+
+        if (!exact) manager.set(AlarmManager.RTC_WAKEUP, at, alarm)
     }
+
+    /**
+     * Даёт ли система ставить точные будильники.
+     *
+     * До Android 12 разрешения не существовало вовсе и точный будильник ставил
+     * кто угодно. С неё оно есть, но обоими своими видами достаётся Askya без
+     * вопроса; «нет» здесь означает, что человек отнял его руками.
+     */
+    fun canBeExact(context: Context): Boolean =
+        exactAllowed(context.getSystemService(AlarmManager::class.java))
+
+    private fun exactAllowed(manager: AlarmManager?): Boolean =
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) true
+        else manager?.canScheduleExactAlarms() == true
+
+    /**
+     * Экран системных настроек, где право возвращают.
+     *
+     * Своего окна у этого разрешения нет — его не спрашивают всплывающим
+     * вопросом, как микрофон, — поэтому единственный честный ход: отвести
+     * человека туда, где переключатель, и сказать, зачем.
+     */
+    fun exactAlarmSettings(context: Context): Intent =
+        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+            .setData(Uri.fromParts("package", context.packageName, null))
 
     fun cancel(context: Context, id: Long) {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return
@@ -292,16 +337,25 @@ class ReminderReceiver : BroadcastReceiver() {
 }
 
 /**
- * После перезагрузки будильники стёрты — ставим заново.
+ * Будильники стёрты — ставим заново.
+ *
+ * Стирают их два события, и оба здесь. Перезагрузка — очевидное: заведённые
+ * системой будильники её не переживают. Обновление приложения — неочевидное и
+ * оттого опаснее: поставленную поверх сборку система считает новым
+ * приложением и снимает всё, что заводило прежнее. Без этой строки напоминания
+ * тихо переставали звонить после каждой новой сборки Askya, а заметить такое
+ * можно только по тому, чего не случилось.
  *
  * Заодно и месячное напоминание про «Слепок»: приёмник тот же, потому что
- * повод один — перезагрузка, а второй приёмник на то же событие означал бы
- * два места, где помнят про будильники Askya.
+ * повод один, а второй приёмник на то же событие означал бы два места, где
+ * помнят про будильники Askya.
  */
 class ReminderBootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        val known = intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+        if (!known) return
         ReminderAlarms.rescheduleAll(context)
         SnapshotAlarms.reschedule(context)
     }

@@ -1,6 +1,7 @@
 package app.askya.ui.reminders
 
 import android.Manifest
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +39,7 @@ import app.askya.data.entity.Reminder
 import app.askya.data.entity.remindAt
 import app.askya.domain.model.RemindAt
 import app.askya.reminders.ReminderAlarms
+import app.askya.ui.components.AskyaAsk
 import app.askya.ui.components.BlockCard
 import app.askya.ui.components.CardContent
 import app.askya.ui.components.CardDialog
@@ -77,6 +80,10 @@ fun RemindersScreen(onBack: () -> Unit) {
     // null — диалога нет; Editing(null) — новое напоминание.
     var editing by remember { mutableStateOf<Editing?>(null) }
 
+    // Право на точный будильник спрашивается не окном, а экраном системных
+    // настроек, и потому предложить сходить туда можно только словами.
+    var askExact by remember { mutableStateOf(false) }
+
     // Разрешение спрашивается тогда, когда понадобилось: просить заранее —
     // значит просить у человека, который ещё не знает, о чём речь.
     val askNotifications = rememberLauncherForActivityResult(
@@ -87,6 +94,9 @@ fun RemindersScreen(onBack: () -> Unit) {
         if (ReminderAlarms.needsPermission()) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        // Спрашивается здесь же, а не при запуске: до первого напоминания
+        // человеку незачем знать, что у Android есть такое разрешение.
+        if (!ReminderAlarms.canBeExact(context)) askExact = true
     }
 
     val today = remember { LocalDate.now() }
@@ -158,6 +168,30 @@ fun RemindersScreen(onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (askExact) {
+        AskyaAsk(
+            title = "Звонок минута в минуту",
+            text = "Телефон не даёт Askya точный будильник, и в дремоте напоминание " +
+                "приходит на несколько минут позже часа. Право возвращают в настройках " +
+                "телефона — «Будильники и напоминания».",
+            confirm = "Настройки",
+            icon = Icons.Outlined.Schedule,
+            danger = false,
+            onConfirm = {
+                askExact = false
+                // Экрана может не быть на переделанной прошивке: тогда лучше
+                // остаться на месте, чем уронить приложение об чужой Android.
+                runCatching {
+                    context.startActivity(
+                        ReminderAlarms.exactAlarmSettings(context)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            },
+            onDismiss = { askExact = false },
+        )
     }
 
     editing?.let { current ->

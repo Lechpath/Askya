@@ -456,21 +456,39 @@ $sides
 </vector>
 "@
 
-# No monochrome layer is generated on purpose: it exists only for Android 13+
-# themed icons, where the launcher would recolour the silhouette to match the
-# wallpaper and drop both the orange and the lettering. See mipmap-anydpi-v26.
+# --- monochrome layer for Android 13+ themed icons ---
+#
+# Petals only. A monochrome layer is drawn as one silhouette: the launcher takes
+# its alpha and fills it with a colour picked from the wallpaper. The white
+# lettering is a hole in the orange, so in such a layer it would be filled with
+# the same colour as the petals and stop being lettering at all.
+$monochrome = @"
+<?xml version="1.0" encoding="utf-8"?>
+<!-- @MONODOC@ -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+$($sides -replace '#EE8B3D', '#FF000000')
+
+</vector>
+"@
 
 $enc = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText("$res\drawable\ic_launcher_foreground.xml", $foreground, $enc)
+[System.IO.File]::WriteAllText("$res\drawable\ic_launcher_monochrome.xml", $monochrome, $enc)
 [System.IO.File]::WriteAllText("$res\drawable\ic_wordmark.xml", $wordmark, $enc)
 [System.IO.File]::WriteAllText("$res\drawable\ic_wordmark_echo.xml", $echoWordmark, $enc)
-[System.IO.File]::WriteAllText("$res\drawable\ic_new_block.xml", $newBlock, $enc)
+# ic_new_block.xml is no longer written: nothing referenced it and the file was
+# removed from the app. The preview above is kept in case the mark comes back.
 [System.IO.File]::WriteAllText("$res\drawable\ic_flower.xml", $flower, $enc)
 [System.IO.File]::WriteAllText("$res\drawable\ic_flower_splash.xml", $flowerSplash, $enc)
 
-Write-Output ('Regenerated ic_launcher_foreground.xml, ic_wordmark.xml, ic_wordmark_echo.xml, ' +
-              'ic_new_block.xml, ic_flower.xml and ic_flower_splash.xml.')
-Write-Output 'The @DOC@ / @MARKDOC@ / @ECHODOC@ / @ACTIONDOC@ / @FLOWERDOC@ / @SPLASHDOC@ placeholders are replaced by hand.'
+Write-Output ('Regenerated ic_launcher_foreground.xml, ic_launcher_monochrome.xml, ic_wordmark.xml, ' +
+              'ic_wordmark_echo.xml, ic_flower.xml and ic_flower_splash.xml.')
+Write-Output 'The @DOC@ / @MONODOC@ / @MARKDOC@ / @ECHODOC@ / @ACTIONDOC@ / @FLOWERDOC@ / @SPLASHDOC@ placeholders are replaced by hand.'
 
 # Numbers the animation is built on. Compose cannot read them out of the vector,
 # so they live as constants in EchoCurtain.kt and are checked against this line
