@@ -77,6 +77,13 @@ class VideoRepository(private val dao: VideoDao) {
 
     /** Ролик переименовали — подпись меняется и во всех плейлистах разом. */
     suspend fun renamed(uri: String, title: String) = dao.renameClips(uri, title)
+
+    /**
+     * Файл стёрт с телефона. Ссылка на пропавший файл — строка, которая молча
+     * не играет, поэтому она уходит из всех плейлистов, а не ждёт, пока на неё
+     * наткнутся.
+     */
+    suspend fun forget(uri: String) = dao.deleteClipsByUri(uri)
 }
 
 /**

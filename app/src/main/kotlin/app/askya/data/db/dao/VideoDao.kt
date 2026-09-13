@@ -60,4 +60,8 @@ interface VideoDao {
      */
     @Query("UPDATE video_playlist_clips SET title = :title WHERE uri = :uri")
     suspend fun renameClips(uri: String, title: String)
+
+    /** Файл стёрт с телефона — его строки уходят из всех плейлистов разом. */
+    @Query("DELETE FROM video_playlist_clips WHERE uri = :uri")
+    suspend fun deleteClipsByUri(uri: String)
 }

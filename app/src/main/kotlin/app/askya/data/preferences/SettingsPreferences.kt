@@ -66,6 +66,14 @@ data class AppSettings(
      */
     val deedShade: Boolean = true,
     /**
+     * Показывать ли дела дня на экране блокировки
+     * ([app.askya.widget.DayLockScreen]).
+     *
+     * Выключено по умолчанию: это уведомление, которое висит всегда, и заводить
+     * такое без спроса нельзя — его место на экране блокировки выбирает человек.
+     */
+    val dayLockScreen: Boolean = false,
+    /**
      * Открывать ли дело со списком сразу на весь экран.
      *
      * Включено: список внутри дела — это то, ради чего в этот день и заходят,
@@ -266,6 +274,8 @@ class SettingsPreferences(private val context: Context) {
 
     fun setDeedShade(value: Boolean) = put { it[KEY_DEED_SHADE] = value }
 
+    fun setDayLockScreen(value: Boolean) = put { it[KEY_DAY_LOCK_SCREEN] = value }
+
     fun setDeedFullScreen(value: Boolean) = put { it[KEY_DEED_FULLSCREEN] = value }
 
     fun setWeek(mondayFirst: Boolean) = put { it[KEY_WEEK_STARTS_MONDAY] = mondayFirst }
@@ -427,6 +437,7 @@ class SettingsPreferences(private val context: Context) {
         startRoute = this[KEY_START] ?: "today",
         autoFillDay = this[KEY_AUTOFILL] ?: true,
         deedShade = this[KEY_DEED_SHADE] ?: true,
+        dayLockScreen = this[KEY_DAY_LOCK_SCREEN] ?: false,
         deedFullScreen = this[KEY_DEED_FULLSCREEN] ?: true,
         theme = this[KEY_THEME]
             ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
@@ -467,6 +478,7 @@ class SettingsPreferences(private val context: Context) {
         /** Краска цветка на заставке. Ключа нет — «как везде». */
         val KEY_SPLASH_FLOWER = stringPreferencesKey("splash_flower_color")
         val KEY_DEED_SHADE = booleanPreferencesKey("deed_shade")
+        val KEY_DAY_LOCK_SCREEN = booleanPreferencesKey("day_lock_screen")
         val KEY_DEED_FULLSCREEN = booleanPreferencesKey("deed_fullscreen")
         val KEY_TOUR = booleanPreferencesKey("tour_seen")
         val KEY_SNAPSHOT_REMINDER = booleanPreferencesKey("snapshot_reminder")

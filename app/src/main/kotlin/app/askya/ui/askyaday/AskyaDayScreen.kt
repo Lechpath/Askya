@@ -186,12 +186,14 @@ fun AskyaDayScreen(
     // Собирается только тот день, на котором палец остановился: иначе список
     // дел разворачивался бы в соседние дни при каждом подглядывании.
     val settledDate = dateOf(pagerState.settledPage)
-    // Разворачивать список дел в новый день — настройка: тот, кто ведёт день
-    // руками, не должен каждый раз стирать развёрнутое.
+    // Разворачивать список дел в новый день целиком — настройка: тот, кто
+    // ведёт день руками, не должен каждый раз стирать развёрнутое. На дела,
+    // которые встают сами — важные и с выбранными днями недели, — она не
+    // распространяется: что с чем, решено в [AskyaDayViewModel.openDay].
     val autoFill by appContainer().settings.settings
         .collectAsStateWithLifecycle(initialValue = appContainer().settings.state.value)
     LaunchedEffect(settledDate, autoFill.autoFillDay) {
-        if (autoFill.autoFillDay) viewModel.ensureGenerated(settledDate)
+        viewModel.openDay(settledDate, autoFill.autoFillDay)
     }
 
     // null — диалога нет; Editing(null) — новое дело.

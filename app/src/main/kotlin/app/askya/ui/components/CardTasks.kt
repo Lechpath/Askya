@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -75,6 +76,11 @@ data class CardTask(
  * разметки живёт в репозитории (`DeedTaskRepository.addLines`), и «- хлеб»,
  * «1. позвонить», «- [x] сделано» значат здесь ровно то же, что везде.
  *
+ * Окно стоит в самом низу, под действиями карточки ([actions]), а не над
+ * ними: в список дописывают чаще, чем из него выходят, и строке ввода место
+ * там, куда ложится большой палец, — у края экрана, а с клавиатурой — прямо
+ * над ней.
+ *
  * Длинное нажатие убирает строку — в корзину на сутки, как везде. Отдельного
  * крестика у строки нет: он стоял бы у каждой из семи ради того, чем
  * пользуются раз в неделю.
@@ -89,6 +95,7 @@ internal fun CardTaskList(
     onAdd: (String) -> Unit,
     modifier: Modifier = Modifier,
     onProblem: (String) -> Unit = {},
+    actions: (@Composable () -> Unit)? = null,
 ) {
     var draft by remember { mutableStateOf(TextFieldValue()) }
 
@@ -203,6 +210,10 @@ internal fun CardTaskList(
                     )
                 }
             }
+        }
+
+        actions?.let { row ->
+            Box(modifier = Modifier.padding(bottom = 10.dp)) { row() }
         }
 
         Composer(

@@ -89,9 +89,9 @@ import java.time.LocalTime
 
 /**
  * Шаг правки. `VIEW` — карточка просто раскрыта; дальше по порядку: дата,
- * время, событие, заметка, напоминание.
+ * время, событие, дни недели, заметка, напоминание.
  */
-private enum class CardStep { VIEW, DATE, TIME, TITLE, NOTE, REMIND }
+private enum class CardStep { VIEW, DATE, TIME, TITLE, DAYS, NOTE, REMIND }
 
 /**
  * Что показывает раскрытая карточка.
@@ -159,9 +159,10 @@ data class CardAction(
  *
  * Значки внизу — что с делом можно сделать: править, отметить сделанным,
  * убрать. Правка идёт по местам, а не сразу по всему: подсвечивается то, что
- * правится сейчас, остальное приглушено. Порядок — дата, время, событие,
- * заметка, напоминание: так дело и думается, «когда и что», а заметка с
- * напоминанием нужны не всегда.
+ * правится сейчас, остальное приглушено. Порядок — дата, время, событие, дни
+ * недели, заметка, напоминание: так дело и думается, «когда и что», а дни,
+ * заметка и напоминание нужны не всегда — и показываются только там, где
+ * бывают.
  *
  * Знак дела в правку не входит: он угадывается по названию, и спрашивать про
  * него каждый раз — лишнее решение на каждое дело. Но догадка иногда мимо,
@@ -363,6 +364,13 @@ fun CardDialog(
             CardStep.TIME -> if (range != null) step = CardStep.TITLE
             CardStep.TITLE -> when {
                 title.isBlank() -> Unit
+                withDays -> step = CardStep.DAYS
+                withNote -> step = CardStep.NOTE
+                withRemind -> step = CardStep.REMIND
+                else -> finish()
+            }
+
+            CardStep.DAYS -> when {
                 withNote -> step = CardStep.NOTE
                 withRemind -> step = CardStep.REMIND
                 else -> finish()
@@ -378,6 +386,7 @@ fun CardDialog(
     val lastStep = when {
         withRemind -> step == CardStep.REMIND
         withNote -> step == CardStep.NOTE
+        withDays -> step == CardStep.DAYS
         else -> step == CardStep.TITLE
     }
 
@@ -563,10 +572,15 @@ fun CardDialog(
                     modifier = Modifier.padding(top = 10.dp),
                 )
 
-                // Дни недели — там же, где важность, и по той же причине: у
-                // дела всегда есть значение по умолчанию («каждый день»), и
-                // отдельным шагом правки повторение спрашивало бы про дни у
-                // каждого дела, тогда как меняют их у одного из десяти.
+                // Дни недели — место правки, а не пометка на полях: правка
+                // доходит до них и останавливается ([CardStep.DAYS]).
+                //
+                // Раньше их не спрашивали вовсе — «у дела и так есть значение
+                // по умолчанию». Но у нового дела правка на названии и
+                // кончалась: «Готово» записывало дело и закрывало карточку, и
+                // человек, заводивший дело ради «по вторникам и пятницам»,
+                // до недели не доходил ни разу. Спрашивать про повторение
+                // после того, как дело уже заведено, — значит не спрашивать.
                 //
                 // Под названием, а не над временем: сперва читается, что за
                 // дело и в котором часу, и только потом — как часто.
@@ -577,7 +591,7 @@ fun CardDialog(
                             days = it
                             keepChoice()
                         },
-                        dimmed = step != CardStep.VIEW,
+                        dimmed = step != CardStep.VIEW && step != CardStep.DAYS,
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 }
@@ -604,13 +618,52 @@ fun CardDialog(
                 // Заметка, привязка и напоминание на это время уходят: они
                 // никуда не денутся, а показанные вместе со списком превратили
                 // бы карточку дела в анкету.
-                if (listing && tasks != null) {
+                val listed = listing && tasks != null
+                val viewActions: @Composable () -> Unit = {
+                    ViewActions(
+                        done = card?.done == true,
+                        // Правка закрывает список: её строки — дата, время,
+                        // название, заметка, — а список на их месте показывал
+                        // бы правку, в которой половины правимого не видно.
+                        onEdit = {
+                            listing = false
+                            step = CardStep.TIME
+                        },
+                        onToggleDone = onToggleDone,
+                        onDelete = onDelete,
+                        extra = extra,
+                        // Выход из списка — первым действием, слева: это то,
+                        // чем из него и выходят, и искать его среди «удалить»
+                        // человек не должен.
+                        leading = when {
+                            fullScreen && onCollapse != null -> CardAction(
+                                icon = Icons.Outlined.ExpandMore,
+                                label = "Свернуть",
+                                onClick = onCollapse,
+                            )
+
+                            listing -> CardAction(
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                label = "К делу",
+                                onClick = { listing = false },
+                            )
+
+                            else -> null
+                        },
+                    )
+                }
+
+                if (listed) {
+                    // Действия встают над строкой ввода, а не под ней: строку
+                    // дописывают чаще, чем уходят из списка, и ей место внизу —
+                    // под пальцем и прямо над клавиатурой.
                     CardTaskList(
-                        tasks = tasks,
+                        tasks = tasks.orEmpty(),
                         onToggle = onToggleTask,
                         onRemove = onRemoveTask,
                         onClearDone = onClearDoneTasks,
                         onAdd = onAddTasks,
+                        actions = if (step == CardStep.VIEW) viewActions else null,
                         modifier = Modifier.weight(1f).padding(top = 12.dp),
                     )
                 } else {
@@ -684,37 +737,8 @@ fun CardDialog(
 
 
                 if (step == CardStep.VIEW) {
-                    ViewActions(
-                        done = card?.done == true,
-                        // Правка закрывает список: её строки — дата, время,
-                        // название, заметка, — а список на их месте показывал
-                        // бы правку, в которой половины правимого не видно.
-                        onEdit = {
-                            listing = false
-                            step = CardStep.TIME
-                        },
-                        onToggleDone = onToggleDone,
-                        onDelete = onDelete,
-                        extra = extra,
-                        // Выход из списка — первым действием, слева: это то,
-                        // чем из него и выходят, и искать его среди «удалить»
-                        // человек не должен.
-                        leading = when {
-                            fullScreen && onCollapse != null -> CardAction(
-                                icon = Icons.Outlined.ExpandMore,
-                                label = "Свернуть",
-                                onClick = onCollapse,
-                            )
-
-                            listing -> CardAction(
-                                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                                label = "К делу",
-                                onClick = { listing = false },
-                            )
-
-                            else -> null
-                        },
-                    )
+                    // Со списком действия уже стоят внутри него, над строкой ввода.
+                    if (!listed) viewActions()
                 } else {
                     // Одна галочка на всю правку: она и переводит на следующее
                     // место, и заканчивает — отдельная кнопка «дальше» рядом с
@@ -1175,7 +1199,7 @@ private fun DaysLine(
  * решала, куда поставить дело без названного часа. Теперь важное дело само
  * встаёт в расписание дня — в сегодняшний и в каждый будущий свой день, — и
  * выбирать его каждое утро из списка не нужно (см.
- * [app.askya.data.repository.DayRepository.ensureImportant]).
+ * [app.askya.data.repository.DayRepository.ensureStanding]).
  *
  * Сказано это строкой под выбором, а не спрятано в справку: слово «Важно»,
  * которое молча меняет поведение приложения, — это ловушка, а не пометка. И

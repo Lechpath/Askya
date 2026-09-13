@@ -50,7 +50,12 @@ class DayWidgetProvider : AppWidgetProvider() {
         DayWidgetRefresh.scheduleNext(context)
     }
 
+    /**
+     * Последний виджет убрали со стола. Будильник снимается, только если он не
+     * нужен экрану блокировки: у того нет своего и он живёт на этом же.
+     */
     override fun onDisabled(context: Context) {
+        if (runBlocking { DayLockScreen.enabled(context) }) return
         DayWidgetRefresh.cancel(context)
     }
 

@@ -2,6 +2,10 @@
 <!--
     updatePeriodMillis — раз в полчаса: чаще система всё равно не будит, а
     точность держат будильники на границы дел (см. DayWidgetRefresh).
+
+    keyguard — для систем, которые снова пускают виджеты на экран блокировки
+    (Android 16 на планшетах). MIUI и HyperOS там сторонних не держат, и на
+    телефоне дела дня туда кладёт уведомление (см. DayLockScreen).
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
@@ -14,5 +18,5 @@
     android:initialLayout="@layout/widget_day"
     android:previewLayout="@layout/widget_day"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen"
+    android:widgetCategory="home_screen|keyguard"
     android:description="@string/widget_description" />

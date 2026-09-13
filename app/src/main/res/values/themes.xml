@@ -20,7 +20,7 @@
     </style>
 
     <!--
-        Восемь тем под восемь красок цветка — и ровно ради одного мгновения:
+        Тема на каждую краску цветка — и ровно ради одного мгновения:
         системная заставка Android 12+ показывается до первого кадра Compose,
         и краску туда можно передать только темой (`attrs.xml`).
 
@@ -36,7 +36,10 @@
         один раз, а здесь у каждой темы своя одна строка. Явный parent, а не
         точка в имени: Theme.Askya.Splash отдельной темой не заводится.
 
-        Девятой темы, закатной, нет: закат — это сама Theme.Askya.
+        Закатной темы нет: закат — это сама Theme.Askya. Хамелеоновой тоже:
+        он разворачивается в янтарь, небо или сливу по часу
+        (`ui/theme/Chameleon.kt`), и MainActivity ставит тему заново на каждой
+        смене поры.
     -->
     <style name="Theme.Askya.Splash.Coral" parent="Theme.Askya">
         <item name="askyaFlowerInk">@color/flower_coral</item>
@@ -58,5 +61,14 @@
     </style>
     <style name="Theme.Askya.Splash.Graphite" parent="Theme.Askya">
         <item name="askyaFlowerInk">@color/flower_graphite</item>
+    </style>
+    <style name="Theme.Askya.Splash.Fire" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_fire</item>
+    </style>
+    <style name="Theme.Askya.Splash.Sky" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_sky</item>
+    </style>
+    <style name="Theme.Askya.Splash.Cherry" parent="Theme.Askya">
+        <item name="askyaFlowerInk">@color/flower_cherry</item>
     </style>
 </resources>

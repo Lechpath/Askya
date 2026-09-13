@@ -143,6 +143,47 @@ enum class AskyaPalette(
         Color(0xFF4A5560), Color(0xFFE6E9EC), Color(0xFF333C45),
         Color(0xFFA8B6C2), Color(0xFF1E242A), Color(0xFFD8E1E8),
     ),
+
+    // Ещё три места круга — и все три взяты там, где прежняя гамма была
+    // приглушена. Огонь горячее коралла, небо ярче моря, вишня темнее розы:
+    // это не оттенки соседей, а другой накал того же угла. Askya до сих пор
+    // говорила вполголоса, и тому, кому кремовый лист кажется слишком тихим,
+    // выбрать было нечего.
+    FIRE(
+        "Огонь",
+        Color(0xFFDC4E2A), Color(0xFFFBE3DB), Color(0xFF93301A),
+        Color(0xFFFF8352), Color(0xFF38190F), Color(0xFFFFD4C2),
+    ),
+    SKY(
+        "Небо",
+        Color(0xFF2A80C4), Color(0xFFE2EEFA), Color(0xFF1B5688),
+        Color(0xFF74BCF0), Color(0xFF12232F), Color(0xFFCFE6F9),
+    ),
+    CHERRY(
+        "Вишня",
+        Color(0xFFA32540), Color(0xFFF8E1E6), Color(0xFF72182C),
+        Color(0xFFE4718C), Color(0xFF2F141A), Color(0xFFF7D3DB),
+    ),
+
+    /**
+     * Хамелеон — не краска, а правило: он берёт её у той поры, в которую его
+     * застали. Утром янтарь, днём небо, вечером слива — и делит он сутки ровно
+     * там же, где расписание делит день на «Утро», «День» и «Вечер»
+     * ([app.askya.ui.components.DayPart]).
+     *
+     * Затем и заведён: Askya — про день, и единственное, что в ней меняется
+     * само, — час. Гамма, которая идёт за ним, говорит время суток раньше, чем
+     * человек посмотрит на часы: лиловое приложение в руках — уже вечер.
+     *
+     * Развернуть его в настоящую гамму умеет [at]. Собственные краски у него
+     * дневные, небесные: их берёт всякий, кто спросит цвет мимо [at], — и
+     * пусть это будет полдень, а не чёрный прямоугольник.
+     */
+    CHAMELEON(
+        "Хамелеон",
+        Color(0xFF2A80C4), Color(0xFFE2EEFA), Color(0xFF1B5688),
+        Color(0xFF74BCF0), Color(0xFF12232F), Color(0xFFCFE6F9),
+    ),
 }
 
 /**
@@ -172,6 +213,19 @@ enum class FlowerColor(val title: String, val color: Color) {
     PLUM("Слива", Color(0xFF7E5C9E)),
     AMBER("Янтарь", Color(0xFFD9A63C)),
     GRAPHITE("Графит", Color(0xFF5A6470)),
+    FIRE("Огонь", Color(0xFFE4542B)),
+    SKY("Небо", Color(0xFF3E93D1)),
+    CHERRY("Вишня", Color(0xFFB32E4C)),
+
+    /**
+     * Тот же хамелеон, что и в гамме ([AskyaPalette.CHAMELEON]), и по тем же
+     * часам: янтарный утром, небесный днём, лиловый вечером. Цветок для него —
+     * место даже более подходящее, чем гамма: он и есть лицо приложения, и
+     * лицо, меняющееся к вечеру, читается как живое, а не как сбой настройки.
+     *
+     * Своя краска у него дневная — на случай, если цвет спросят мимо [at].
+     */
+    CHAMELEON("Хамелеон", Color(0xFF3E93D1)),
 }
 
 /**
@@ -262,12 +316,20 @@ fun AskyaTheme(
     flower: FlowerColor = FlowerColor.SUNSET,
     content: @Composable () -> Unit,
 ) {
+    // Пора нужна одному хамелеону, а спрашивается у всех: неподвижной гамме
+    // [at] вернёт её же, и лишней перерисовки на границе поры не случится —
+    // цвета выйдут те же самые. Место для вопроса одно, и оно здесь: гамма и
+    // цветок должны сменяться в один миг, а не каждый по своим часам.
+    val part = rememberDayPart()
+    val shown = palette.at(part)
+    val ink = flower.at(part)
+
     CompositionLocalProvider(
         LocalNight provides dark,
-        LocalFlowerColor provides flower.color,
+        LocalFlowerColor provides ink.color,
     ) {
         MaterialTheme(
-            colorScheme = if (dark) darkSchemeOf(palette) else lightSchemeOf(palette),
+            colorScheme = if (dark) darkSchemeOf(shown) else lightSchemeOf(shown),
             shapes = AppShapes,
             content = content,
         )

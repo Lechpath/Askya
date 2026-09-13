@@ -20,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.askya.ui.launch.AskyaSplash
 import app.askya.ui.launch.splashThemeOf
+import app.askya.ui.theme.at
+import app.askya.ui.theme.rememberDayPart
 import app.askya.ui.launch.AskyaTour
 import app.askya.ui.open.OpenedFileScreen
 import app.askya.ui.navigation.AskyaApp
@@ -96,8 +98,14 @@ class MainActivity : ComponentActivity() {
             // подмена темы снималась бы на каждом запуске, и заставка навсегда
             // осталась бы закатной. Ключом стоит сама краска: её меняют, не
             // выходя из приложения, и следующий запуск должен знать о новой.
-            LaunchedEffect(settings.splashFlower, settings.flower) {
-                paintSystemSplash(settings.splashFlower ?: settings.flower)
+            //
+            // Третьим ключом стоит пора суток — ради хамелеона: он меняет
+            // краску сам, и без этого системная заставка осталась бы такой,
+            // какой её застало утро (`ui/theme/Chameleon.kt`). Остальным
+            // краскам этот ключ ничего не стоит: значение при смене поры то же.
+            val part = rememberDayPart()
+            LaunchedEffect(settings.splashFlower, settings.flower, part) {
+                paintSystemSplash((settings.splashFlower ?: settings.flower).at(part))
             }
 
             LaunchedEffect(dark) {

@@ -28,6 +28,9 @@ import java.time.ZoneId
  * «Когда включается телефон» покрыто загрузкой: пробуждение экрана с Android 8
  * манифестом не ловится вовсе, а держать ради этого постоянную службу — цена,
  * которой виджет не стоит.
+ *
+ * На этих же будильниках живут дела дня на экране блокировки
+ * ([DayLockScreen]): отбор у них общий, а значит, и границы.
  */
 object DayWidgetRefresh {
 
@@ -75,11 +78,19 @@ object DayWidgetRefresh {
     private const val REQUEST = 1
 }
 
-/** Будильник сработал: перерисовать и поставить следующий. */
+/**
+ * Будильник сработал: перерисовать и поставить следующий.
+ *
+ * Экран блокировки ([DayLockScreen]) — тем же будильником, и его пересборку
+ * приёмник дожидается (`goAsync`): будильник поднимает процесс ради одной
+ * этой работы, и отпущенный раньше времени процесс система вправе убить до
+ * того, как уведомление поменяется.
+ */
 class DayWidgetAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         DayWidgetProvider.refresh(context)
         DayWidgetRefresh.scheduleNext(context)
+        DayLockScreen.updateAsync(this, context)
     }
 }
 
@@ -97,5 +108,8 @@ class DayWidgetBootReceiver : BroadcastReceiver() {
         if (!known) return
         DayWidgetProvider.refresh(context)
         DayWidgetRefresh.scheduleNext(context)
+        // Уведомления перезагрузка стирает так же, как будильники, и после
+        // неё экран блокировки остался бы пустым до первого запуска Askya.
+        DayLockScreen.updateAsync(this, context)
     }
 }

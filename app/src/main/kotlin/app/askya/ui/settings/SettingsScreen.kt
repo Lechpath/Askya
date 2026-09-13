@@ -1,5 +1,8 @@
 package app.askya.ui.settings
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
 import app.askya.data.preferences.SplashWhen
 import app.askya.data.preferences.WeatherSettings
+import app.askya.reminders.ReminderAlarms
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.theme.AskyaPalette
@@ -60,6 +64,12 @@ fun SettingsScreen(onOpenMenu: () -> Unit, onOpenBridges: () -> Unit = {}) {
         .collectAsStateWithLifecycle(initialValue = WeatherSettings())
     val bridges by container.bridgeRepository.bridges()
         .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    // Экран блокировки — это уведомление, и без разрешения на уведомления
+    // (Android 13+) выключатель ничего бы не показал.
+    val askNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Отказали — выключатель остаётся, уведомление просто не появится. */ }
 
     // Окно городов — то же самое, что открывается значком места в разделе
     // погоды. Своего у настроек нет: два окна об одном разошлись бы.
@@ -114,7 +124,9 @@ fun SettingsScreen(onOpenMenu: () -> Unit, onOpenBridges: () -> Unit = {}) {
                 )
                 SettingChoice(
                     title = "Цветовая гамма",
-                    hint = "Краска, которой отмечено важное: слово, ссылка, сегодняшний день.",
+                    hint = "Краска, которой отмечено важное: слово, ссылка, сегодняшний день. " +
+                        "«Хамелеон» — не краска, а час: утром янтарь, днём небо, вечером слива. " +
+                        "Меняется там же, где расписание переходит к следующей части дня.",
                     values = AskyaPalette.entries,
                     chosen = general.palette,
                     label = { it.title },
@@ -122,6 +134,8 @@ fun SettingsScreen(onOpenMenu: () -> Unit, onOpenBridges: () -> Unit = {}) {
                 )
                 SettingChoice(
                     title = "Цветок Askya",
+                    hint = "Знак приложения: в шапке, на заставке, вместо недостающей обложки. " +
+                        "«Хамелеон» и здесь идёт за временем суток.",
                     values = FlowerColor.entries,
                     chosen = general.flower,
                     label = { it.title },
@@ -157,6 +171,23 @@ fun SettingsScreen(onOpenMenu: () -> Unit, onOpenBridges: () -> Unit = {}) {
                     // настройки — какое из двух значений прочтётся, решал бы
                     // случай.
                     onChange = { container.settings.setDeedShade(it) },
+                )
+                SettingSwitch(
+                    title = "Дела дня на экране блокировки",
+                    hint = "Тот же список, что в виджете дня: что идёт сейчас и что дальше. " +
+                        "Сторонних виджетов на экран блокировки Android не пускает, поэтому " +
+                        "это тихое уведомление. На заблокированном телефоне его не смахнуть; " +
+                        "смахнутое на разблокированном вернётся со следующим делом.",
+                    checked = general.dayLockScreen,
+                    // Уведомление ставит и убирает не выключатель, а поток
+                    // настроек в `AskyaApplication.watchScheduleForLockScreen` —
+                    // по той же причине, что у шторки выше.
+                    onChange = { on ->
+                        container.settings.setDayLockScreen(on)
+                        if (on && ReminderAlarms.needsPermission()) {
+                            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    },
                 )
                 SettingSwitch(
                     title = "Список дела на весь экран",

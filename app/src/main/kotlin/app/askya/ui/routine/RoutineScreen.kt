@@ -243,7 +243,7 @@ private fun RoutineCard(
         //
         // «Важно» стоит рядом с ними и по той же мерке: это уже не пометка о
         // настроении, а поведение — важное дело само встаёт в день (см.
-        // [app.askya.data.repository.DayRepository.ensureImportant]), и не
+        // [app.askya.data.repository.DayRepository.ensureStanding]), и не
         // видеть этого в списке значило бы гадать, откуда в дне взялось дело.
         val days = item.repeatDays
         val under = listOfNotNull(

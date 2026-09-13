@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Info
@@ -50,7 +51,9 @@ import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoField
 import app.askya.ui.echo.EchoPill
+import app.askya.ui.echo.systemAsksBeforeDelete
 import app.askya.ui.theme.NightBorder
+import app.askya.ui.theme.NightDanger
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
 import app.askya.ui.theme.NightPanelSoft
@@ -59,8 +62,8 @@ import app.askya.video.Clip
 import app.askya.video.formatSize
 import kotlinx.coroutines.launch
 
-/** Что показывает карточка ролика: действия, имя, выбор плейлиста или сведения. */
-private enum class ClipStep { ACTIONS, RENAME, PLAYLIST, NEW_PLAYLIST, DETAILS }
+/** Что показывает карточка ролика: действия, имя, выбор плейлиста, сведения или вопрос об удалении. */
+private enum class ClipStep { ACTIONS, RENAME, PLAYLIST, NEW_PLAYLIST, DETAILS, DELETE }
 
 /**
  * Ролик, раскрытый карточкой: всё, что с файлом можно сделать, не открывая его.
@@ -80,6 +83,9 @@ private enum class ClipStep { ACTIONS, RENAME, PLAYLIST, NEW_PLAYLIST, DETAILS }
  *
  * [onRemoveFromPlaylist] есть только у строк, открытых из плейлиста: убирать
  * из плейлиста ролик, который в нём не лежит, нечем и незачем.
+ *
+ * [onErased] случается, когда файл стёрт с телефона: библиотеке пора
+ * перечитать список — ролика в нём больше нет.
  */
 @Composable
 fun VideoClipCard(
@@ -89,12 +95,18 @@ fun VideoClipCard(
     onPlay: (List<Clip>, Clip) -> Unit,
     onOpenFolder: ((String) -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    onErased: () -> Unit = {},
 ) {
     val container = appContainer()
     val preferences = container.videoPreferences
     val repository = container.videoRepository
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val erase = rememberClipRemover {
+        onErased()
+        onDismiss()
+    }
 
     var step by remember { mutableStateOf(ClipStep.ACTIONS) }
     var name by remember(clip.uri) { mutableStateOf(clip.title) }
@@ -240,6 +252,57 @@ fun VideoClipCard(
                     title = "Сведения",
                     about = "Имя файла, длительность, кадр, вес",
                 ) { step = ClipStep.DETAILS }
+
+                // Удаление стоит последним и отмечено красным — как у песни в
+                // Echo: промах пальцем по дороге к «сведениям» не должен
+                // попадать в необратимое.
+                ClipAction(
+                    icon = Icons.Outlined.DeleteOutline,
+                    title = "Удалить с телефона",
+                    about = "Файл будет стёрт, а не убран из AskyaV",
+                    tint = NightDanger,
+                ) {
+                    // С Android 11 спрашивает система, и наше окно было бы
+                    // вторым вопросом об одном и том же.
+                    if (systemAsksBeforeDelete()) erase(listOf(clip)) else step = ClipStep.DELETE
+                }
+            }
+
+            ClipStep.DELETE -> Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = "Удалить файл с телефона?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NightInk,
+                )
+                Text(
+                    text = "«${clip.title}» исчезнет из памяти телефона — не только из " +
+                        "AskyaV. Вернуть не получится.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NightMuted,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    EchoPill(
+                        label = "Оставить",
+                        chosen = false,
+                        onClick = { step = ClipStep.ACTIONS },
+                        modifier = Modifier.weight(1f),
+                    )
+                    EchoPill(
+                        label = "Удалить",
+                        chosen = false,
+                        danger = true,
+                        onClick = { erase(listOf(clip)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             // Имя. Поле открыто на том, как ролик зовётся сейчас, а под ним

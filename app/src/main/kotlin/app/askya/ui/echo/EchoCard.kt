@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -88,6 +92,7 @@ import app.askya.ui.theme.Sunset
  * что раскрыли. Доля остаётся у списков: им место нужно всегда, и карточка,
  * прыгающая по высоте вслед за числом найденных песен, читалась бы как сбой.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EchoCard(
     title: String,
@@ -101,6 +106,8 @@ fun EchoCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
+
+    val typing = WindowInsets.isImeVisible
 
     // Появление: без переключения флага animateFloatAsState стартовал бы уже
     // в цели и не анимировал ничего.
@@ -128,7 +135,13 @@ fun EchoCard(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onDismiss,
-            ),
+            )
+            // Клавиатура поднимает карточку над собой, а не накрывает её: имя
+            // куска в ножницах и имя ролика пишутся в самом низу карточки.
+            // Пока клавиатура открыта, карточка держится и ниже часов —
+            // высокая, она иначе упёрлась бы шапкой в строку состояния.
+            .then(if (typing) Modifier.statusBarsPadding() else Modifier)
+            .imePadding(),
         contentAlignment = Alignment.Center,
     ) {
         // Потолок для карточки «по написанному»: выше него содержимое

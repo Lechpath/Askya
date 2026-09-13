@@ -32,7 +32,9 @@ import app.askya.ui.components.FLOWER_SHARE
 import app.askya.ui.components.FlowerWord
 import app.askya.ui.components.breathingScale
 import app.askya.ui.theme.AccentInk
+import app.askya.ui.theme.at
 import app.askya.ui.theme.Cream
+import app.askya.ui.theme.rememberDayPart
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -92,7 +94,10 @@ fun AskyaSplash(onGreeted: () -> Unit, onDone: () -> Unit) {
     val chosen by settings.settings.collectAsStateWithLifecycle(
         initialValue = settings.state.value,
     )
-    val flower = (chosen.splashFlower ?: chosen.flower).color
+    // Хамелеон разворачивается здесь же, теми же порами, что и всюду:
+    // заставка — первое, что видно, и цветок на ней должен быть того цвета,
+    // каким приложение встретит через секунду.
+    val flower = (chosen.splashFlower ?: chosen.flower).at(rememberDayPart()).color
 
     // Заставка пропускается тем же путём, что и касанием, — насовсем её не
     // убирает ни одно состояние: начинать запуск пустым кремовым листом хуже,

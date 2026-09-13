@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
@@ -60,12 +61,15 @@ import app.askya.echo.formatDuration
 import app.askya.ui.components.BreathingFlower
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.FadingColumn
+import app.askya.ui.echo.EchoAsk
 import app.askya.ui.echo.EchoDialog
 import app.askya.ui.echo.EchoField
 import app.askya.ui.echo.EchoIcon
 import app.askya.ui.echo.EchoPill
 import app.askya.ui.echo.sunsetBackground
+import app.askya.ui.echo.systemAsksBeforeDelete
 import app.askya.ui.theme.NightBorder
+import app.askya.ui.theme.NightDanger
 import app.askya.ui.theme.NightInk
 import app.askya.ui.theme.NightMuted
 import app.askya.ui.theme.NightPanel
@@ -118,6 +122,11 @@ import kotlinx.coroutines.launch
  * Обрезка, поворот и снятие звука кладут **новый файл** в «Movies/Askya», а
  * исходник остаётся на месте. Это те действия, где ошибку замечают через
  * неделю, и отменять её тогда уже нечем.
+ *
+ * Единственное, что трогает сам исходник, — «Удалить», и стоит оно на полке
+ * последним и красным. Стирает оно через системное окно, как песню в Echo
+ * (см. [rememberClipRemover]): отметили после обрезки исходник с куском —
+ * убрали оба разом.
  */
 @Composable
 fun VideoLabCard(
@@ -143,6 +152,13 @@ fun VideoLabCard(
     var work by remember { mutableStateOf<VideoLabWork?>(null) }
     var doing by remember { mutableStateOf<String?>(null) }
     var said by remember { mutableStateOf<VideoLabWord?>(null) }
+
+    // Стёртое уходит из отметок и из списка сразу. Слова по итогу нет:
+    // согласие уже дано в окне системы, а исчезнувшие строки говорят сами.
+    val erase = rememberClipRemover { removed ->
+        picked.removeAll(removed)
+        onChanged()
+    }
 
     /**
      * Чем кончилось. [made] — легло ли сделанное новым файлом: от этого
@@ -264,6 +280,15 @@ fun VideoLabCard(
                             )
                         }
                     },
+                    // С Android 11 про удаление спрашивает система — одним
+                    // окном на всю пачку; наше было бы вторым вопросом.
+                    onDelete = {
+                        if (systemAsksBeforeDelete()) {
+                            erase(chosen.toList())
+                        } else {
+                            work = VideoLabWork.Delete(chosen.toList())
+                        }
+                    },
                 )
             }
         }
@@ -328,6 +353,23 @@ fun VideoLabCard(
                 }
             },
         )
+
+        is VideoLabWork.Delete -> EchoAsk(
+            title = "Удалить с телефона?",
+            text = if (open.clips.size == 1) {
+                "«${open.clips.first().title}» исчезнет из памяти телефона — не только " +
+                    "из AskyaV. Вернуть не получится."
+            } else {
+                "Все ${open.clips.size} отмеченных исчезнут из памяти телефона — не " +
+                    "только из AskyaV. Вернуть не получится."
+            },
+            confirm = "Удалить",
+            onConfirm = {
+                work = null
+                erase(open.clips)
+            },
+            onDismiss = { work = null },
+        )
     }
 
     doing?.let { caption -> VideoLabWorking(caption) }
@@ -365,6 +407,7 @@ private sealed interface VideoLabWork {
     data class Rename(val clip: Clip) : VideoLabWork
     data class Trim(val clip: Clip) : VideoLabWork
     data class Turn(val clips: List<Clip>) : VideoLabWork
+    data class Delete(val clips: List<Clip>) : VideoLabWork
 }
 
 /** Точки страниц — те же, что в Ledger и в лаборатории Echo. */
@@ -805,6 +848,7 @@ private fun VideoLabActions(
     onTurn: () -> Unit,
     onMute: () -> Unit,
     onSound: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -857,16 +901,32 @@ private fun VideoLabActions(
                 ready = chosen.size == 1,
                 onClick = onSound,
             )
+            // Последней и красной: всё остальное на полке кладёт новый файл
+            // рядом с исходником, а это — единственное, что стирает сам исходник.
+            LabAction(
+                icon = Icons.Outlined.DeleteOutline,
+                label = "Удалить",
+                ready = chosen.isNotEmpty(),
+                onClick = onDelete,
+                danger = true,
+            )
         }
     }
 }
 
 @Composable
-private fun LabAction(icon: ImageVector, label: String, ready: Boolean, onClick: () -> Unit) {
+private fun LabAction(
+    icon: ImageVector,
+    label: String,
+    ready: Boolean,
+    onClick: () -> Unit,
+    danger: Boolean = false,
+) {
+    val accent = if (danger) NightDanger else Sunset
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, if (ready) Sunset else NightBorder, RoundedCornerShape(12.dp))
+            .border(1.dp, if (ready) accent else NightBorder, RoundedCornerShape(12.dp))
             .clickable(enabled = ready, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -875,7 +935,7 @@ private fun LabAction(icon: ImageVector, label: String, ready: Boolean, onClick:
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (ready) Sunset else NightMuted,
+            tint = if (ready) accent else NightMuted,
             modifier = Modifier.size(16.dp),
         )
         Text(

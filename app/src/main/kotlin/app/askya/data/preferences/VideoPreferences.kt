@@ -190,6 +190,12 @@ class VideoPreferences(private val context: Context) {
         else preferences[nameKey(uri)] = clean
     }
 
+    /** Файл стёрт — вместе с ним уходят и место остановки, и своё имя. */
+    fun erased(uri: String) = put { preferences ->
+        preferences.remove(spotKey(uri))
+        preferences.remove(nameKey(uri))
+    }
+
     private fun put(edit: (MutablePreferences) -> Unit) {
         scope.launch { context.videoStore.edit(edit) }
     }

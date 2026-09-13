@@ -1,6 +1,7 @@
 package app.askya.ui.video
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.SolidColor
@@ -38,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -86,6 +93,7 @@ import app.askya.video.VideoEdits
  * мелким шрифтом в конце: человек, поставивший границу по кадру, должен знать,
  * что кадр этот приблизительный, до того как нажмёт «Обрезать».
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoTrimCard(
     title: String,
@@ -259,30 +267,43 @@ fun VideoTrimCard(
                 modifier = Modifier.padding(top = 12.dp),
             )
 
-            Text(
-                text = "Как назвать кусок",
-                style = MaterialTheme.typography.labelMedium,
-                color = NightMuted,
-                modifier = Modifier.padding(top = 18.dp, bottom = 6.dp),
-            )
-            TrimName(value = name, onChange = { name = it })
+            // Имя и кнопки под ним — одним куском, который встаёт над
+            // клавиатурой, пока в поле пишут. Поле стоит в самом низу
+            // карточки, и без этого клавиатура накрывала его целиком: имя
+            // набиралось вслепую, а «Обрезать» приходилось искать, закрыв её.
+            // Ловится каждый шаг выезда клавиатуры, а не только первый:
+            // карточка сжимается вместе с ней, и кусок едет следом.
+            val naming = remember { BringIntoViewRequester() }
+            var typing by remember { mutableStateOf(false) }
+            val keyboard = WindowInsets.ime.getBottom(LocalDensity.current)
+            LaunchedEffect(typing, keyboard) { if (typing) naming.bringIntoView() }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                EchoPill(
-                    label = "Отмена",
-                    chosen = false,
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
+            Column(modifier = Modifier.bringIntoViewRequester(naming)) {
+                Text(
+                    text = "Как назвать кусок",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NightMuted,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 6.dp),
                 )
-                EchoPill(
-                    label = "Обрезать",
-                    chosen = ready,
-                    onClick = { if (ready) onDone(from, to, name) },
-                    modifier = Modifier.weight(1f),
-                )
+                TrimName(value = name, onChange = { name = it }, onFocus = { typing = it })
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    EchoPill(
+                        label = "Отмена",
+                        chosen = false,
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                    )
+                    EchoPill(
+                        label = "Обрезать",
+                        chosen = ready,
+                        onClick = { if (ready) onDone(from, to, name) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             if (!ready && piece < LEAST_MS) {
@@ -537,7 +558,7 @@ private fun NudgeButton(label: String, onClick: () -> Unit) {
  * чего эта карточка и заведена.
  */
 @Composable
-private fun TrimName(value: String, onChange: (String) -> Unit) {
+private fun TrimName(value: String, onChange: (String) -> Unit, onFocus: (Boolean) -> Unit) {
     BasicTextField(
         value = value,
         onValueChange = onChange,
@@ -546,6 +567,7 @@ private fun TrimName(value: String, onChange: (String) -> Unit) {
         cursorBrush = SolidColor(Sunset),
         modifier = Modifier
             .fillMaxWidth()
+            .onFocusChanged { onFocus(it.isFocused) }
             .clip(RoundedCornerShape(14.dp))
             .background(NightPanelSoft)
             .border(1.dp, NightBorder, RoundedCornerShape(14.dp))

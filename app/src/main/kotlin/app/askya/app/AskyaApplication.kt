@@ -3,6 +3,7 @@ package app.askya.app
 import android.app.Application
 import app.askya.data.backup.SnapshotAlarms
 import app.askya.shade.TaskShade
+import app.askya.widget.DayLockScreen
 import app.askya.widget.DayWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,7 @@ class AskyaApplication : Application() {
         prepareLibrary()
         lookForUpdate()
         watchScheduleForWidget()
+        watchScheduleForLockScreen()
         watchDeedTasksForShade()
         moveImagesToVisibleFolder()
         dropUnpackedBooks()
@@ -213,6 +215,25 @@ class AskyaApplication : Application() {
         container.scheduleRepository.itemsOn(LocalDate.now())
             .drop(1)
             .onEach { DayWidgetProvider.refresh(this) }
+            .launchIn(scope)
+    }
+
+    /**
+     * Дела дня на экране блокировки ходят за расписанием так же, как виджет, и
+     * за своим выключателем — выключенное уведомление убирается сразу.
+     *
+     * Без `drop(1)`, как и шторка: уведомление после перезагрузки может
+     * пропасть, и первое значение на запуске его возвращает. Между запусками
+     * его обновляют будильники на границы дел (`DayWidgetRefresh`).
+     */
+    private fun watchScheduleForLockScreen() {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        merge(
+            container.scheduleRepository.itemsOn(LocalDate.now()).map { },
+            container.scheduleRepository.itemsOn(LocalDate.now().plusDays(1)).map { },
+            container.settings.settings.map { it.dayLockScreen }.distinctUntilChanged().map { },
+        )
+            .onEach { DayLockScreen.refresh(this) }
             .launchIn(scope)
     }
 }

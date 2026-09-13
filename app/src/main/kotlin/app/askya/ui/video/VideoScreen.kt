@@ -547,6 +547,8 @@ private fun VideoLibraryScreen(onOpenMenu: () -> Unit, onPlay: (List<Clip>, Clip
             onRemoveFromPlaylist = if (row == null) null else {
                 { scope.launch { repository.remove(row.id) } }
             },
+            // Стёртый файл уходит с полки сразу, а не при следующем заходе.
+            onErased = { reread++ },
         )
     }
 }
@@ -643,7 +645,7 @@ private fun AddClipsList(clips: List<Clip>, added: Set<String>, onAdd: (Clip) ->
  * график.
  *
  * Долгое нажатие раскрывает ролик карточкой: переименовать, положить в
- * плейлист, посмотреть сведения. Коротко — смотреть; так же, как в Echo
+ * плейлист, посмотреть сведения, удалить. Коротко — смотреть; так же, как в Echo
  * короткое нажатие включает песню, а долгое раскрывает её.
  */
 @OptIn(ExperimentalFoundationApi::class)
