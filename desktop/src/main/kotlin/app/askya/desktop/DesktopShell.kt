@@ -147,5 +147,13 @@ private fun DesktopSettingsOverlay(
     }
 }
 
+/**
+ * «53,1 МБ». Запятая — руками: у телефона её ставит русская локаль, а в Java,
+ * которую везёт Askya.exe, русских данных нет, и дробь вышла бы с точкой.
+ */
 private fun megabytes(size: Long): String =
-    if (size < 1024 * 1024) "${size / 1024} КБ" else "%.1f МБ".format(size / 1024.0 / 1024.0)
+    if (size < 1024 * 1024) {
+        "${size / 1024} КБ"
+    } else {
+        "%.1f МБ".format(java.util.Locale.ROOT, size / 1024.0 / 1024.0).replace('.', ',')
+    }

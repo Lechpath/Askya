@@ -2,6 +2,8 @@ package app.askya.desktop
 
 import androidx.room.useWriterConnection
 import app.askya.data.db.AppDatabase
+import app.askya.ui.components.MONTHS
+import app.askya.ui.components.formatTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -10,8 +12,6 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -247,8 +247,15 @@ class DesktopSnapshots(private val container: DesktopContainer) {
         null
     }.getOrNull()
 
+    /**
+     * «14 сентября, 08:12». Месяц — из русского списка [MONTHS], а не через
+     * `Locale("ru")`: в Java, которую везёт с собой Askya.exe, русских названий
+     * нет, и собранная Askya писала «14 Sep» — хотя из-под Gradle всё было
+     * по-русски.
+     */
     private fun whenMade(iso: String): String = runCatching {
-        WHEN.format(LocalDateTime.parse(iso.take(19)))
+        val made = LocalDateTime.parse(iso.take(19))
+        "${made.dayOfMonth} ${MONTHS[made.monthValue - 1]}, ${formatTime(made.toLocalTime())}"
     }.getOrDefault(iso.take(16).replace('T', ' '))
 
     /** Имя записи архива — одним файлом во временной папке, без `../`. */
@@ -280,13 +287,18 @@ class DesktopSnapshots(private val container: DesktopContainer) {
 
         /** Метка «база и настройки ещё не встали на место». */
         const val READY = "apply-on-start"
-
-        val WHEN: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM, HH:mm", Locale("ru"))
     }
 }
 
-/** Версия Windows-сборки — из установщика; из-под Gradle её нет. */
-fun appVersion(): String =
-    System.getProperty("jpackage.app-version")
+/**
+ * Версия Windows-сборки — из установщика; из-под Gradle её нет.
+ *
+ * Установщику Windows нужны три числа («2.9.0»), а Askya знают по двум, как на
+ * телефоне: нуль в конце отрезается, и в настройках обеих стоит «2.9».
+ */
+fun appVersion(): String {
+    val full = System.getProperty("jpackage.app-version")
         ?: DesktopSnapshots::class.java.`package`?.implementationVersion
         ?: "2.9"
+    return if (full.count { it == '.' } == 2) full.removeSuffix(".0") else full
+}
