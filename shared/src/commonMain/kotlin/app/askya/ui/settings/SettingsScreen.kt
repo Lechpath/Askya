@@ -135,20 +135,23 @@ fun SettingsScreen(
                 )
                 SettingChoice(
                     title = "Цветок Askya",
-                    hint = "Знак приложения: в шапке, на заставке, вместо недостающей обложки. " +
+                    hint = (if (splash) "Знак приложения: в шапке, на заставке, вместо недостающей обложки. "
+                    else "Знак приложения: в шапке и вместо недостающей обложки. ") +
                         "«Хамелеон» и здесь идёт за временем суток.",
                     values = FlowerColor.entries,
                     chosen = general.flower,
                     label = { it.title },
                     onPick = { container.settings.setFlower(it) },
                 )
-                SettingChoice(
-                    title = "Цветок на заставке",
-                    values = SPLASH_FLOWERS,
-                    chosen = general.splashFlower,
-                    label = { it?.title ?: "Как везде" },
-                    onPick = { container.settings.setSplashFlower(it) },
-                )
+                if (splash) {
+                    SettingChoice(
+                        title = "Цветок на заставке",
+                        values = SPLASH_FLOWERS,
+                        chosen = general.splashFlower,
+                        label = { it?.title ?: "Как везде" },
+                        onPick = { container.settings.setSplashFlower(it) },
+                    )
+                }
             }
 
             SettingsGroup("AskyaDay") {
