@@ -44,35 +44,47 @@ import app.askya.resources.ic_flower
 import app.askya.ui.navigation.AskyaApp
 import app.askya.ui.theme.AskyaTheme
 import app.askya.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
+import java.io.File
 
 /**
  * Askya для Windows: одно окно и значок у часов.
  *
  * Закрытое окно Askya не завершает, а прячет к часам: напоминания звонят,
  * пока она запущена (см. [DesktopAlarms]). Выйти совсем — из меню значка.
+ * Запущенная при входе в Windows ([DesktopAutostart]) — сразу у часов, без окна.
  */
-fun main() {
+fun main(args: Array<String>) {
     val home = DesktopContainer.defaultHome()
     // Одна Askya на компьютер: две копии открыли бы одну базу вдвоём, и
-    // напоминания звонили бы дважды. Вторая говорит, где первая, и уходит.
-    if (!holdSingleInstance(home)) {
-        javax.swing.JOptionPane.showMessageDialog(
-            null,
-            "Askya уже открыта — её значок у часов, внизу справа.",
-            "Askya",
-            javax.swing.JOptionPane.INFORMATION_MESSAGE,
-        )
+    // напоминания звонили бы дважды. Вторая просит первую показать окно и
+    // уходит — так Askya из «Пуска» открывается и тогда, когда уже сидит у
+    // часов с утра.
+    if (!holdSingleInstance(home, patient = RESTARTED in args)) {
+        if (!askFirstToShow(home)) {
+            javax.swing.JOptionPane.showMessageDialog(
+                null,
+                "Askya уже открыта — её значок у часов, внизу справа.",
+                "Askya",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE,
+            )
+        }
         return
     }
+    File(home, SHOW).delete()
     val container = DesktopContainer(home)
     // Прочитанный в прошлый раз слепок встаёт на место раньше, чем откроется
     // база: под открытым соединением её не подменить.
     container.snapshots.applyPending()
 
     application {
-        var shown by remember { mutableStateOf(true) }
+        var shown by remember { mutableStateOf(DesktopAutostart.AT_LOGIN !in args) }
+        // Растёт на каждую просьбу показаться: окно, уже открытое, но под
+        // другими, тоже должно выйти наверх, а не только стать видимым.
+        var raise by remember { mutableStateOf(0) }
         val tray = rememberTrayState()
         val flower = painterResource(Res.drawable.ic_flower)
 
@@ -85,13 +97,24 @@ fun main() {
             container.trash.purge()
         }
 
+        LaunchedEffect(home) {
+            val request = File(home, SHOW)
+            while (true) {
+                delay(300)
+                if (withContext(Dispatchers.IO) { request.delete() }) {
+                    shown = true
+                    raise++
+                }
+            }
+        }
+
         Tray(
             icon = flower,
             state = tray,
             tooltip = "Askya",
-            onAction = { shown = true },
+            onAction = { shown = true; raise++ },
             menu = {
-                Item("Открыть Askya", onClick = { shown = true })
+                Item("Открыть Askya", onClick = { shown = true; raise++ })
                 Separator()
                 Item("Выйти", onClick = { exitApplication() })
             },
@@ -123,6 +146,11 @@ fun main() {
             },
         ) {
             window.minimumSize = java.awt.Dimension(420, 640)
+            LaunchedEffect(raise) {
+                if (raise == 0) return@LaunchedEffect
+                windowState.isMinimized = false
+                window.toFront()
+            }
             CompositionLocalProvider(LocalAppContainer provides container) {
                 val settings by container.settings.settings
                     .collectAsState(initial = container.settings.state.value)
@@ -184,7 +212,7 @@ private fun NoticeBar(modifier: Modifier = Modifier) {
  */
 private fun restartOrExit(exit: () -> Unit) {
     System.getProperty("jpackage.app-path")?.let { launcher ->
-        runCatching { ProcessBuilder(launcher).start() }
+        runCatching { ProcessBuilder(launcher, RESTARTED).start() }
     }
     exit()
 }
@@ -193,15 +221,17 @@ private fun restartOrExit(exit: () -> Unit) {
  * Замок на папку данных — на всё время работы. `false` — его держит другая
  * запущенная Askya. Отпускает его сама система, когда процесс кончается.
  *
- * Несколько секунд замок ждут: после чтения слепка Askya открывает себя
- * заново, и новая копия успевает спросить раньше, чем старая закрылась.
+ * Открытая заново после слепка ([patient]) ждёт замок несколько секунд: она
+ * успевает спросить раньше, чем старая закрылась. Остальные спрашивают почти
+ * сразу — иначе Askya из «Пуска» при уже запущенной показывалась бы с
+ * трёхсекундной заминкой.
  */
-private fun holdSingleInstance(home: java.io.File): Boolean {
+private fun holdSingleInstance(home: File, patient: Boolean): Boolean {
     home.mkdirs()
     val channel = runCatching {
-        java.io.RandomAccessFile(java.io.File(home, "askya.lock"), "rw").channel
+        java.io.RandomAccessFile(File(home, "askya.lock"), "rw").channel
     }.getOrNull() ?: return true
-    repeat(30) {
+    repeat(if (patient) 30 else 3) {
         val lock = runCatching { channel.tryLock() }.getOrNull()
         if (lock != null) {
             heldLock = lock
@@ -214,3 +244,26 @@ private fun holdSingleInstance(home: java.io.File): Boolean {
 
 /** Держится в поле, чтобы сборщик мусора не отпустил замок раньше времени. */
 private var heldLock: java.nio.channels.FileLock? = null
+
+/**
+ * Попросить уже запущенную Askya показать окно: файл-просьба в папке данных,
+ * который та забирает раз в треть секунды. `false` — за две секунды не
+ * забрала (зависла или это вовсе не Askya держит замок), и тогда вторая копия
+ * говорит словами, где искать первую.
+ */
+private fun askFirstToShow(home: File): Boolean {
+    val request = File(home, SHOW)
+    if (runCatching { request.writeText("1") }.isFailure) return false
+    repeat(20) {
+        Thread.sleep(100)
+        if (!request.exists()) return true
+    }
+    request.delete()
+    return false
+}
+
+/** Файл-просьба «покажи окно» — от второй копии Askya первой. */
+private const val SHOW = "show-window"
+
+/** Ключ запуска: Askya открыта заново самой собой после чтения слепка. */
+private const val RESTARTED = "--restarted"

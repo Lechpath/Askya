@@ -4,18 +4,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import app.askya.platform.Notices
 import app.askya.ui.components.AskyaAsk
 import app.askya.ui.components.AskyaNotice
 import app.askya.ui.navigation.PlatformShell
 import app.askya.ui.settings.SettingAction
+import app.askya.ui.settings.SettingSwitch
 import app.askya.ui.settings.SettingsGroup
 import app.askya.ui.scroll.chooseFiles
 import app.askya.ui.scroll.chooseSaveFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.Desktop
 import java.io.File
 
@@ -87,6 +92,31 @@ private fun DesktopSettingsGroups(container: DesktopContainer, asking: MutableSt
                 }
             },
         )
+    }
+
+    DesktopAutostart.launcher?.let { exe ->
+        SettingsGroup("Запуск") {
+            // Реестр спрашивается прямо тут, а не в фоне: reg.exe отвечает за
+            // долю секунды, а переключатель, прыгающий «выкл» → «вкл» уже на
+            // глазах, врёт хоть и недолго.
+            var on by remember { mutableStateOf(DesktopAutostart.isOn()) }
+            SettingSwitch(
+                title = "Запускать вместе с Windows",
+                hint = "Askya открывается при входе в Windows сразу к часам, без окна, — " +
+                    "и напоминания звонят весь день, даже если окно не открывали. " +
+                    "Запускается вот эта Askya:\n${exe.absolutePath}",
+                checked = on,
+                onChange = { want ->
+                    scope.launch {
+                        withContext(Dispatchers.IO) {
+                            runCatching { if (want) DesktopAutostart.turnOn() else DesktopAutostart.turnOff() }
+                                .onFailure { asking.value = Ask.Problem(it.message ?: "Автозапуск не записался") }
+                            DesktopAutostart.isOn()
+                        }.let { on = it }
+                    }
+                },
+            )
+        }
     }
 
     SettingsGroup("Папка Askya") {

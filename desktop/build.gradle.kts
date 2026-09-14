@@ -81,3 +81,54 @@ compose.desktop {
         }
     }
 }
+
+/**
+ * Askya на постоянное место — без установщика и WiX:
+ *   gradlew :desktop:installAskya
+ *
+ * Собранная папка копируется в `%LOCALAPPDATA%\Programs\Askya` — туда же, куда
+ * программы ставят себя сами для одного пользователя, — и в «Пуске» появляется
+ * ярлык. Из `build` Askya запускать нельзя: `clean` сотрёт её вместе с
+ * автозапуском, который на неё смотрит. Данные при этом не трогаются: они в
+ * `%LOCALAPPDATA%\Askya`, отдельно от программы.
+ *
+ * Та же задача и обновляет: новая сборка ложится поверх старой, лишние файлы
+ * старой уходят. Запущенную Askya Windows перезаписать не даст — поэтому о
+ * ней спрашивается заранее, словами, а не ошибкой копирования на полпути.
+ */
+val installAskya by tasks.registering(Sync::class) {
+    group = "distribution"
+    description = "Кладёт Askya в %LOCALAPPDATA%\\Programs\\Askya и делает ярлык в «Пуске»"
+    dependsOn("createDistributable")
+
+    val local = System.getenv("LOCALAPPDATA") ?: "${System.getProperty("user.home")}/AppData/Local"
+    val target = File(local, "Programs/Askya")
+    from(layout.buildDirectory.dir("compose/binaries/main/app/Askya"))
+    into(target)
+
+    doFirst {
+        val tasklist = ProcessBuilder("tasklist", "/FI", "IMAGENAME eq Askya.exe", "/NH")
+            .redirectErrorStream(true).start()
+        val running = tasklist.inputStream.bufferedReader().readText()
+        tasklist.waitFor()
+        if ("Askya.exe" in running) {
+            throw GradleException("Askya запущена — выйдите из неё через значок у часов и повторите.")
+        }
+    }
+
+    doLast {
+        // Ярлык умеет делать только сама Windows — через её WScript.Shell.
+        val appData = System.getenv("APPDATA") ?: return@doLast
+        val link = File(appData, "Microsoft/Windows/Start Menu/Programs/Askya.lnk")
+        val exe = File(target, "Askya.exe")
+        fun quoted(file: File) = "'" + file.absolutePath.replace("'", "''") + "'"
+        val script = "\$s = (New-Object -ComObject WScript.Shell).CreateShortcut(${quoted(link)}); " +
+            "\$s.TargetPath = ${quoted(exe)}; \$s.WorkingDirectory = ${quoted(target)}; " +
+            "\$s.IconLocation = ${quoted(exe)}; \$s.Description = 'Askya'; \$s.Save()"
+        val shell = ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+            .redirectErrorStream(true).start()
+        val out = shell.inputStream.bufferedReader().readText()
+        if (shell.waitFor() != 0) throw GradleException("ярлык в «Пуске» не сделался: $out")
+        logger.lifecycle("Askya: ${exe.absolutePath}")
+    }
+}
