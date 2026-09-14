@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.EchoBeat
 import app.askya.echo.Track
 import app.askya.echo.loadArtwork
@@ -203,7 +203,7 @@ fun PlayerCover(
     // Соседние дорожки спрашиваются у плеера, а не считаются из очереди на
     // экране: вперемешку «следующая в списке» и «следующая на самом деле» —
     // разные песни, и порядок обхода знает только он.
-    val player = appContainer().echoPlayer
+    val player = androidContainer().echoPlayer
     val state by player.state.collectAsStateWithLifecycle()
     val ahead = remember(state.track?.uri, state.queue, state.shuffle) { player.peek(+1) }
     val behind = remember(state.track?.uri, state.queue, state.shuffle) { player.peek(-1) }

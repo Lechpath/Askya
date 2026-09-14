@@ -11,6 +11,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +27,7 @@ import app.askya.ui.theme.rememberDayPart
 import app.askya.ui.launch.AskyaTour
 import app.askya.ui.open.OpenedFileScreen
 import app.askya.ui.navigation.AskyaApp
+import app.askya.ui.navigation.rememberAndroidShell
 import app.askya.ui.theme.AskyaTheme
 import app.askya.ui.theme.FlowerColor
 import app.askya.ui.theme.ThemeMode
@@ -75,132 +78,143 @@ class MainActivity : ComponentActivity() {
         saying = sayNowOf(intent)
         deed = openDeedOf(intent)
         setContent {
-            val settings by container().settings.settings
-                .collectAsStateWithLifecycle(initialValue = container().settings.state.value)
-
-            // «Как в системе» решается здесь, а не в теме: систему спрашивает
-            // Compose, а полосы наверху и внизу экрана красит Activity, и
-            // ответ нужен обоим.
-            val dark = when (settings.theme) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
+            // Общие экраны берут контейнер из дерева, а не из Application: у
+            // Windows-версии Application нет, а экраны у них одни.
+            CompositionLocalProvider(LocalAppContainer provides container()) {
+                Content()
             }
+        }
+    }
 
-            // Значки часов и кнопок системы: на кремовом листе тёмные, на
-            // ночном — светлые. Перекрашиваются вслед за настройкой, а не
-            // один раз на запуске: тему меняют, не выходя из приложения, и
-            // час в углу не должен пропасть на белом.
-            // Краска цветка на системной заставке — на следующий запуск.
+    /** Всё, что на экране: тема, заставка, знакомство и само приложение. */
+    @Composable
+    private fun Content() {
+        val settings by container().settings.settings
+            .collectAsStateWithLifecycle(initialValue = container().settings.state.value)
+
+        // «Как в системе» решается здесь, а не в теме: систему спрашивает
+        // Compose, а полосы наверху и внизу экрана красит Activity, и
+        // ответ нужен обоим.
+        val dark = when (settings.theme) {
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+        }
+
+        // Значки часов и кнопок системы: на кремовом листе тёмные, на
+        // ночном — светлые. Перекрашиваются вслед за настройкой, а не
+        // один раз на запуске: тему меняют, не выходя из приложения, и
+        // час в углу не должен пропасть на белом.
+        // Краска цветка на системной заставке — на следующий запуск.
+        //
+        // Здесь, а не в onCreate: настройки читаются с диска, и в первые
+        // миллисекунды запуска `state.value` ещё говорит «по умолчанию» —
+        // подмена темы снималась бы на каждом запуске, и заставка навсегда
+        // осталась бы закатной. Ключом стоит сама краска: её меняют, не
+        // выходя из приложения, и следующий запуск должен знать о новой.
+        //
+        // Третьим ключом стоит пора суток — ради хамелеона: он меняет
+        // краску сам, и без этого системная заставка осталась бы такой,
+        // какой её застало утро (`ui/theme/Chameleon.kt`). Остальным
+        // краскам этот ключ ничего не стоит: значение при смене поры то же.
+        val part = rememberDayPart()
+        LaunchedEffect(settings.splashFlower, settings.flower, part) {
+            paintSystemSplash((settings.splashFlower ?: settings.flower).at(part))
+        }
+
+        LaunchedEffect(dark) {
+            val style = if (dark) {
+                SystemBarStyle.dark(Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+            }
+            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        }
+
+        AskyaTheme(dark = dark, palette = settings.palette, flower = settings.flower) {
+            // Заставка переживает поворот экрана: она открывает
+            // приложение, а не сопровождает каждую пересборку композиции.
+            var splash by rememberSaveable { mutableStateOf(true) }
+
+            // Приложение собирается не раньше, чем сказано приветствие.
             //
-            // Здесь, а не в onCreate: настройки читаются с диска, и в первые
-            // миллисекунды запуска `state.value` ещё говорит «по умолчанию» —
-            // подмена темы снималась бы на каждом запуске, и заставка навсегда
-            // осталась бы закатной. Ключом стоит сама краска: её меняют, не
-            // выходя из приложения, и следующий запуск должен знать о новой.
+            // Собранное сразу, оно задерживало первый кадр на секунду с
+            // лишним: цветка всё это время не было, и запуск начинался
+            // пустым кремовым листом — ровно тем, чего заставка и должна
+            // была не допустить. А собранное посреди письма — сбивало бы
+            // само письмо: первая сборка экрана идёт в том же потоке, что
+            // и анимация.
             //
-            // Третьим ключом стоит пора суток — ради хамелеона: он меняет
-            // краску сам, и без этого системная заставка осталась бы такой,
-            // какой её застало утро (`ui/theme/Chameleon.kt`). Остальным
-            // краскам этот ключ ничего не стоит: значение при смене поры то же.
-            val part = rememberDayPart()
-            LaunchedEffect(settings.splashFlower, settings.flower, part) {
-                paintSystemSplash((settings.splashFlower ?: settings.flower).at(part))
+            // Полторы секунды, что держится приветствие, уходят на неё:
+            // на этом шаге на экране только дыхание, и занять его сборкой
+            // дешевле всего.
+            var awake by remember { mutableStateOf(!splash) }
+
+            // Файл, открытый снаружи, не ждёт церемонии: человек нажал
+            // его в проводнике и хочет увидеть его, а не заставку.
+            val opened = incoming
+            LaunchedEffect(opened) {
+                if (opened != null) {
+                    splash = false
+                    awake = true
+                }
             }
 
-            LaunchedEffect(dark) {
-                val style = if (dark) {
-                    SystemBarStyle.dark(Color.TRANSPARENT)
-                } else {
-                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                }
-                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-            }
+            // Знакомство: показывается один раз, на первом запуске, и по
+            // просьбе из настроек. Ответ хранилища ждём: пока оно молчит,
+            // значение — null, и это не «не видел», а «ещё не знаем».
+            // Иначе знакомство мигало бы на каждом запуске в те доли
+            // секунды, пока читается файл настроек.
+            val toured by container().settings.tourSeen
+                .collectAsStateWithLifecycle(initialValue = null)
 
-            AskyaTheme(dark = dark, palette = settings.palette, flower = settings.flower) {
-                // Заставка переживает поворот экрана: она открывает
-                // приложение, а не сопровождает каждую пересборку композиции.
-                var splash by rememberSaveable { mutableStateOf(true) }
-
-                // Приложение собирается не раньше, чем сказано приветствие.
-                //
-                // Собранное сразу, оно задерживало первый кадр на секунду с
-                // лишним: цветка всё это время не было, и запуск начинался
-                // пустым кремовым листом — ровно тем, чего заставка и должна
-                // была не допустить. А собранное посреди письма — сбивало бы
-                // само письмо: первая сборка экрана идёт в том же потоке, что
-                // и анимация.
-                //
-                // Полторы секунды, что держится приветствие, уходят на неё:
-                // на этом шаге на экране только дыхание, и занять его сборкой
-                // дешевле всего.
-                var awake by remember { mutableStateOf(!splash) }
-
-                // Файл, открытый снаружи, не ждёт церемонии: человек нажал
-                // его в проводнике и хочет увидеть его, а не заставку.
-                val opened = incoming
-                LaunchedEffect(opened) {
-                    if (opened != null) {
-                        splash = false
-                        awake = true
-                    }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (awake) {
+                    AskyaApp(
+                        shell = rememberAndroidShell(),
+                        openRoute = opening,
+                        saying = saying,
+                        openDeed = deed,
+                        onOpened = {
+                            opening = null
+                            saying = false
+                            deed = null
+                        },
+                    )
                 }
 
-                // Знакомство: показывается один раз, на первом запуске, и по
-                // просьбе из настроек. Ответ хранилища ждём: пока оно молчит,
-                // значение — null, и это не «не видел», а «ещё не знаем».
-                // Иначе знакомство мигало бы на каждом запуске в те доли
-                // секунды, пока читается файл настроек.
-                val toured by container().settings.tourSeen
-                    .collectAsStateWithLifecycle(initialValue = null)
+                if (opened != null) {
+                    OpenedFileScreen(
+                        file = opened,
+                        onClose = { incoming = null },
+                        // Песня уже играет: лист закрывается за ней, а
+                        // человек оказывается в плеере — там очередь,
+                        // обложка и всё, зачем в Echo приходят.
+                        onEcho = {
+                            incoming = null
+                            opening = OPEN_ECHO
+                        },
+                    )
+                }
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (awake) {
-                        AskyaApp(
-                            openRoute = opening,
-                            saying = saying,
-                            openDeed = deed,
-                            onOpened = {
-                                opening = null
-                                saying = false
-                                deed = null
-                            },
-                        )
-                    }
+                // Поверх приложения, но под заставкой и под открытым
+                // снаружи файлом: церемония запуска идёт первой, а человек,
+                // нажавший видео в проводнике, пришёл смотреть его, а не
+                // знакомиться.
+                if (toured == false && opened == null && !splash) {
+                    AskyaTour(onDone = { container().settings.setTourSeen(true) })
+                }
 
-                    if (opened != null) {
-                        OpenedFileScreen(
-                            file = opened,
-                            onClose = { incoming = null },
-                            // Песня уже играет: лист закрывается за ней, а
-                            // человек оказывается в плеере — там очередь,
-                            // обложка и всё, зачем в Echo приходят.
-                            onEcho = {
-                                incoming = null
-                                opening = OPEN_ECHO
-                            },
-                        )
-                    }
-
-                    // Поверх приложения, но под заставкой и под открытым
-                    // снаружи файлом: церемония запуска идёт первой, а человек,
-                    // нажавший видео в проводнике, пришёл смотреть его, а не
-                    // знакомиться.
-                    if (toured == false && opened == null && !splash) {
-                        AskyaTour(onDone = { container().settings.setTourSeen(true) })
-                    }
-
-                    if (splash) {
-                        AskyaSplash(
-                            onGreeted = { awake = true },
-                            onDone = {
-                                splash = false
-                                // Церемонию пропустили касанием — приложение
-                                // нужно прямо сейчас.
-                                awake = true
-                            },
-                        )
-                    }
+                if (splash) {
+                    AskyaSplash(
+                        onGreeted = { awake = true },
+                        onDone = {
+                            splash = false
+                            // Церемонию пропустили касанием — приложение
+                            // нужно прямо сейчас.
+                            awake = true
+                        },
+                    )
                 }
             }
         }
@@ -273,7 +287,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Контейнер приложения — из него берутся настройки темы. */
-    private fun container(): AppContainer = (application as AskyaApplication).container
+    private fun container(): AndroidContainer = (application as AskyaApplication).container
 
     private companion object {
         /** Столько тает системный лист над своим. */

@@ -75,7 +75,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.AskyaDialog
 import app.askya.ui.components.AskyaNotice
@@ -114,11 +114,11 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun ImageEditorScreen(noteId: Long, onBack: () -> Unit) {
-    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(appContainer()))
+    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(androidContainer()))
     val note by remember(noteId) { viewModel.note(noteId) }
         .collectAsStateWithLifecycle(initialValue = null)
     val context = LocalContext.current
-    val store = appContainer().imageStore
+    val store = androidContainer().imageStore
     val scope = rememberCoroutineScope()
 
     var edits by remember { mutableStateOf<ImageEdits?>(null) }

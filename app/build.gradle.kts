@@ -4,7 +4,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
 }
 
 /**
@@ -36,8 +35,8 @@ android {
         // Номер сборки растёт на единицу с каждой выпущенной сборкой — по нему
         // система решает, что ставить поверх чего; имя версии — то, что видит
         // человек в настройках, в строке «Askya».
-        versionCode = 19
-        versionName = "2.8"
+        versionCode = 20
+        versionName = "2.9"
 
         // Одна платформа: arm64-v8a.
         //
@@ -121,13 +120,16 @@ kotlin {
     jvmToolchain(17)
 }
 
-ksp {
-    // Схема в репозитории — чтобы миграции писались по diff'у, а не на глаз.
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    // Всё общее с Windows-версией — база, настройки, разбор и экраны AskyaDay,
+    // Scroll, Ledger — лежит в `shared`. Здесь остаётся то, что есть только у
+    // телефона: Echo, AskyaV, виджеты, будильники, шторка, мосты.
+    implementation(project(":shared"))
+
+    // Та же линейка, что стоит за Compose Multiplatform 1.9.3 в модуле
+    // `shared`: ui 1.9.4 и material3 1.4.0. Разойдись они — Gradle всё равно
+    // взял бы старшую, но уже молча.
+    implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
@@ -135,15 +137,15 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("androidx.navigation:navigation-compose:2.9.5")
 
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    // База объявлена в `shared`, и Room разбирает её там же; сюда она
+    // приходит готовой.
+    implementation("androidx.room:room-runtime:2.8.4")
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.7")
 
     // Видео AskyaV. Единственная тяжёлая зависимость приложения и единственная,
     // которую нечем заменить: системный MediaPlayer знает mp4, webm и часть
@@ -161,7 +163,7 @@ dependencies {
     testImplementation(kotlin("test"))
     // Нужен ради runTest: разбор рассказа — suspend-функция, потому что за ней
     // однажды встанет модель, а не только правила.
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     // org.json входит в android.jar, но в JVM-тестах это заглушка: при
     // isReturnDefaultValues она молча возвращает пустоту вместо разбора.
     // Настоящая реализация в тестовом classpath перекрывает её; на устройстве

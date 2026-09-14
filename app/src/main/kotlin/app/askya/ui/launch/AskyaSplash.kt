@@ -23,7 +23,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.preferences.SplashWhen
 import app.askya.domain.model.Greeting
 import app.askya.ui.components.ASKYA_SHARE
@@ -81,7 +81,7 @@ fun AskyaSplash(onGreeted: () -> Unit, onDone: () -> Unit) {
     // на экране должно стоять что-то верное, а не пустое место. Подмена
     // успевает случиться задолго до того, как приветствие проступит: письмо
     // имени идёт почти секунду, а чтение счётчика — миллисекунды.
-    val settings = appContainer().settings
+    val settings = androidContainer().settings
     var greeting by remember { mutableStateOf(Greeting.now()) }
     LaunchedEffect(Unit) { greeting = Greeting.now(settings.advanceGreeting()) }
 

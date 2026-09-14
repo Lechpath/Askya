@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.IncomingFile
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.domain.docs.DocFormat
 import app.askya.echo.OutsideAudio
 import app.askya.echo.playFromOutside
@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun OpenedFileScreen(file: IncomingFile, onClose: () -> Unit, onEcho: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 

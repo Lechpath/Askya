@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.entity.VideoPlaylist
 import app.askya.data.repository.asClip
 import app.askya.echo.formatDuration
@@ -83,7 +83,7 @@ fun VideoPlaylistsGrid(
     onPlay: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val repository = appContainer().videoRepository
+    val repository = androidContainer().videoRepository
 
     val playlists by remember(repository) { repository.playlists() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -223,7 +223,7 @@ private fun VideoPlaylistCard(
     onOpen: () -> Unit,
     onPlay: () -> Unit,
 ) {
-    val repository = appContainer().videoRepository
+    val repository = androidContainer().videoRepository
     val scope = rememberCoroutineScope()
 
     var renaming by remember { mutableStateOf(false) }

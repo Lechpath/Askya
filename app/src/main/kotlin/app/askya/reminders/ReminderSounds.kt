@@ -15,14 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Мелодия напоминания: чем звонить и как это называется.
- *
- * [uri] пусто — обычный звук напоминания, тот, что телефон играет по умолчанию.
- * Хранится и показывается [title] — человек выбирал название, а не ссылку.
- */
-data class ReminderSound(val uri: String?, val title: String)
-
-/**
  * Что можно поставить на напоминание: звуки телефона и своя музыка.
  *
  * Своя музыка берётся из той же [EchoLibrary], по которой играет AskyaEcho:
@@ -37,7 +29,7 @@ data class ReminderSound(val uri: String?, val title: String)
 object ReminderSounds {
 
     /** Обычный звук напоминания — то, чем оно звучало всегда. */
-    val Default = ReminderSound(uri = null, title = "Обычный звук")
+    val Default = DefaultReminderSound
 
     /** Мелодии телефона: будильники и звуки уведомлений, без повторов. */
     suspend fun system(context: Context): List<ReminderSound> = withContext(Dispatchers.IO) {

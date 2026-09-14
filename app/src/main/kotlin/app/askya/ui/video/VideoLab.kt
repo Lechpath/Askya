@@ -56,7 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.formatDuration
 import app.askya.ui.components.BreathingFlower
 import app.askya.ui.components.EmptyState
@@ -138,7 +138,7 @@ fun VideoLabCard(
     BackHandler(onBack = onClose)
 
     val context = LocalContext.current
-    val container = appContainer()
+    val container = androidContainer()
     val scope = rememberCoroutineScope()
 
     val pages = VideoLabPage.entries
@@ -562,7 +562,7 @@ private fun FoldersLabPage(
  */
 @Composable
 private fun FetchLabPage() {
-    val container = appContainer()
+    val container = androidContainer()
     val downloads = container.videoDownloads
     val preferences = container.videoPreferences
     val clipboard = LocalClipboardManager.current

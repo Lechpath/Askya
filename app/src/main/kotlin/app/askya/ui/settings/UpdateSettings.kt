@@ -20,7 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.preferences.AppSettings
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.AskyaDialog
@@ -51,7 +51,7 @@ import app.askya.update.UpdateState
  */
 @Composable
 fun UpdateGroup(settings: AppSettings) {
-    val container = appContainer()
+    val container = androidContainer()
     val updates = container.updates
     val state by updates.state.collectAsStateWithLifecycle()
 

@@ -41,7 +41,7 @@ import java.time.format.DateTimeFormatter
 class ImageStore(
     private val context: Context,
     private val library: app.askya.data.library.AskyaLibrary,
-) {
+) : ImageFiles {
 
     /**
      * Где лежат картинки — словами, для окон и подсказок.
@@ -50,7 +50,7 @@ class ImageStore(
      * работы приложения, и запомненный при создании ответ после этого показывал
      * бы человеку не ту папку, в которую на самом деле легла картинка.
      */
-    val folderName: String
+    override val folderName: String
         get() = when {
             library.ready() -> library.folderName
             MODERN -> FOLDER
@@ -65,6 +65,9 @@ class ImageStore(
      * разделе выглядела бы как испорченный файл, а не как несостоявшееся
      * добавление.
      */
+    override suspend fun importFrom(source: String, name: String, mime: String): String? =
+        importFrom(Uri.parse(source), name, mime)
+
     suspend fun importFrom(source: Uri, name: String, mime: String): String? =
         withContext(Dispatchers.IO) {
             val type = imageMime(name, mime)
@@ -122,7 +125,7 @@ class ImageStore(
      * не вышло. Тогда запись остаётся смотреть на старый файл: он читается
      * по-прежнему, просто лежит там, куда не зайти проводником.
      */
-    suspend fun adopt(uri: String?): String? {
+    override suspend fun adopt(uri: String?): String? {
         if (!MODERN) return null
         val file = legacyFile(uri) ?: return null
         val moved = withContext(Dispatchers.IO) {
@@ -153,7 +156,7 @@ class ImageStore(
      * файл не переименовался: чужой документ, пропавший файл или занятое имя.
      * Подпись в Askya от этого не отменяется — переименовать её важнее.
      */
-    suspend fun rename(uri: String?, name: String): String? {
+    override suspend fun rename(uri: String?, name: String): String? {
         if (!isOurs(uri)) return null
         val parsed = Uri.parse(uri)
 
@@ -198,6 +201,8 @@ class ImageStore(
      * отдать: `file://` с Android 7 вылетает исключением, поэтому для неё
      * ссылку выписывает FileProvider.
      */
+    override fun shareLink(uri: String?): String? = shareable(uri)?.toString()
+
     fun shareable(uri: String?): Uri? {
         val parsed = uri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
         return when (parsed.scheme) {
@@ -273,14 +278,14 @@ class ImageStore(
      * номер (`content://media/external/images/media/17`), и имени файла в ней
      * нет. Система тип помнит, потому что мы сами его и записали.
      */
-    fun mimeOf(uri: String): String {
+    override fun mimeOf(uri: String): String {
         val parsed = runCatching { Uri.parse(uri) }.getOrNull() ?: return "image/jpeg"
         val known = runCatching { context.contentResolver.getType(parsed) }.getOrNull()
         return known?.takeIf { it.startsWith("image/") } ?: imageMime(parsed.path.orEmpty(), "")
     }
 
     /** Лежит ли файл в нашей папке. Чужие ссылки трогать нельзя. */
-    fun isOurs(uri: String?): Boolean {
+    override fun isOurs(uri: String?): Boolean {
         val parsed = uri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return false
         if (library.isOurs(uri)) return true
         return when (parsed.scheme) {
@@ -295,7 +300,7 @@ class ImageStore(
      * на чтение, и удалять чужой файл, убирая запись из Scroll, — не то, чего
      * ждут.
      */
-    suspend fun delete(uri: String?) {
+    override suspend fun delete(uri: String?) {
         if (!isOurs(uri)) return
         // Файл библиотеки убирает она сама: кроме файла на диске у него есть
         // запись в индексе системы, и стереть одно, не сказав о другом, значит

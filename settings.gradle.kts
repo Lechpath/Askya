@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 rootProject.name = "askya"
 
 include(":app")
+include(":shared")
+include(":desktop")

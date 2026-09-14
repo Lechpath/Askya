@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.preferences.ChosenPlace
 import app.askya.data.preferences.WeatherSettings
 import app.askya.ui.components.EmptyState
@@ -85,7 +85,7 @@ import java.time.LocalDateTime
  */
 @Composable
 fun WeatherScreen(onBack: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val repository = container.weather
     val state by repository.state.collectAsStateWithLifecycle()
     val settings by remember(container) { container.weatherPreferences.settings }

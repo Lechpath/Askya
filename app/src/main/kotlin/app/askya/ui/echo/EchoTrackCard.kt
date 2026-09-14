@@ -45,7 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.Track
 import app.askya.echo.formatDuration
 import app.askya.ui.components.FadingColumn
@@ -92,7 +92,7 @@ fun EchoTrackCard(
     onOpenFolder: ((String) -> Unit)? = null,
     onRemoved: () -> Unit = {},
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val player = container.echoPlayer
     val repository = container.echoRepository
     val context = LocalContext.current

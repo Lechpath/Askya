@@ -1,5 +1,11 @@
 package app.askya.ui.launch
 
+import app.askya.resources.Res
+import app.askya.resources.ic_scroll_images
+import app.askya.resources.ic_scroll_library
+import app.askya.resources.ic_wordmark_echo
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -433,7 +439,7 @@ private fun NewCardPill(modifier: Modifier = Modifier, label: String = "new card
 private fun ColumnScope.ScrollScene() {
     val show = entrance(1500)
 
-    Appearing(part(show, 0, 6)) { Said(icon = R.drawable.ic_scroll_images, text = "Галерея") }
+    Appearing(part(show, 0, 6)) { Said(icon = Res.drawable.ic_scroll_images, text = "Галерея") }
     Heard {
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -457,7 +463,7 @@ private fun ColumnScope.ScrollScene() {
 
     Spacer(Modifier.height(2.dp))
 
-    Appearing(part(show, 4, 6)) { Said(icon = R.drawable.ic_scroll_library, text = "Библиотека") }
+    Appearing(part(show, 4, 6)) { Said(icon = Res.drawable.ic_scroll_library, text = "Библиотека") }
     Heard {
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -513,7 +519,7 @@ private val THUMBS = listOf(
 
 /** Сообщение человека — плашкой акцента справа, со знаком раздела. */
 @Composable
-private fun Said(icon: Int, text: String) {
+private fun Said(icon: DrawableResource, text: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
         horizontalArrangement = Arrangement.End,
@@ -871,7 +877,7 @@ private fun ColumnScope.EchoPlayer() {
  */
 @Composable
 private fun Word(progress: Float, modifier: Modifier = Modifier) {
-    val word = painterResource(R.drawable.ic_wordmark_echo)
+    val word = painterResource(Res.drawable.ic_wordmark_echo)
     val height = 24.dp
     val width = height * (word.intrinsicSize.width / word.intrinsicSize.height) * 1.6f
 

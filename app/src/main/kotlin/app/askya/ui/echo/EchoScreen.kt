@@ -1,5 +1,8 @@
 package app.askya.ui.echo
 
+import app.askya.resources.Res
+import app.askya.resources.ic_wordmark_echo
+import org.jetbrains.compose.resources.painterResource
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -77,7 +80,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.R
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.EchoBeat
 import app.askya.echo.EchoRepeat
 import app.askya.echo.Track
@@ -129,7 +132,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun EchoScreen(onLeave: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val player = container.echoPlayer
     val context = LocalContext.current
 
@@ -892,7 +895,7 @@ internal fun EchoProgress(
     wordHeight: Dp = 34.dp,
     stretch: Float = 1.6f,
 ) {
-    val word = painterResource(R.drawable.ic_wordmark_echo)
+    val word = painterResource(Res.drawable.ic_wordmark_echo)
     val height = wordHeight
     val width: Dp = height * (word.intrinsicSize.width / word.intrinsicSize.height) * stretch
 

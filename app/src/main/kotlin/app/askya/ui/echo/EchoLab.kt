@@ -57,7 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.entity.EchoPlaylistTrack
 import app.askya.data.repository.asTrack
 import app.askya.echo.EchoChordScore
@@ -135,7 +135,7 @@ fun EchoLabCard(
     // Что играет сейчас — этим подсвечена строка списка. Плеер спрашивается
     // здесь, а не передаётся снаружи: лаборатория и так живёт в его разделе, а
     // лишний параметр пришлось бы тащить через три страницы.
-    val current by appContainer().echoPlayer.state.collectAsStateWithLifecycle()
+    val current by androidContainer().echoPlayer.state.collectAsStateWithLifecycle()
 
     val pages = LabPage.entries
     val pager = rememberPagerState(pageCount = { pages.size })
@@ -376,7 +376,7 @@ fun EchoLabCard(
     }
 
     picking?.let { found ->
-        val player = appContainer().echoPlayer
+        val player = androidContainer().echoPlayer
         // Разобранная песня и играющая — не одно и то же: разобрать можно
         // одну, а слушать в это время другую. Пюпитр ведут только по своей.
         val itsOwn = current.track?.uri == found.track.uri
@@ -622,7 +622,7 @@ private fun FoldersLabPage(
 /** Плейлисты: здесь их переименовывают и переставляют в них песни. */
 @Composable
 private fun PlaylistsLabPage(onOpen: (Long, String) -> Unit) {
-    val repository = appContainer().echoRepository
+    val repository = androidContainer().echoRepository
     val playlists by remember(repository) { repository.playlists() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val sizes by remember(repository) { repository.sizes() }
@@ -1140,7 +1140,7 @@ private fun LabPlaylistCard(
     onPlay: (List<Track>, Track) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val repository = appContainer().echoRepository
+    val repository = androidContainer().echoRepository
     val scope = rememberCoroutineScope()
 
     val rows by remember(repository, id) { repository.tracks(id) }

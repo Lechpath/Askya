@@ -44,7 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.formatDuration
 import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.fadingVerticalScroll
@@ -97,7 +97,7 @@ fun VideoClipCard(
     onRemoveFromPlaylist: (() -> Unit)? = null,
     onErased: () -> Unit = {},
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val preferences = container.videoPreferences
     val repository = container.videoRepository
     val context = LocalContext.current

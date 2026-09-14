@@ -21,12 +21,12 @@ import java.time.LocalDate
 
 class AskyaApplication : Application() {
 
-    lateinit var container: AppContainer
+    lateinit var container: AndroidContainer
         private set
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        container = AndroidContainer(this)
         prepareLibrary()
         lookForUpdate()
         watchScheduleForWidget()

@@ -49,7 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.preferences.EchoLastTrack
 import app.askya.echo.EchoBundle
 import app.askya.echo.EchoRules
@@ -424,7 +424,7 @@ private fun ChoiceTile(
  */
 @Composable
 private fun rememberPlaylistCount(): Int? {
-    val repository = appContainer().echoRepository
+    val repository = androidContainer().echoRepository
     val playlists by remember(repository) { repository.playlists() }
         .collectAsStateWithLifecycle(initialValue = null)
     return playlists?.size

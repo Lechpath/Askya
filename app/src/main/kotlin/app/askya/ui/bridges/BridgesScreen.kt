@@ -39,7 +39,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.bridges.BridgeApps
 import app.askya.data.entity.Bridge
 import app.askya.data.entity.BridgeKind
@@ -72,7 +72,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun BridgesScreen(onBack: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -272,7 +272,7 @@ private fun BridgeCard(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val container = appContainer()
+    val container = androidContainer()
     val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf(bridge.name) }

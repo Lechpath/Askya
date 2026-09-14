@@ -27,7 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.Track
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
@@ -52,7 +52,7 @@ import app.askya.ui.theme.Sunset
  */
 @Composable
 fun EchoQueueCard(onDismiss: () -> Unit, onTrack: (Track) -> Unit) {
-    val player = appContainer().echoPlayer
+    val player = androidContainer().echoPlayer
     val state by player.state.collectAsStateWithLifecycle()
 
     val list = rememberLazyListState()

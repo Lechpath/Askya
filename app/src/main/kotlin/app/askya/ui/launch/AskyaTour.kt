@@ -1,5 +1,9 @@
 package app.askya.ui.launch
 
+import app.askya.resources.Res
+import app.askya.resources.ic_menu_settings
+import app.askya.resources.ic_wordmark
+import org.jetbrains.compose.resources.painterResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -211,7 +215,7 @@ private fun MenuMock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_wordmark),
+                    painter = painterResource(Res.drawable.ic_wordmark),
                     contentDescription = "Askya",
                     tint = if (step.mark == TourMark.NAME) {
                         Accent
@@ -281,7 +285,7 @@ private fun MenuMock(
                 }
                 MockButton(label = "Настройки", tint = tint) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_menu_settings),
+                        painter = painterResource(Res.drawable.ic_menu_settings),
                         contentDescription = null,
                         tint = tint,
                         modifier = Modifier.size(22.dp),

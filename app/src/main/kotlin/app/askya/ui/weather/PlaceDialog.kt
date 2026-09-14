@@ -31,7 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.rememberCoroutineScope
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.preferences.ChosenPlace
 import app.askya.data.preferences.WeatherSettings
 import app.askya.ui.components.ActionButton
@@ -76,7 +76,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun PlaceDialog(onDismiss: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val preferences = container.weatherPreferences
     val settings by remember(container) { preferences.settings }
         .collectAsStateWithLifecycle(initialValue = WeatherSettings())

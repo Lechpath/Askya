@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.repository.asClip
 import app.askya.echo.formatDuration
 import app.askya.ui.components.EmptyState
@@ -134,7 +134,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun VideoScreen(onOpenMenu: () -> Unit) {
     EchoTheme {
-        val container = appContainer()
+        val container = androidContainer()
         val engine = container.videoEngine
         val preferences = container.videoPreferences
         val state by engine.state.collectAsStateWithLifecycle()
@@ -204,7 +204,7 @@ private enum class LibraryTab(val label: String) {
 @Composable
 private fun VideoLibraryScreen(onOpenMenu: () -> Unit, onPlay: (List<Clip>, Clip) -> Unit) {
     val context = LocalContext.current
-    val container = appContainer()
+    val container = androidContainer()
     val preferences = container.videoPreferences
     val repository = container.videoRepository
 

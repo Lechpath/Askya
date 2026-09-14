@@ -47,7 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.entity.Note
 import app.askya.ui.components.ActionButton
 import app.askya.ui.components.AskyaDialog
@@ -106,8 +106,9 @@ fun VoiceScreen(
     sayNow: Boolean = false,
     onSaid: () -> Unit = {},
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(container))
+    val voice: VoiceRecordModel = viewModel(factory = VoiceRecordModel.factory(container))
     val voices by viewModel.voices.collectAsStateWithLifecycle()
 
     val recorder = container.voiceRecorder
@@ -125,12 +126,12 @@ fun VoiceScreen(
     // ровно так же, как это сделано у надиктовки в заметках.
     val ask = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { allowed -> if (allowed) viewModel.startRecording() }
+    ) { allowed -> if (allowed) voice.startRecording() }
 
     // Уходя с экрана, запись заканчиваем и сохраняем. См. рассуждение выше:
     // микрофон в фоне Askya не держит.
     DisposableEffect(Unit) {
-        onDispose { viewModel.stopRecording() }
+        onDispose { voice.stopRecording() }
     }
 
     // Пришли кружком виджета — пишем сразу. Разрешение всё равно спрашивает
@@ -138,7 +139,7 @@ fun VoiceScreen(
     LaunchedEffect(sayNow) {
         if (!sayNow) return@LaunchedEffect
         onSaid()
-        if (micAllowed(context)) viewModel.startRecording() else ask.launch(Manifest.permission.RECORD_AUDIO)
+        if (micAllowed(context)) voice.startRecording() else ask.launch(Manifest.permission.RECORD_AUDIO)
     }
 
     // Список записей изменился — виджет на рабочем столе показывает последнюю,
@@ -157,7 +158,7 @@ fun VoiceScreen(
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (micAllowed(context)) {
-                            viewModel.startRecording()
+                            voice.startRecording()
                         } else {
                             ask.launch(Manifest.permission.RECORD_AUDIO)
                         }
@@ -185,8 +186,8 @@ fun VoiceScreen(
                 RecordingCard(
                     seconds = recording.seconds,
                     level = recording.level,
-                    onStop = { viewModel.stopRecording() },
-                    onCancel = { viewModel.cancelRecording() },
+                    onStop = { voice.stopRecording() },
+                    onCancel = { voice.cancelRecording() },
                 )
             }
 
@@ -379,16 +380,4 @@ private fun VoiceCard(
             )
         }
     }
-}
-
-/**
- * Время звука словами: «0:07», «1:24», «12:03».
- *
- * Часов не бывает: сорок минут — потолок записи (см.
- * [app.askya.data.audio.VoiceRecorder]), и разряд, который никогда не
- * заполняется, только сдвигает столбец.
- */
-internal fun formatClock(milliseconds: Long): String {
-    val total = (milliseconds / 1000L).coerceAtLeast(0L)
-    return "%d:%02d".format(total / 60, total % 60)
 }

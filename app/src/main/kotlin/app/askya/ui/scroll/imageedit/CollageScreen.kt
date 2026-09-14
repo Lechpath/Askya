@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.entity.Note
 import app.askya.ui.components.EmptyState
 import app.askya.ui.components.FadingGrid
@@ -78,9 +78,9 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun CollageScreen(onBack: () -> Unit, onCreated: (Long) -> Unit) {
-    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(appContainer()))
+    val viewModel: ScrollViewModel = viewModel(factory = ScrollViewModel.factory(androidContainer()))
     val images by viewModel.images.collectAsStateWithLifecycle()
-    val store = appContainer().imageStore
+    val store = androidContainer().imageStore
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 

@@ -29,7 +29,7 @@ import java.io.File
  * с музыкой. Видимая папка важнее: голос, которого нельзя скопировать на
  * компьютер, — это голос в заложниках.
  */
-class VoiceStore(private val context: Context) {
+class VoiceStore(private val context: Context) : VoiceFiles {
 
     /** Где лежат заметки — словами, для окон и подсказок. */
     val folderName: String =
@@ -84,7 +84,7 @@ class VoiceStore(private val context: Context) {
      * его никто не откроет. Поэтому он и уходит вместе с ней — тем же
      * правилом, что копия картинки.
      */
-    suspend fun remove(uri: String?) {
+    override suspend fun remove(uri: String?) {
         val parsed = uri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return
         withContext(Dispatchers.IO) { discard(parsed) }
     }
@@ -126,7 +126,7 @@ class VoiceStore(private val context: Context) {
          * Android без единой библиотеки. Минута речи весит около четверти
          * мегабайта; wav весил бы десять.
          */
-        const val MIME = "audio/mp4"
+        const val MIME = VOICE_MIME
 
         private const val EXTENSION = ".m4a"
         val MODERN = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q

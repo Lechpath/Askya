@@ -49,7 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.EchoService
 import app.askya.echo.REVERB_NAMES
 import app.askya.ui.components.fadingVerticalScroll
@@ -79,7 +79,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun EchoSettingsCard(onDismiss: () -> Unit, onEqualizer: () -> Unit, onLab: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val preferences = container.echoPreferences
     val effects = container.echoEffects
     val player = container.echoPlayer

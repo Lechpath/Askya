@@ -18,7 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.backup.SnapshotAlarms
 import app.askya.data.backup.Snapshots
 import app.askya.data.backup.snapshotWhen
@@ -45,7 +45,7 @@ import java.time.ZoneId
  */
 @Composable
 fun SnapshotGroup(settings: AppSettings) {
-    val container = appContainer()
+    val container = androidContainer()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snapshots = container.snapshots

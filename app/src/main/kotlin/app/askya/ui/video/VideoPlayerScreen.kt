@@ -63,7 +63,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.formatDuration
 import app.askya.ui.echo.EchoControl
 import app.askya.ui.echo.EchoLine
@@ -144,7 +144,7 @@ private enum class Sliding {
  */
 @Composable
 fun VideoPlayerScreen(onClose: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val engine = container.videoEngine
     val preferences = container.videoPreferences
     val state by engine.state.collectAsStateWithLifecycle()

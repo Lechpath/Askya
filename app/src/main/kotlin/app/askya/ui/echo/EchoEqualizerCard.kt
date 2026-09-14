@@ -32,7 +32,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.echo.EqualizerBand
 import app.askya.echo.formatFrequency
 import app.askya.echo.formatGain
@@ -61,7 +61,7 @@ import app.askya.ui.theme.Sunset
  */
 @Composable
 fun EchoEqualizerCard(onDismiss: () -> Unit) {
-    val equalizer = appContainer().echoEqualizer
+    val equalizer = androidContainer().echoEqualizer
     val state by equalizer.state.collectAsStateWithLifecycle()
 
     // Эффект заводится при первом открытии карточки: держать системный ресурс

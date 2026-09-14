@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.ui.components.fadingVerticalScroll
 import app.askya.ui.echo.EchoCard
 import app.askya.ui.echo.EchoGroup
@@ -55,7 +55,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun VideoTracksCard(onDismiss: () -> Unit) {
-    val engine = appContainer().videoEngine
+    val engine = androidContainer().videoEngine
     val state by engine.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -156,7 +156,7 @@ fun VideoTracksCard(onDismiss: () -> Unit) {
  */
 @Composable
 fun VideoSpeedCard(onDismiss: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val engine = container.videoEngine
     val preferences = container.videoPreferences
     val state by engine.state.collectAsStateWithLifecycle()

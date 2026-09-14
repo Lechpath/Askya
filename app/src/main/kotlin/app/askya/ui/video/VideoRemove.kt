@@ -20,7 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.video.Clip
 import kotlinx.coroutines.launch
 
@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberClipRemover(onRemoved: (List<String>) -> Unit): (List<Clip>) -> Unit {
     val context = LocalContext.current
-    val container = appContainer()
+    val container = androidContainer()
     val scope = rememberCoroutineScope()
 
     // Пачка ждёт ответа системного окна: результат приходит отдельным

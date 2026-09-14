@@ -38,7 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.ui.theme.Night
 import app.askya.ui.theme.NightBorder
 import app.askya.ui.theme.NightInk
@@ -101,7 +101,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun EchoBar(modifier: Modifier = Modifier) {
-    val player = appContainer().echoPlayer
+    val player = androidContainer().echoPlayer
     val state by player.state.collectAsStateWithLifecycle()
     val track = state.track
 

@@ -48,7 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.repository.asTrack
 import app.askya.echo.EchoLibrary
 import app.askya.echo.Track
@@ -245,7 +245,7 @@ private fun PlaylistsPage(
     onOpen: (Long, String) -> Unit,
     onFavorites: () -> Unit,
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val repository = container.echoRepository
     val scope = rememberCoroutineScope()
 
@@ -351,7 +351,7 @@ private fun FavoritesPage(
     onPlay: (List<Track>, Track) -> Unit,
     onMenu: (List<Track>, Track) -> Unit,
 ) {
-    val repository = appContainer().echoRepository
+    val repository = androidContainer().echoRepository
     val favorites by remember(repository) { repository.favorites() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val tracks = remember(favorites) { favorites.map { it.asTrack() } }
@@ -383,7 +383,7 @@ private fun PlaylistPage(
     onPlay: (List<Track>, Track) -> Unit,
     onMenu: (List<Track>, Track) -> Unit,
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val repository = container.echoRepository
     val scope = rememberCoroutineScope()
 
@@ -445,7 +445,7 @@ private fun PlaylistPage(
  */
 @Composable
 private fun AddTracksPage(page: EchoPage.AddTracks, library: List<Track>?, onBack: () -> Unit) {
-    val container = appContainer()
+    val container = androidContainer()
     val repository = container.echoRepository
     val scope = rememberCoroutineScope()
 
@@ -583,7 +583,7 @@ internal fun TrackList(
     onPlay: (List<Track>, Track) -> Unit,
     onMenu: ((List<Track>, Track) -> Unit)? = null,
 ) {
-    val container = appContainer()
+    val container = androidContainer()
     val state by container.echoPlayer.state.collectAsStateWithLifecycle()
 
     when {

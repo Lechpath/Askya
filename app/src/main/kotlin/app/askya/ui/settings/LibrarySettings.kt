@@ -19,7 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import app.askya.app.appContainer
+import app.askya.app.androidContainer
 import app.askya.data.library.AskyaLibrary
 import app.askya.ui.components.AskyaNotice
 import kotlinx.coroutines.launch
@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun LibraryGroup() {
-    val container = appContainer()
+    val container = androidContainer()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val library = container.library
