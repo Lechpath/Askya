@@ -37,7 +37,9 @@ compose.desktop {
 
         nativeDistributions {
             // Exe и Msi — оба установщика Windows; собираются задачами
-            // `packageExe` и `packageMsi` и оба требуют WiX Toolset 3 в PATH.
+            // `packageExe` и `packageMsi` и оба требуют WiX Toolset 3: в PATH
+            // или там, куда он ставит себя сам, — jpackage находит его в
+            // `Program Files (x86)\WiX Toolset v3.*` без PATH.
             // Без WiX собирается `createDistributable` — папка с Askya.exe,
             // которую можно просто скопировать.
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
@@ -60,8 +62,18 @@ compose.desktop {
             windows {
                 menuGroup = "Askya"
                 shortcut = true
-                perUserInstall = true
+                // В Program Files, для всех, — с одним вопросом Windows о правах
+                // при установке. Не «для одного пользователя», и это не вкус:
+                // такая установка у jpackage ложится в `%LOCALAPPDATA%\Askya`, а
+                // это папка данных. Удаление программы jpackage делает целиком,
+                // вместе с содержимым папки, — и стёрло бы базу, настройки и
+                // картинки. Увести её в `%LOCALAPPDATA%\Programs\Askya`, как
+                // делает `installAskya`, jpackage из JDK 17 не умеет: для папки
+                // внутри папки он забывает строку об удалении родительской, и
+                // проверка WiX (ICE64) установщик не пропускает.
+                perUserInstall = false
                 dirChooser = true
+                installationPath = "Askya"
                 // Один и тот же на все версии: по нему Windows узнаёт, что новая
                 // сборка ставится поверх старой, а не рядом с ней.
                 upgradeUuid = "4b0e9b8c-7f0a-4d3e-9a41-a5c1f2d9e6b7"
