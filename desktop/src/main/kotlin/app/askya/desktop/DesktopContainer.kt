@@ -9,6 +9,8 @@ import app.askya.app.AppContainer
 import app.askya.data.account.AccountPreferences
 import app.askya.data.audio.VoiceFiles
 import app.askya.data.db.AppDatabase
+import app.askya.data.db.MIGRATION_46_47_DESKTOP
+import app.askya.data.db.SYNC_CALLBACK_DESKTOP
 import app.askya.data.preferences.ReaderPreferences
 import app.askya.data.preferences.SettingsPreferences
 import app.askya.data.preferences.WeatherPreferences
@@ -40,6 +42,8 @@ class DesktopContainer(val home: File) : AppContainer() {
         Room.databaseBuilder<AppDatabase>(name = File(home, AppDatabase.NAME).absolutePath)
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
+            .addMigrations(MIGRATION_46_47_DESKTOP)
+            .addCallback(SYNC_CALLBACK_DESKTOP)
             .build()
     }
 

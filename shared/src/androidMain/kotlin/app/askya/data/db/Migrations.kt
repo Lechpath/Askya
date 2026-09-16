@@ -1,7 +1,9 @@
 package app.askya.data.db
 
+import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.askya.data.sync.SyncSchema
 import app.askya.domain.markdown.ListInput
 
 /**
@@ -1560,5 +1562,40 @@ val MIGRATION_45_46 = object : Migration(45, 46) {
         db.execSQL("DROP TABLE IF EXISTS profile_sections")
         db.execSQL("DROP TABLE IF EXISTS interview_messages")
         db.execSQL("DROP TABLE IF EXISTS self_answers")
+    }
+}
+
+/**
+ * 46 → 47. У строк появилось имя, общее для всех устройств, и журнал правок.
+ *
+ * Это первый шаг к синхронизации, и снаружи он не виден ни одной строкой:
+ * приложение работает ровно как работало. В базе прибавилось трое: колонка
+ * `uid` у тринадцати таблиц, часы `sync_clock` и журнал `sync_state`, который
+ * ведут триггеры у самих таблиц.
+ *
+ * Сам SQL — в `SyncSchema.migrate46to47()`, общий у телефона и компьютера:
+ * две системы должны получить одну и ту же базу, а два списка одних и тех же
+ * команд разошлись бы в первый же раз, когда правят один из них.
+ *
+ * **Триггеры живут вместе с таблицей.** Миграция, которая пересоздаёт таблицу
+ * целиком (так сделаны ранние), уносит и её триггеры — такой миграции нужно
+ * позвать `SyncSchema.triggers()` заново.
+ */
+val MIGRATION_46_47 = object : Migration(46, 47) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        SyncSchema.migrate46to47().forEach(db::execSQL)
+    }
+}
+
+/**
+ * Новая база: Room заводит таблицы сам, но о триггерах не знает — их нет в его
+ * схеме. Поэтому на пустой базе их создаёт этот обработчик, а на старой —
+ * миграция выше.
+ */
+val SYNC_CALLBACK = object : RoomDatabase.Callback() {
+
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        SyncSchema.onCreate().forEach(db::execSQL)
     }
 }

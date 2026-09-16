@@ -96,6 +96,19 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+/*
+ * Путь к настоящей базе — для разовой проверки миграции перед выпуском:
+ *
+ *   gradlew :shared:desktopTest --tests "*RealDbMigrationCheck*" -Paskya.realdb=<файл из Слепка>
+ *
+ * Без свойства проверка молча пропускается: чужих баз в репозитории нет, а
+ * новую миграцию лучше один раз прогнать на той базе, что стоит на телефоне,
+ * чем узнать о ней от человека после обновления.
+ */
+tasks.withType<Test>().configureEach {
+    providers.gradleProperty("askya.realdb").orNull?.let { systemProperty("askya.realdb", it) }
+}
+
 dependencies {
     add("kspAndroid", "androidx.room:room-compiler:2.8.4")
     add("kspDesktop", "androidx.room:room-compiler:2.8.4")

@@ -1,7 +1,9 @@
 package app.askya.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.DeedDays
 import app.askya.domain.model.Priority
@@ -31,9 +33,15 @@ import java.time.LocalTime
  * [days] — по каким дням недели дело повторяется (см. [DeedDays]). Пусто —
  * каждый день, и это же значение у всех дел, заведённых до появления колонки.
  */
-@Entity(tableName = "routine_items")
+@Entity(tableName = "routine_items", indices = [Index("uid", unique = true)])
 data class RoutineItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String,
     val startTime: LocalTime,
     val endTime: LocalTime? = null,

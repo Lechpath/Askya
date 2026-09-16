@@ -1,5 +1,7 @@
 package app.askya.domain.plan
 
+import app.askya.data.sync.Uid
+
 /**
  * Сборка дня: список дел как есть плюс то, что человек уже записал в день сам.
  *
@@ -24,6 +26,10 @@ class RoutineDayComposer : DayComposer {
                 title = item.title,
                 startTime = item.startTime,
                 endTime = item.endTime,
+                // Имя дела из списка — из даты и самого дела списка: два
+                // устройства, заполнившие этот день порознь, получат одно и то
+                // же имя, и дубля при слиянии не будет.
+                uid = Uid.ofRoutineDay(request.date, item.uid),
             )
         }
 
@@ -39,6 +45,9 @@ class RoutineDayComposer : DayComposer {
                     startTime = item.startTime,
                     endTime = item.endTime,
                     note = item.note,
+                    // Записанное руками сохраняет своё имя: пересборка дня —
+                    // это то же дело, а не новое.
+                    uid = item.uid,
                 )
             }
 

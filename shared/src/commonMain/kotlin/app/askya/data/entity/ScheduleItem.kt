@@ -3,6 +3,7 @@ package app.askya.data.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.BlockIcon
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -27,9 +28,15 @@ import java.time.LocalTime
  * делается. Одной строкой «вид:адрес», а не колонкой на каждый вид: видов
  * будет прибавляться.
  */
-@Entity(tableName = "schedule_items", indices = [Index("date")])
+@Entity(tableName = "schedule_items", indices = [Index("date"), Index("uid", unique = true)])
 data class ScheduleItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val date: LocalDate,
     val startTime: LocalTime,
     val endTime: LocalTime? = null,

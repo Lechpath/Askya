@@ -3,6 +3,7 @@ package app.askya.data.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import java.time.LocalDateTime
 
 /**
@@ -47,9 +48,15 @@ import java.time.LocalDateTime
  * Отдельной таблицы «разделов» для этого не завели: раздел — это та же строка
  * на том же месте, и всё, чем он отличается, здесь и написано.
  */
-@Entity(tableName = "deed_tasks", indices = [Index("deedId")])
+@Entity(tableName = "deed_tasks", indices = [Index("deedId"), Index("uid", unique = true)])
 data class DeedTask(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val deedId: Long,
     val text: String = "",
     val done: Boolean = false,

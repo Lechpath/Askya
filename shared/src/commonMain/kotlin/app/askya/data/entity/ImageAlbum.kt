@@ -1,7 +1,9 @@
 package app.askya.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import java.time.LocalDateTime
 
 /**
@@ -20,9 +22,15 @@ import java.time.LocalDateTime
  * переименование альбома двигало бы файлы, а картинка, унесённая из папки
  * чужим проводником, теряла бы и альбом заодно.
  */
-@Entity(tableName = "image_albums")
+@Entity(tableName = "image_albums", indices = [Index("uid", unique = true)])
 data class ImageAlbum(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String = "",
     val createdAt: LocalDateTime = LocalDateTime.now(),
 )

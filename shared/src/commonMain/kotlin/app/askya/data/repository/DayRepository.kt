@@ -5,6 +5,7 @@ import app.askya.data.db.AppDatabase
 import app.askya.data.entity.GeneratedDay
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
+import app.askya.data.sync.Uid
 import app.askya.domain.plan.DayComposer
 import app.askya.domain.plan.DayLayout
 import app.askya.domain.plan.DayRequest
@@ -122,6 +123,7 @@ class DayRepository(
                             endTime = deed.endTime,
                             title = deed.title,
                             icon = deed.icon,
+                            uid = Uid.ofRoutineDay(date, deed.uid),
                         ),
                     )
                 }
@@ -167,6 +169,7 @@ class DayRepository(
                             endTime = planned.endTime,
                             title = planned.title,
                             note = planned.note,
+                            uid = planned.uid.ifBlank { Uid.new() },
                         )
                     )
                 }

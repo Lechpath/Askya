@@ -1,7 +1,9 @@
 package app.askya.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.MarkColor
 import java.time.LocalDateTime
 
@@ -13,9 +15,15 @@ import java.time.LocalDateTime
  * Теги в записи остаются и живут своей жизнью — они про поиск, а тема про то,
  * где запись лежит.
  */
-@Entity(tableName = "scroll_topics")
+@Entity(tableName = "scroll_topics", indices = [Index("uid", unique = true)])
 data class ScrollTopic(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String = "",
     /**
      * Цвет корешка. `null` — «не выбирали»: цвет тогда выводится из названия,

@@ -3,6 +3,7 @@ package app.askya.data.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.ListMark
 import java.time.LocalDateTime
 
@@ -18,9 +19,15 @@ import java.time.LocalDateTime
  * заводят и тут же решают, чем в нём отмечать. Не выбрали — квадрат, тот же,
  * что у чек-листа в заметке.
  */
-@Entity(tableName = "yet_lists")
+@Entity(tableName = "yet_lists", indices = [Index("uid", unique = true)])
 data class YetList(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String = "",
     val mark: ListMark = ListMark.SQUARE,
     val createdAt: LocalDateTime = LocalDateTime.now(),
@@ -57,9 +64,15 @@ data class YetList(
  * Внешнего ключа на список нет — как и у записей Scroll: удаление списка
  * убирает его строки явно, в репозитории, а не каскадом из базы.
  */
-@Entity(tableName = "yet_items", indices = [Index("listId")])
+@Entity(tableName = "yet_items", indices = [Index("listId"), Index("uid", unique = true)])
 data class YetItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val listId: Long,
     val text: String = "",
     val done: Boolean = false,

@@ -5,6 +5,7 @@ import app.askya.data.db.AppDatabase
 import app.askya.data.entity.GeneratedDay
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
+import app.askya.data.sync.Uid
 import app.askya.domain.plan.sameDeed
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -55,6 +56,7 @@ class RoutineRepository(private val db: AppDatabase) {
                     endTime = item.endTime,
                     title = item.title,
                     icon = item.icon,
+                    uid = Uid.ofRoutineDay(date, item.uid),
                 )
             )
         }
@@ -148,6 +150,7 @@ class RoutineRepository(private val db: AppDatabase) {
                         endTime = item.endTime,
                         title = item.title,
                         icon = item.icon,
+                        uid = Uid.ofRoutineDay(date, item.uid),
                     ),
                 )
 

@@ -3,6 +3,7 @@ package app.askya.data.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.RemindAt
 import java.time.LocalDate
@@ -36,9 +37,15 @@ import java.time.LocalTime
  * знает, что напоминание уже стоит. Внешнего ключа нет: дело могут удалить, и
  * терять из-за этого запись о напоминании незачем.
  */
-@Entity(tableName = "reminders", indices = [Index("date")])
+@Entity(tableName = "reminders", indices = [Index("date"), Index("uid", unique = true)])
 data class Reminder(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String,
     val date: LocalDate,
     val time: LocalTime,
@@ -77,10 +84,17 @@ fun reminderOf(
     sound: String? = null,
     soundTitle: String? = null,
     itemId: Long? = null,
+    /**
+     * Имя строки для облака. У правки — имя прежнего напоминания: строка
+     * пересобирается целиком, но дело за ней то же самое, и новое имя
+     * оставило бы на другом устройстве призрак старого.
+     */
+    uid: String = Uid.new(),
 ): Reminder {
     val moment = remindMoment(eventDate, eventStart, remind)
     return Reminder(
         id = id,
+        uid = uid,
         title = title,
         date = moment.toLocalDate(),
         time = moment.toLocalTime(),

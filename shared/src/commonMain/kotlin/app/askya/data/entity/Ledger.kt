@@ -3,6 +3,7 @@ package app.askya.data.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import app.askya.data.sync.Uid
 import app.askya.domain.model.AccountKind
 import app.askya.domain.model.Currency
 import app.askya.domain.model.EntryKind
@@ -25,9 +26,15 @@ import java.time.LocalDateTime
  * значило бы стереть прошлогодний месяц. Он просто перестаёт предлагаться в
  * записи и уходит вниз списка.
  */
-@Entity(tableName = "ledger_accounts")
+@Entity(tableName = "ledger_accounts", indices = [Index("uid", unique = true)])
 data class LedgerAccount(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String = "",
     val kind: AccountKind = AccountKind.CARD,
     /**
@@ -101,9 +108,15 @@ data class LedgerAccount(
  * от неё осталось. Ноль означает «предела нет», а не «нельзя тратить»: статья
  * без предела — обычное дело, и хранить для неё отдельный флаг незачем.
  */
-@Entity(tableName = "ledger_categories")
+@Entity(tableName = "ledger_categories", indices = [Index("uid", unique = true)])
 data class LedgerCategory(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val title: String = "",
     val kind: EntryKind = EntryKind.SPEND,
     /** Предел на месяц в копейках. 0 — предела нет. */
@@ -140,10 +153,16 @@ data class LedgerCategory(
  */
 @Entity(
     tableName = "ledger_entries",
-    indices = [Index("date"), Index("accountId"), Index("categoryId")],
+    indices = [Index("date"), Index("accountId"), Index("categoryId"), Index("uid", unique = true)],
 )
 data class LedgerEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Имя строки, общее для всех устройств, — см. [app.askya.data.sync.Uid].
+     * Проставляется само и не меняется никогда: по нему строку узнают при
+     * слиянии с другим устройством.
+     */
+    val uid: String = Uid.new(),
     val date: LocalDate = LocalDate.now(),
     val kind: EntryKind = EntryKind.SPEND,
     /** Копейки, всегда больше нуля: знак несёт [kind]. */

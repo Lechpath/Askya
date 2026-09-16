@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.askya.app.AppContainer
 import app.askya.data.entity.Reminder
 import app.askya.data.entity.reminderOf
+import app.askya.data.sync.Uid
 import app.askya.data.repository.ReminderRepository
 import app.askya.reminders.ReminderClock
 import app.askya.domain.model.BlockIcon
@@ -70,6 +71,7 @@ class RemindersViewModel(
                 sound = sound,
                 soundTitle = soundTitle,
                 itemId = existing?.itemId,
+                uid = existing?.uid ?: Uid.new(),
             )
 
             val id = if (existing == null) reminders.add(reminder) else {

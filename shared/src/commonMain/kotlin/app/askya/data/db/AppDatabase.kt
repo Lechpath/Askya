@@ -14,6 +14,7 @@ import app.askya.data.db.dao.NoteDao
 import app.askya.data.db.dao.ReminderDao
 import app.askya.data.db.dao.RoutineDao
 import app.askya.data.db.dao.ScheduleDao
+import app.askya.data.db.dao.SyncDao
 import app.askya.data.db.dao.TopicDao
 import app.askya.data.db.dao.VideoDao
 import app.askya.data.db.dao.YetDao
@@ -32,6 +33,8 @@ import app.askya.data.entity.Reminder
 import app.askya.data.entity.RoutineItem
 import app.askya.data.entity.ScheduleItem
 import app.askya.data.entity.ScrollTopic
+import app.askya.data.entity.SyncClock
+import app.askya.data.entity.SyncState
 import app.askya.data.entity.VideoPlaylist
 import app.askya.data.entity.VideoPlaylistClip
 import app.askya.data.entity.YetItem
@@ -86,6 +89,8 @@ import app.askya.data.entity.YetList
         LedgerAccount::class,
         LedgerCategory::class,
         LedgerEntry::class,
+        SyncClock::class,
+        SyncState::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -107,6 +112,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bridgeDao(): BridgeDao
     abstract fun ledgerDao(): LedgerDao
 
+    /**
+     * Журнал правок для синхронизации. Пишут его триггеры у самих таблиц
+     * (`SyncSchema`), отсюда его читают и отмечают отправленное.
+     */
+    abstract fun syncDao(): SyncDao
+
     companion object {
         /**
          * Имя файла базы. Одно на обе системы: на телефоне файл лежит там,
@@ -121,6 +132,6 @@ abstract class AppDatabase : RoomDatabase() {
          * сверяет при чтении, а два числа об одном разошлись бы в первый же
          * раз, когда правят одно из них.
          */
-        const val VERSION = 46
+        const val VERSION = 47
     }
 }

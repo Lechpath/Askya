@@ -91,6 +91,7 @@ suspend fun moveReminder(
         sound = old.sound,
         soundTitle = old.soundTitle,
         itemId = itemId,
+        uid = old.uid,
     )
     reminders.save(moved)
     if (moved.enabled) clock.schedule(moved)
