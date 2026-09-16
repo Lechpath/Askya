@@ -17,6 +17,9 @@
     тридцать шесть кадров по два градуса замыкают круг бесшовно: поворот на 72
     градуса возвращает рисунок в себя. Флиппер сам замирает, когда рабочий
     стол не на экране, так что батарею это не трогает.
+
+    Краска в кадрах закатная только по умолчанию: каждый кадр перекрашивается
+    из кода выбранной в настройках (`WidgetFlower`), поэтому у всех есть id.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -58,6 +61,7 @@
         android:measureAllChildren="false">
 
         <ImageView
+            android:id="@+id/widget_mark_0"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -65,6 +69,7 @@
             android:scaleX="0.820"
             android:scaleY="0.820" />
         <ImageView
+            android:id="@+id/widget_mark_1"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -72,6 +77,7 @@
             android:scaleX="0.821"
             android:scaleY="0.821" />
         <ImageView
+            android:id="@+id/widget_mark_2"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -79,6 +85,7 @@
             android:scaleX="0.825"
             android:scaleY="0.825" />
         <ImageView
+            android:id="@+id/widget_mark_3"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -86,6 +93,7 @@
             android:scaleX="0.832"
             android:scaleY="0.832" />
         <ImageView
+            android:id="@+id/widget_mark_4"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -93,6 +101,7 @@
             android:scaleX="0.841"
             android:scaleY="0.841" />
         <ImageView
+            android:id="@+id/widget_mark_5"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -100,6 +109,7 @@
             android:scaleX="0.852"
             android:scaleY="0.852" />
         <ImageView
+            android:id="@+id/widget_mark_6"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -107,6 +117,7 @@
             android:scaleX="0.865"
             android:scaleY="0.865" />
         <ImageView
+            android:id="@+id/widget_mark_7"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -114,6 +125,7 @@
             android:scaleX="0.879"
             android:scaleY="0.879" />
         <ImageView
+            android:id="@+id/widget_mark_8"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -121,6 +133,7 @@
             android:scaleX="0.894"
             android:scaleY="0.894" />
         <ImageView
+            android:id="@+id/widget_mark_9"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -128,6 +141,7 @@
             android:scaleX="0.910"
             android:scaleY="0.910" />
         <ImageView
+            android:id="@+id/widget_mark_10"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -135,6 +149,7 @@
             android:scaleX="0.926"
             android:scaleY="0.926" />
         <ImageView
+            android:id="@+id/widget_mark_11"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -142,6 +157,7 @@
             android:scaleX="0.941"
             android:scaleY="0.941" />
         <ImageView
+            android:id="@+id/widget_mark_12"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -149,6 +165,7 @@
             android:scaleX="0.955"
             android:scaleY="0.955" />
         <ImageView
+            android:id="@+id/widget_mark_13"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -156,6 +173,7 @@
             android:scaleX="0.968"
             android:scaleY="0.968" />
         <ImageView
+            android:id="@+id/widget_mark_14"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -163,6 +181,7 @@
             android:scaleX="0.979"
             android:scaleY="0.979" />
         <ImageView
+            android:id="@+id/widget_mark_15"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -170,6 +189,7 @@
             android:scaleX="0.988"
             android:scaleY="0.988" />
         <ImageView
+            android:id="@+id/widget_mark_16"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -177,6 +197,7 @@
             android:scaleX="0.995"
             android:scaleY="0.995" />
         <ImageView
+            android:id="@+id/widget_mark_17"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -184,6 +205,7 @@
             android:scaleX="0.999"
             android:scaleY="0.999" />
         <ImageView
+            android:id="@+id/widget_mark_18"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -191,6 +213,7 @@
             android:scaleX="1.000"
             android:scaleY="1.000" />
         <ImageView
+            android:id="@+id/widget_mark_19"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -198,6 +221,7 @@
             android:scaleX="0.999"
             android:scaleY="0.999" />
         <ImageView
+            android:id="@+id/widget_mark_20"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -205,6 +229,7 @@
             android:scaleX="0.995"
             android:scaleY="0.995" />
         <ImageView
+            android:id="@+id/widget_mark_21"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -212,6 +237,7 @@
             android:scaleX="0.988"
             android:scaleY="0.988" />
         <ImageView
+            android:id="@+id/widget_mark_22"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -219,6 +245,7 @@
             android:scaleX="0.979"
             android:scaleY="0.979" />
         <ImageView
+            android:id="@+id/widget_mark_23"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -226,6 +253,7 @@
             android:scaleX="0.968"
             android:scaleY="0.968" />
         <ImageView
+            android:id="@+id/widget_mark_24"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -233,6 +261,7 @@
             android:scaleX="0.955"
             android:scaleY="0.955" />
         <ImageView
+            android:id="@+id/widget_mark_25"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -240,6 +269,7 @@
             android:scaleX="0.941"
             android:scaleY="0.941" />
         <ImageView
+            android:id="@+id/widget_mark_26"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -247,6 +277,7 @@
             android:scaleX="0.926"
             android:scaleY="0.926" />
         <ImageView
+            android:id="@+id/widget_mark_27"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -254,6 +285,7 @@
             android:scaleX="0.910"
             android:scaleY="0.910" />
         <ImageView
+            android:id="@+id/widget_mark_28"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -261,6 +293,7 @@
             android:scaleX="0.894"
             android:scaleY="0.894" />
         <ImageView
+            android:id="@+id/widget_mark_29"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -268,6 +301,7 @@
             android:scaleX="0.879"
             android:scaleY="0.879" />
         <ImageView
+            android:id="@+id/widget_mark_30"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -275,6 +309,7 @@
             android:scaleX="0.865"
             android:scaleY="0.865" />
         <ImageView
+            android:id="@+id/widget_mark_31"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -282,6 +317,7 @@
             android:scaleX="0.852"
             android:scaleY="0.852" />
         <ImageView
+            android:id="@+id/widget_mark_32"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -289,6 +325,7 @@
             android:scaleX="0.841"
             android:scaleY="0.841" />
         <ImageView
+            android:id="@+id/widget_mark_33"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -296,6 +333,7 @@
             android:scaleX="0.832"
             android:scaleY="0.832" />
         <ImageView
+            android:id="@+id/widget_mark_34"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"
@@ -303,6 +341,7 @@
             android:scaleX="0.825"
             android:scaleY="0.825" />
         <ImageView
+            android:id="@+id/widget_mark_35"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_flower"

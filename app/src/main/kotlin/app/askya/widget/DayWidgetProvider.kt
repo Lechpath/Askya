@@ -77,6 +77,7 @@ class DayWidgetProvider : AppWidgetProvider() {
         val state = readState(context)
 
         views.setTextViewText(R.id.widget_empty, state.empty)
+        WidgetFlower.paint(context, views)
 
         val hasItems = state.items.isNotEmpty()
         views.setViewVisibility(R.id.widget_list, if (hasItems) View.VISIBLE else View.GONE)

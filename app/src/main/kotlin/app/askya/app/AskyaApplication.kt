@@ -209,11 +209,18 @@ class AskyaApplication : Application() {
      *
      * Когда процесс мёртв, за свежесть отвечают будильники на границы дел
      * (`DayWidgetRefresh`) — этот поток их не заменяет, а дополняет.
+     *
+     * Вторым потоком — краска цветка: знак в углу виджета красится ею
+     * (`WidgetFlower`), и выбранная в настройках должна дойти до стола сразу, а
+     * не с ближайшим делом. Перерисовка заодно переставляет будильник — у
+     * хамелеона на нём висят ещё и смены поры.
      */
     private fun watchScheduleForWidget() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        container.scheduleRepository.itemsOn(LocalDate.now())
-            .drop(1)
+        merge(
+            container.scheduleRepository.itemsOn(LocalDate.now()).drop(1).map { },
+            container.settings.settings.map { it.flower }.distinctUntilChanged().drop(1).map { },
+        )
             .onEach { DayWidgetProvider.refresh(this) }
             .launchIn(scope)
     }

@@ -48,7 +48,8 @@ object DayWidgetRefresh {
     /**
      * Ближайший момент, когда картинка меняется: начало или конец дела. Если
      * на сегодня ничего не осталось — полночь: в неё виджет переключается на
-     * новый день.
+     * новый день. У хамелеона к ним добавляются смены поры — в них меняется
+     * краска цветка ([WidgetFlower.turnsAfter]).
      *
      * Секунда сверху — чтобы будильник сработал уже после границы, а не ровно
      * на ней: иначе дело успевало бы считаться идущим ещё один заход.
@@ -62,6 +63,7 @@ object DayWidgetRefresh {
             .flatMap { item -> listOfNotNull(item.startTime, item.endTime) }
             .map { time -> now.toLocalDate().atTime(time) }
             .filter { it.isAfter(now) }
+            .plus(WidgetFlower.turnsAfter(context, now))
             .sorted()
 
         val midnight = now.toLocalDate().plusDays(1).atStartOfDay()
