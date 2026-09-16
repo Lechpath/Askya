@@ -6,6 +6,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import app.askya.data.db.AppDatabase
 import app.askya.data.db.MIGRATION_46_47_DESKTOP
+import app.askya.data.db.MIGRATION_47_48_DESKTOP
 import app.askya.data.db.SYNC_CALLBACK_DESKTOP
 import app.askya.data.entity.Note
 import app.askya.data.entity.ScheduleItem
@@ -90,7 +91,7 @@ class SyncJournalTest {
         return Room.databaseBuilder<AppDatabase>(name = file.absolutePath)
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
-            .addMigrations(MIGRATION_46_47_DESKTOP)
+            .addMigrations(MIGRATION_46_47_DESKTOP, MIGRATION_47_48_DESKTOP)
             .addCallback(SYNC_CALLBACK_DESKTOP)
             .build()
             .also { db = it }

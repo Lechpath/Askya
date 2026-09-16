@@ -29,13 +29,16 @@ interface SyncDao {
      * дальше говорит, когда строку правили, — по ней сравнивают свою версию с
      * чужой.
      */
-    @Query("UPDATE sync_state SET dirty = 0 WHERE tbl = :table AND uid = :uid AND hlc <= :upTo")
+    @Query(
+        "UPDATE sync_state SET dirty = 0, base = :upTo " +
+            "WHERE tbl = :table AND uid = :uid AND hlc <= :upTo",
+    )
     suspend fun sent(table: String, uid: String, upTo: Long)
 
     /** Отметка чужой строки: её ставит приём, пока триггеры молчат. */
     @Query(
-        "INSERT OR REPLACE INTO sync_state (tbl, uid, hlc, dead, dirty) " +
-            "VALUES (:table, :uid, :hlc, :dead, 0)",
+        "INSERT OR REPLACE INTO sync_state (tbl, uid, hlc, dead, dirty, base) " +
+            "VALUES (:table, :uid, :hlc, :dead, 0, :hlc)",
     )
     suspend fun remember(table: String, uid: String, hlc: Long, dead: Int)
 

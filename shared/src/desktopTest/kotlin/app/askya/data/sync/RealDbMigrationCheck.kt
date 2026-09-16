@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import app.askya.data.db.AppDatabase
 import app.askya.data.db.MIGRATION_46_47_DESKTOP
+import app.askya.data.db.MIGRATION_47_48_DESKTOP
 import app.askya.data.db.SYNC_CALLBACK_DESKTOP
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -29,7 +30,7 @@ class RealDbMigrationCheck {
         val db = Room.databaseBuilder<AppDatabase>(name = file.absolutePath)
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
-            .addMigrations(MIGRATION_46_47_DESKTOP)
+            .addMigrations(MIGRATION_46_47_DESKTOP, MIGRATION_47_48_DESKTOP)
             .addCallback(SYNC_CALLBACK_DESKTOP)
             .build()
 

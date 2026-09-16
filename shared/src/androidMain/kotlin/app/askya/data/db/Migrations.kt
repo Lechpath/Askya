@@ -1588,6 +1588,14 @@ val MIGRATION_46_47 = object : Migration(46, 47) {
     }
 }
 
+/** Отметка «на чём основана правка» — без неё спор двух устройств не увидеть. */
+val MIGRATION_47_48 = object : Migration(47, 48) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        SyncSchema.migrate47to48().forEach(db::execSQL)
+    }
+}
+
 /**
  * Новая база: Room заводит таблицы сам, но о триггерах не знает — их нет в его
  * схеме. Поэтому на пустой базе их создаёт этот обработчик, а на старой —

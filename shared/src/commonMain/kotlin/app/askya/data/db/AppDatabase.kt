@@ -132,6 +132,6 @@ abstract class AppDatabase : RoomDatabase() {
          * сверяет при чтении, а два числа об одном разошлись бы в первый же
          * раз, когда правят одно из них.
          */
-        const val VERSION = 47
+        const val VERSION = 48
     }
 }

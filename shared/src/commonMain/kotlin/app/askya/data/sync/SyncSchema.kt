@@ -63,6 +63,12 @@ object SyncSchema {
         "CREATE TABLE IF NOT EXISTS `sync_clock` (`id` INTEGER NOT NULL, `hlc` INTEGER NOT NULL, " +
             "`applying` INTEGER NOT NULL, PRIMARY KEY(`id`))"
 
+    /**
+     * Журнал, каким его завела 47-я версия. Колонка `base` появилась в 48-й
+     * ([migrate47to48]) и дописана здесь нарочно не будет: переход 46 → 47
+     * должен оставлять базу ровно такой, какой её оставляла та версия, иначе
+     * следующий переход попробует добавить колонку дважды.
+     */
     val STATE_TABLE =
         "CREATE TABLE IF NOT EXISTS `sync_state` (`tbl` TEXT NOT NULL, `uid` TEXT NOT NULL, " +
             "`hlc` INTEGER NOT NULL, `dead` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, " +
@@ -156,4 +162,25 @@ object SyncSchema {
         }
         addAll(triggers())
     }
+
+    /**
+     * Переход 47 → 48: у строки журнала появилась отметка, на чём основана её
+     * правка, — `base` (см. [app.askya.data.entity.SyncState.base]).
+     *
+     * Ради неё и заведена: без неё «оставить обе версии» работало бы на
+     * догадке. Своя правка успевает уехать в облако раньше, чем придёт чужая, и
+     * к тому времени отметка «неотправленное» уже снята — спор выглядел бы как
+     * обычная свежая правка, и написанное на одном устройстве молча стёрлось бы
+     * написанным на другом.
+     *
+     * У всех уже записанных строк `base` нулевой: с облаком они ещё не
+     * сходились ни разу.
+     *
+     * Триггеры не трогаются: `base` они не пишут вовсе — её ставит сама
+     * синхронизация, отправив своё или приняв чужое. Дописка колонки со
+     * значением по умолчанию их не ломает.
+     */
+    fun migrate47to48(): List<String> = listOf(
+        "ALTER TABLE `sync_state` ADD COLUMN `base` INTEGER NOT NULL DEFAULT 0",
+    )
 }

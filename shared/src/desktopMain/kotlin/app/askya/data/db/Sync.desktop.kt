@@ -15,13 +15,21 @@ import app.askya.data.sync.SyncSchema
  * здесь нельзя: база у них одна и та же, её переносит Слепок, а скоро понесёт
  * и облако.
  *
- * Миграций у компьютера всего одна, и это не небрежность: Windows-версия
+ * Миграций у компьютера всего две, и это не небрежность: Windows-версия
  * появилась на 46-й версии схемы, базы старше у неё не бывает.
  */
 val MIGRATION_46_47_DESKTOP = object : Migration(46, 47) {
 
     override fun migrate(connection: SQLiteConnection) {
         SyncSchema.migrate46to47().forEach(connection::execSQL)
+    }
+}
+
+/** Отметка «на чём основана правка» — без неё спор двух устройств не увидеть. */
+val MIGRATION_47_48_DESKTOP = object : Migration(47, 48) {
+
+    override fun migrate(connection: SQLiteConnection) {
+        SyncSchema.migrate47to48().forEach(connection::execSQL)
     }
 }
 
