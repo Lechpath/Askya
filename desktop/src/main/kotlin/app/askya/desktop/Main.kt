@@ -37,6 +37,8 @@ import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import androidx.navigation.compose.rememberNavController
 import app.askya.app.LocalAppContainer
+import app.askya.data.account.Gate
+import app.askya.ui.account.LockScreen
 import app.askya.platform.DesktopBack
 import app.askya.platform.Notices
 import app.askya.resources.Res
@@ -151,6 +153,13 @@ fun main(args: Array<String>) {
                 windowState.isMinimized = false
                 window.toFront()
             }
+            // Замок отсчитывает от ухода окна: спрятанное к часам или
+            // свёрнутое — ушло, показанное снова — вернулось. Просто окно
+            // под другими уходом не считается: на него всё ещё смотрят.
+            val away = !shown || windowState.isMinimized
+            LaunchedEffect(away) {
+                if (away) container.gate.wentAway() else container.gate.cameBack()
+            }
             CompositionLocalProvider(LocalAppContainer provides container) {
                 val settings by container.settings.settings
                     .collectAsState(initial = container.settings.state.value)
@@ -172,6 +181,10 @@ fun main(args: Array<String>) {
                             navController = nav,
                         )
                         NoticeBar(modifier = Modifier.align(Alignment.BottomCenter))
+                        val gate by container.gate.state.collectAsState()
+                        // Esc на входе не делает ничего: окну уходить некуда,
+                        // а открыть Askya мимо пароля он не должен.
+                        if (gate != Gate.OPEN) LockScreen(onLeave = {})
                     }
                 }
             }

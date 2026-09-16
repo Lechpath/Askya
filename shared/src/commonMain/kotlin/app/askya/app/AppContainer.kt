@@ -2,6 +2,8 @@ package app.askya.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import app.askya.data.account.AccountGate
+import app.askya.data.account.AccountPreferences
 import app.askya.data.audio.VoiceFiles
 import app.askya.data.db.AppDatabase
 import app.askya.data.images.ImageFiles
@@ -61,6 +63,15 @@ abstract class AppContainer {
 
     /** Мелодии напоминаний — см. [ReminderSoundSource]. */
     abstract val reminderSounds: ReminderSoundSource
+
+    /** Аккаунт — имя и отпечатки пароля и пин-кода. Своё хранилище у каждой системы. */
+    abstract val account: AccountPreferences
+
+    /**
+     * Замок Askya — заперта ли она и чем отпирается ([AccountGate]). Один на
+     * приложение: запертой должна быть Askya, а не отдельный экран.
+     */
+    val gate: AccountGate by lazy { AccountGate(account) }
 
     val noteRepository: NoteRepository by lazy {
         NoteRepository(

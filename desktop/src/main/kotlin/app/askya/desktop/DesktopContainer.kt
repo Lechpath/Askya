@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import app.askya.app.AppContainer
+import app.askya.data.account.AccountPreferences
 import app.askya.data.audio.VoiceFiles
 import app.askya.data.db.AppDatabase
 import app.askya.data.preferences.ReaderPreferences
@@ -59,6 +60,9 @@ class DesktopContainer(val home: File) : AppContainer() {
     override val settings: SettingsPreferences by lazy { SettingsPreferences(store("settings")) }
     override val readerPreferences: ReaderPreferences by lazy { ReaderPreferences(store("reader")) }
     override val weatherPreferences: WeatherPreferences by lazy { WeatherPreferences(store("weather")) }
+
+    /** Аккаунт — своим файлом и мимо Слепка, как у телефона: см. [AccountPreferences]. */
+    override val account: AccountPreferences by lazy { AccountPreferences(store("account")) }
 
     /** Напоминания — часами внутри запущенной Askya, см. [DesktopAlarms]. */
     override val alarms: DesktopAlarms by lazy { DesktopAlarms(reminderRepository) }

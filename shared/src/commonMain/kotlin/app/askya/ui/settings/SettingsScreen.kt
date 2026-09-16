@@ -8,12 +8,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.askya.app.appContainer
 import app.askya.data.preferences.AppSettings
 import app.askya.data.preferences.SplashWhen
+import app.askya.ui.account.AccountAsk
+import app.askya.ui.account.AccountDialogs
+import app.askya.ui.account.AccountGroup
 import app.askya.ui.navigation.Destination
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.fadingVerticalScroll
@@ -37,11 +43,13 @@ import app.askya.ui.theme.ThemeMode
  * смотрят, и продублированное здесь означало бы два ответа на один вопрос.
  * Сюда вынесено только то, что человек решает один раз и надолго.
  *
- * **Аккаунта и облака.** Их нет в приложении, и строчка «не настроено» была бы
- * обещанием, которого никто не давал. Выгрузка есть ровно одна — «Слепок», — и
- * она не про облако: человек записывает файл сам и сам решает, где ему лежать.
- * Живёт она отдельным файлом (`SnapshotGroup`), потому что это не настройка, а
- * действие с последствиями.
+ * **Облака.** Его пока нет, и строчка «не настроено» была бы обещанием раньше
+ * времени. Выгрузка есть ровно одна — «Слепок», — и она не про облако: человек
+ * записывает файл сам и сам решает, где ему лежать. Живёт она отдельным файлом
+ * (`SnapshotGroup`), потому что это не настройка, а действие с последствиями.
+ *
+ * Аккаунт — есть, и стоит первым ([AccountGroup]): это не настройка раздела, а
+ * то, чья это Askya. Его окна — свои, поверх всей страницы ([AccountDialogs]).
  *
  * ## Общее и своё
  *
@@ -70,6 +78,7 @@ fun SettingsScreen(
     val general by container.settings.settings
         .collectAsStateWithLifecycle(initialValue = container.settings.state.value)
     val players = Destination.ECHO in sections || Destination.VIDEO in sections
+    var accountAsk by remember { mutableStateOf<AccountAsk?>(null) }
     val startRoutes = START_ROUTES.filter { route -> sections.any { it.route == route } }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -81,6 +90,8 @@ fun SettingsScreen(
                 .fadingVerticalScroll()
                 .padding(horizontal = 16.dp),
         ) {
+
+            AccountGroup(onAsk = { accountAsk = it })
 
             SettingsGroup("Общее") {
                 if (splash) {
@@ -183,6 +194,7 @@ fun SettingsScreen(
     // Окно — последним и внутри общего Box, как везде в приложении: оно
     // рисуется поверх страницы, а написанное раньше ушло бы под неё.
     overlay()
+    AccountDialogs(ask = accountAsk, onAsk = { accountAsk = it })
     }
 }
 

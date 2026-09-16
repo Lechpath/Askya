@@ -20,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.askya.data.account.Gate
+import app.askya.ui.account.LockScreen
 import app.askya.ui.launch.AskyaSplash
 import app.askya.ui.launch.splashThemeOf
 import app.askya.ui.theme.at
@@ -168,13 +170,21 @@ class MainActivity : ComponentActivity() {
             val toured by container().settings.tourSeen
                 .collectAsStateWithLifecycle(initialValue = null)
 
+            // Замок аккаунта. Пока он не открыт, приложение под листом входа
+            // не получает ни одной просьбы снаружи — ни раздела с виджета, ни
+            // записи голосом, ни дела из шторки: они ждут входа и
+            // выполняются после него, а не за закрытым листом.
+            val gate by container().gate.state.collectAsStateWithLifecycle()
+            val open = gate == Gate.OPEN
+            HideFromRecents()
+
             Box(modifier = Modifier.fillMaxSize()) {
                 if (awake) {
                     AskyaApp(
                         shell = rememberAndroidShell(),
-                        openRoute = opening,
-                        saying = saying,
-                        openDeed = deed,
+                        openRoute = opening.takeIf { open },
+                        saying = saying && open,
+                        openDeed = deed.takeIf { open },
                         onOpened = {
                             opening = null
                             saying = false
@@ -183,7 +193,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                if (opened != null) {
+                if (opened != null && open) {
                     OpenedFileScreen(
                         file = opened,
                         onClose = { incoming = null },
@@ -205,6 +215,13 @@ class MainActivity : ComponentActivity() {
                     AskyaTour(onDone = { container().settings.setTourSeen(true) })
                 }
 
+                // Вход — под заставкой: церемония запуска идёт первой, и
+                // цветок с неё переходит на лист входа, а не сменяется им.
+                // Пока хранилище не ответило, лист стоит пустым — непрозрачным.
+                if (!open) {
+                    LockScreen(onLeave = { moveTaskToBack(true) })
+                }
+
                 if (splash) {
                     AskyaSplash(
                         onGreeted = { awake = true },
@@ -218,6 +235,40 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Askya ушла с экрана — отсюда замок отсчитывает, когда запереться.
+     *
+     * Поворот экрана — не уход: Activity пересоздаётся, но человек никуда не
+     * уходил, и «Сразу» не должно запирать её на каждом повороте.
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) container().gate.wentAway()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        container().gate.cameBack()
+    }
+
+    /**
+     * Снимок Askya в «Недавних» — только без аккаунта.
+     *
+     * Система снимает экран, когда приложение уходит, и показывает этот
+     * снимок в списке недавних всякому, кто возьмёт телефон: запертая
+     * Askya светила бы там открытым Ledger. С Android 13 снимок можно
+     * запретить — тогда на его месте пустая карточка с именем. Раньше 13-го
+     * такого запрета нет, кроме `FLAG_SECURE`, а он заодно запрещает
+     * снимки экрана вообще — плата не за то.
+     */
+    @Composable
+    private fun HideFromRecents() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val account by container().account.account.collectAsStateWithLifecycle(initialValue = null)
+        val has = account != null
+        LaunchedEffect(has) { setRecentsScreenshotEnabled(!has) }
     }
 
     /**

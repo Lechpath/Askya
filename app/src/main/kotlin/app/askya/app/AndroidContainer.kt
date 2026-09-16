@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import app.askya.data.account.AccountPreferences
 import app.askya.data.backup.Snapshots
 import app.askya.data.db.AppDatabase
 import app.askya.data.db.build
@@ -79,6 +80,8 @@ class AndroidContainer(context: Context) : AppContainer() {
     val voiceRecorder: VoiceRecorder by lazy { VoiceRecorder(appContext) }
 
     override val settings: SettingsPreferences by lazy { SettingsPreferences(appContext) }
+
+    override val account: AccountPreferences by lazy { AccountPreferences(appContext) }
 
     /** Точный будильник системы и уведомление в шторке — см. [ReminderAlarms]. */
     override val alarms: ReminderClock = object : ReminderClock {

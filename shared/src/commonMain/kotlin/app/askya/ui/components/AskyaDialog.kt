@@ -55,6 +55,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.ui.theme.Accent
@@ -233,6 +235,9 @@ fun DialogText(text: String, modifier: Modifier = Modifier) {
  * [keyboard] меняет саму клавиатуру: в поле, куда пишут вес или пульс, буквы
  * не нужны вовсе, а тянуться до цифрового ряда на каждой строке подхода —
  * работа, которой не должно быть.
+ *
+ * [secret] прячет набранное точками — для пароля: его набирают и при чужих
+ * глазах. Клавиатура тогда тоже знает, что это пароль, и не запоминает слов.
  */
 @Composable
 fun DialogField(
@@ -243,6 +248,7 @@ fun DialogField(
     autoFocus: Boolean = false,
     singleLine: Boolean = true,
     keyboard: KeyboardType = KeyboardType.Text,
+    secret: Boolean = false,
     onDone: () -> Unit = {},
 ) {
     val focus = remember { FocusRequester() }
@@ -272,8 +278,10 @@ fun DialogField(
             textStyle = style,
             cursorBrush = SolidColor(Accent),
             singleLine = singleLine,
+            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
-                keyboardType = keyboard,
+                keyboardType = if (secret && keyboard == KeyboardType.Text) KeyboardType.Password else keyboard,
+                autoCorrectEnabled = !secret,
                 imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
             ),
             keyboardActions = KeyboardActions(onDone = { onDone() }),
