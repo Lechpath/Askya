@@ -30,10 +30,12 @@ import app.askya.resources.ic_scroll_lists
 import app.askya.resources.ic_scroll_voice
 import app.askya.app.appContainer
 import app.askya.ui.navigation.VoicePlayer
-import app.askya.data.entity.Note
 import app.askya.data.entity.ScrollTopic
 import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
+import app.askya.domain.search.Ask
+import app.askya.domain.search.askOf
+import app.askya.domain.search.matches
 import app.askya.ui.components.FadingColumn
 import app.askya.ui.components.ScreenScaffold
 
@@ -354,43 +356,7 @@ private fun SectionAnswer(section: Section, labelled: Boolean) {
     }
 }
 
-/**
- * Что спросили и что нашлось — вопрос человека, разобранный на слова и теги.
- *
- * Слово с решёткой — тег: так их пишут везде, и объяснять это отдельной
- * кнопкой «искать по тегу» не нужно. Остальные слова ищутся по всему, что у
- * записи есть буквами, теги в том числе: набравший «дача» без решётки имел в
- * виду и запись про дачу, и запись, помеченную «дача».
- *
- * Слова требуются все: два слова в строке — это уточнение, а не «или».
- */
-private class Ask(val words: List<String>, val tags: List<String>) {
-    val empty: Boolean get() = words.isEmpty() && tags.isEmpty()
-}
-
-private fun askOf(query: String): Ask {
-    val parts = query.trim().split(WHITESPACE).filter { it.isNotBlank() }
-    return Ask(
-        words = parts.filterNot { it.startsWith("#") }.map { it.lowercase() },
-        tags = parts.filter { it.startsWith("#") && it.length > 1 }
-            .map { it.drop(1).lowercase() },
-    )
-}
-
-private val WHITESPACE = Regex("\\s+")
-
-/** Запись подходит, если в ней нашлось каждое слово и каждый тег. */
-private fun Note.matches(ask: Ask): Boolean {
-    val hay = buildString {
-        append(title.lowercase())
-        append('\n')
-        append(body.lowercase())
-        append('\n')
-        append(tags.joinToString(" ").lowercase())
-    }
-    if (!ask.words.all { hay.contains(it) }) return false
-    return ask.tags.all { needle -> tags.any { it.lowercase().contains(needle) } }
-}
+// Разбор вопроса и правило для записей — общие с агентом: app.askya.domain.search.
 
 /**
  * Книга подходит по названию. Тегов у книги нет и не будет: тег — свойство

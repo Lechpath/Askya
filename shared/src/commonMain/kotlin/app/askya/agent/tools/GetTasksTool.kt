@@ -1,8 +1,10 @@
 package app.askya.agent.tools
 
 import app.askya.agent.AgentContext
+import app.askya.agent.ArgsResult
 import app.askya.agent.ReadTool
 import app.askya.agent.ToolResult
+import app.askya.agent.readArgs
 import app.askya.data.entity.YetItem
 import app.askya.data.entity.YetList
 import app.askya.data.repository.DeedTaskRepository
@@ -12,7 +14,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import java.time.Clock
 import java.time.LocalDate
-import java.time.format.DateTimeParseException
 
 /**
  * `get_tasks` — дела на дату со строками их списков и, по просьбе, списки Yet.
@@ -74,8 +75,8 @@ class GetTasksTool(
 
     override suspend fun read(input: Map<String, Any?>, context: AgentContext): ToolResult {
         val request = when (val parsed = parse(input)) {
-            is Parsed.Bad -> return ToolResult.Failed(parsed.reason)
-            is Parsed.Ok -> parsed.request
+            is ArgsResult.Bad -> return ToolResult.Failed(parsed.reason)
+            is ArgsResult.Ok -> parsed.value
         }
         return try {
             ToolResult.Ok(answer(request))
@@ -121,39 +122,13 @@ class GetTasksTool(
 
     private data class Request(val date: LocalDate, val includeDone: Boolean, val includeLists: Boolean)
 
-    private sealed interface Parsed {
-        data class Ok(val request: Request) : Parsed
-        data class Bad(val reason: String) : Parsed
-    }
-
-    /**
-     * Строго по схеме: неизвестный ключ или значение не того вида — отказ
-     * словами, а не догадка. Дата — только ISO: модель получает формат в схеме,
-     * и разбирать за неё «завтра» незачем.
-     */
-    private fun parse(input: Map<String, Any?>): Parsed {
-        val unknown = input.keys - KEYS
-        if (unknown.isNotEmpty()) return Parsed.Bad("неизвестные аргументы: ${unknown.sorted().joinToString()}")
-
-        val date = when (val raw = input["date"]) {
-            null -> LocalDate.now(clock)
-            is String -> try {
-                LocalDate.parse(raw.trim())
-            } catch (_: DateTimeParseException) {
-                return Parsed.Bad("дата должна быть в виде ГГГГ-ММ-ДД")
-            }
-            else -> return Parsed.Bad("дата должна быть строкой ГГГГ-ММ-ДД")
-        }
-        val includeDone = flag(input, "includeDone") ?: return Parsed.Bad("includeDone должен быть true или false")
-        val includeLists = flag(input, "includeLists") ?: return Parsed.Bad("includeLists должен быть true или false")
-        return Parsed.Ok(Request(date, includeDone, includeLists))
-    }
-
-    /** `false`, если не передан; `null`, если передано не то. */
-    private fun flag(input: Map<String, Any?>, key: String): Boolean? = when (val raw = input[key]) {
-        null -> false
-        is Boolean -> raw
-        else -> null
+    /** Строго по схеме — общим разбором [readArgs]: лишний ключ или не тот вид — отказ словами. */
+    private fun parse(input: Map<String, Any?>): ArgsResult<Request> = readArgs(input, KEYS) {
+        Request(
+            date = date("date") ?: LocalDate.now(clock),
+            includeDone = boolean("includeDone"),
+            includeLists = boolean("includeLists"),
+        )
     }
 
     private companion object {
