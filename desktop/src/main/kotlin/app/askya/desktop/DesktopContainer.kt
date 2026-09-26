@@ -12,6 +12,7 @@ import app.askya.data.db.AppDatabase
 import app.askya.data.db.MIGRATION_46_47_DESKTOP
 import app.askya.data.db.MIGRATION_47_48_DESKTOP
 import app.askya.data.db.SYNC_CALLBACK_DESKTOP
+import app.askya.data.preferences.AgentPreferences
 import app.askya.data.preferences.ReaderPreferences
 import app.askya.data.preferences.SettingsPreferences
 import app.askya.data.preferences.WeatherPreferences
@@ -68,6 +69,9 @@ class DesktopContainer(val home: File) : AppContainer() {
 
     /** Аккаунт — своим файлом и мимо Слепка, как у телефона: см. [AccountPreferences]. */
     override val account: AccountPreferences by lazy { AccountPreferences(store("account")) }
+
+    /** Ключ Claude и согласие на облако — своим файлом и мимо Слепка: см. [AgentPreferences]. */
+    override val agent: AgentPreferences by lazy { AgentPreferences(store(AgentPreferences.STORE)) }
 
     /** Напоминания — часами внутри запущенной Askya, см. [DesktopAlarms]. */
     override val alarms: DesktopAlarms by lazy { DesktopAlarms(reminderRepository) }

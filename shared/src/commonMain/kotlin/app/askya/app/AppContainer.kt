@@ -2,11 +2,20 @@ package app.askya.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import app.askya.agent.AgentContext
+import app.askya.agent.AgentSession
+import app.askya.agent.ToolRegistry
+import app.askya.agent.llm.LlmClient
+import app.askya.agent.llm.anthropic.AnthropicLlmClient
+import app.askya.agent.llm.anthropic.agentPolicyOf
+import app.askya.agent.llm.anthropic.anthropicClientOf
+import app.askya.agent.tools.askyaTools
 import app.askya.data.account.AccountGate
 import app.askya.data.account.AccountPreferences
 import app.askya.data.audio.VoiceFiles
 import app.askya.data.db.AppDatabase
 import app.askya.data.images.ImageFiles
+import app.askya.data.preferences.AgentPreferences
 import app.askya.data.preferences.ReaderPreferences
 import app.askya.data.preferences.SettingsPreferences
 import app.askya.data.preferences.WeatherPreferences
@@ -68,6 +77,12 @@ abstract class AppContainer {
 
     /** Аккаунт — имя и отпечатки пароля и пин-кода. Своё хранилище у каждой системы. */
     abstract val account: AccountPreferences
+
+    /**
+     * Ключ Claude и согласие на облачную модель — своё хранилище у каждой
+     * системы, мимо Слепка и синхронизации: см. [AgentPreferences].
+     */
+    abstract val agent: AgentPreferences
 
     /**
      * Замок Askya — заперта ли она и чем отпирается ([AccountGate]). Один на
@@ -142,6 +157,43 @@ abstract class AppContainer {
     val dayRepository: DayRepository by lazy {
         DayRepository(database, dayComposer)
     }
+
+    /**
+     * Инструменты агента — единственный их набор ([askyaTools]). Один на
+     * приложение: набор неизменен и ничего не хранит, в отличие от разговора.
+     */
+    val agentTools: ToolRegistry by lazy {
+        askyaTools(
+            scheduleRepository,
+            deedTaskRepository,
+            reminderRepository,
+            yetRepository,
+            noteRepository,
+            settings,
+        )
+    }
+
+    /**
+     * Новый разговор с [client]. Не одиночка и не хранится здесь: разговором
+     * владеет тот, кто его создал (экран агента, [app.askya.ui.agent.AgentViewModel]),
+     * и уходит он вместе с ним.
+     *
+     * Политика — из согласия этого устройства ([agent]) и спрашивается перед
+     * каждой отправкой: выключили облако — следующий запрос уже не уйдёт.
+     */
+    fun agentSession(client: LlmClient): AgentSession = AgentSession(
+        client = client,
+        tools = agentTools,
+        policy = agentPolicyOf(agent),
+        context = { AgentContext.of(settings.state.value) },
+    )
+
+    /**
+     * Облачный клиент Claude с ключом из настроек; `null` — ключа нет. Зовётся
+     * один раз при создании разговора, а не на каждый ход. Есть клиент — не
+     * значит, что ему можно отправлять: это решает политика.
+     */
+    suspend fun cloudClient(): AnthropicLlmClient? = anthropicClientOf(agent)
 }
 
 /**

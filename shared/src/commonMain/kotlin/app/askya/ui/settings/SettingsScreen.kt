@@ -20,6 +20,9 @@ import app.askya.data.preferences.SplashWhen
 import app.askya.ui.account.AccountAsk
 import app.askya.ui.account.AccountDialogs
 import app.askya.ui.account.AccountGroup
+import app.askya.ui.agent.AgentAsk
+import app.askya.ui.agent.AgentDialogs
+import app.askya.ui.agent.AgentGroup
 import app.askya.ui.navigation.Destination
 import app.askya.ui.components.ScreenScaffold
 import app.askya.ui.components.fadingVerticalScroll
@@ -43,10 +46,12 @@ import app.askya.ui.theme.ThemeMode
  * смотрят, и продублированное здесь означало бы два ответа на один вопрос.
  * Сюда вынесено только то, что человек решает один раз и надолго.
  *
- * **Облака.** Его пока нет, и строчка «не настроено» была бы обещанием раньше
- * времени. Выгрузка есть ровно одна — «Слепок», — и она не про облако: человек
- * записывает файл сам и сам решает, где ему лежать. Живёт она отдельным файлом
- * (`SnapshotGroup`), потому что это не настройка, а действие с последствиями.
+ * **Облака для записей.** Его нет, и строчка «не настроено» была бы обещанием
+ * раньше времени. Выгрузка есть ровно одна — «Слепок», — и она не про облако:
+ * человек записывает файл сам и сам решает, где ему лежать. Живёт она
+ * отдельным файлом (`SnapshotGroup`), потому что это не настройка, а действие
+ * с последствиями. Облачная модель агента — другое: это согласие отдавать ей
+ * разговор, и оно стоит в группе «Агент» ([AgentGroup]), выключенным.
  *
  * Аккаунт — есть, и стоит первым ([AccountGroup]): это не настройка раздела, а
  * то, чья это Askya. Его окна — свои, поверх всей страницы ([AccountDialogs]).
@@ -73,12 +78,15 @@ fun SettingsScreen(
     groups: @Composable (AppSettings) -> Unit = {},
     /** Окна этих групп: они ложатся поверх всей страницы, а не внутри неё. */
     overlay: @Composable () -> Unit = {},
+    /** Открыть разговор с агентом. */
+    onOpenAgent: () -> Unit = {},
 ) {
     val container = appContainer()
     val general by container.settings.settings
         .collectAsStateWithLifecycle(initialValue = container.settings.state.value)
     val players = Destination.ECHO in sections || Destination.VIDEO in sections
     var accountAsk by remember { mutableStateOf<AccountAsk?>(null) }
+    var agentAsk by remember { mutableStateOf<AgentAsk?>(null) }
     val startRoutes = START_ROUTES.filter { route -> sections.any { it.route == route } }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -185,6 +193,8 @@ fun SettingsScreen(
                 )
             }
 
+            AgentGroup(onAsk = { agentAsk = it }, onOpenAgent = onOpenAgent)
+
             groups(general)
 
             Spacer(Modifier.height(40.dp))
@@ -195,6 +205,7 @@ fun SettingsScreen(
     // рисуется поверх страницы, а написанное раньше ушло бы под неё.
     overlay()
     AccountDialogs(ask = accountAsk, onAsk = { accountAsk = it })
+    AgentDialogs(ask = agentAsk, onAsk = { agentAsk = it })
     }
 }
 

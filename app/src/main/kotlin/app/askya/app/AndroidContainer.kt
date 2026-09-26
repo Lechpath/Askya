@@ -12,6 +12,7 @@ import app.askya.data.audio.VoiceRecorder
 import app.askya.data.audio.VoiceStore
 import app.askya.data.images.ImageStore
 import app.askya.data.library.AskyaLibrary
+import app.askya.data.preferences.AgentPreferences
 import app.askya.data.preferences.EchoPreferences
 import app.askya.data.preferences.ReaderPreferences
 import app.askya.data.preferences.SettingsPreferences
@@ -82,6 +83,9 @@ class AndroidContainer(context: Context) : AppContainer() {
     override val settings: SettingsPreferences by lazy { SettingsPreferences(appContext) }
 
     override val account: AccountPreferences by lazy { AccountPreferences(appContext) }
+
+    /** Ключ Claude и согласие на облако — своим файлом и мимо Слепка: см. [AgentPreferences]. */
+    override val agent: AgentPreferences by lazy { AgentPreferences(appContext) }
 
     /** Точный будильник системы и уведомление в шторке — см. [ReminderAlarms]. */
     override val alarms: ReminderClock = object : ReminderClock {

@@ -405,14 +405,18 @@ class Snapshots(
         target.outputStream().use { copyTo(it) }
     }
 
-    private companion object {
+    internal companion object {
         /** Формат самого слепка — не версия схемы и не версия приложения. */
-        const val FORMAT = 1
+        private const val FORMAT = 1
 
-        const val DB_NAME = "askya.db"
-        const val STAGING = "snapshot-restore"
+        private const val DB_NAME = "askya.db"
+        private const val STAGING = "snapshot-restore"
 
-        /** Хранилища DataStore — по имени, которым они заведены. */
+        /**
+         * Хранилища DataStore — по имени, которым они заведены. Аккаунта и
+         * агента здесь нет и быть не должно: замок, ключ Claude и согласие на
+         * облако со Слепком не переезжают (проверяет `SnapshotStoresTest`).
+         */
         val STORES = listOf("settings", "echo", "reader", "video", "weather")
     }
 }

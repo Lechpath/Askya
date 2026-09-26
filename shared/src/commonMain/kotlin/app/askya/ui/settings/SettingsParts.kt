@@ -60,18 +60,22 @@ fun SettingsGroup(title: String, content: @Composable () -> Unit) {
     }
 }
 
-/** Выключатель: название, пояснение и сам переключатель справа. */
+/**
+ * Выключатель: название, пояснение и сам переключатель справа. [enabled] —
+ * можно ли его сейчас трогать; почему нельзя, говорит пояснение.
+ */
 @Composable
 fun SettingSwitch(
     title: String,
     hint: String,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onChange(!checked) }
+            .clickable(enabled = enabled) { onChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -79,7 +83,7 @@ fun SettingSwitch(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = if (enabled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = hint,
@@ -90,6 +94,7 @@ fun SettingSwitch(
         Switch(
             checked = checked,
             onCheckedChange = onChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 checkedTrackColor = Accent,

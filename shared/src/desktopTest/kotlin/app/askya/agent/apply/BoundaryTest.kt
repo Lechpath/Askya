@@ -2,6 +2,7 @@ package app.askya.agent.apply
 
 import app.askya.agent.AgentContext
 import app.askya.agent.AgentPolicy
+import app.askya.agent.AgentSession
 import app.askya.agent.AgentTool
 import app.askya.agent.Proposal
 import app.askya.agent.ProposeTool
@@ -10,6 +11,7 @@ import app.askya.agent.ToolCallOutcome
 import app.askya.agent.ToolRegistry
 import app.askya.agent.ToolSpec
 import app.askya.agent.ToolTurn
+import app.askya.agent.llm.LlmClient
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -39,6 +41,8 @@ class BoundaryTest {
         AgentContext::class.java,
         AgentPolicy::class.java,
         Proposal::class.java,
+        AgentSession::class.java,
+        LlmClient::class.java,
     )
 
     private fun forbidden(type: Class<*>): Boolean {

@@ -48,6 +48,7 @@ import app.askya.ui.askyaday.LivedScreen
 import app.askya.ui.reminders.RemindersScreen
 import app.askya.ui.routine.RoutineScreen
 import app.askya.ui.settings.SettingsScreen
+import app.askya.ui.agent.AgentScreen
 import app.askya.ui.yet.YetListScreen
 import app.askya.ui.yet.YetScreen
 import kotlinx.coroutines.launch
@@ -426,7 +427,11 @@ fun AskyaApp(
                         dayExtras = shell.settingsDay,
                         groups = { general -> shell.settingsGroups(general, shellNav) },
                         overlay = shell.settingsOverlay,
+                        onOpenAgent = { navController.navigate(Routes.AGENT) },
                     )
+                }
+                composable(Routes.AGENT) {
+                    AgentScreen(onBack = { navController.popBackStack() })
                 }
 
                 composable(Routes.LIVED) {

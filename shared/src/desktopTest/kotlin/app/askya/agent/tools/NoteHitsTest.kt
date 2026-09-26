@@ -126,8 +126,8 @@ class NoteHitsTest {
         val found = List(45) { short(it + 1L) }
 
         val first = NoteHits.page(found, ask, PageRequest(NoteHits.DEFAULT_LIMIT, 0))
-        assertEquals(10, first.items().size)
-        assertEquals("o:10", first[ToolPage.NEXT_CURSOR])
+        assertEquals(20, first.items().size)
+        assertEquals("o:20", first[ToolPage.NEXT_CURSOR])
 
         val full = NoteHits.page(found.take(30), ask, PageRequest(NoteHits.MAX_LIMIT, 0))
         assertEquals(30, full.items().size)
@@ -182,7 +182,7 @@ class NoteHitsTest {
     fun `пределы limit`() = runTest {
         val turn = ToolRegistry(listOf(Search(List(45) { short(it + 1L) }))).openTurn(AgentPolicy(), context)
         val byDefault = assertIs<ToolCallOutcome.Read>(turn.call("search", mapOf("query" to "дача"))).data
-        assertEquals(10, byDefault.items().size)
+        assertEquals(20, byDefault.items().size)
         val tooMany = assertIs<ToolCallOutcome.Failed>(turn.call("search", mapOf("query" to "дача", "limit" to 31L)))
         assertEquals("limit должен быть от 1 до 30", tooMany.reason)
     }
