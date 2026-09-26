@@ -77,7 +77,7 @@ class ProposalExecutor(
             is HandlerResult.Done -> {
                 val applied = proposal.moveTo(ProposalStatus.APPLIED, clock.instant())
                 settle(applied)
-                ApplyOutcome.Applied(applied, result.data, result.warnings)
+                ApplyOutcome.Applied(applied, result.result)
             }
         }
     }
@@ -127,11 +127,14 @@ sealed interface ApplyOutcome {
     /** Предложение в том состоянии, в каком оно теперь. */
     val proposal: Proposal
 
-    /** Сделано. [warnings] — если сделано не совсем так, как можно было ждать. */
+    /**
+     * Сделано — [result] говорит, что именно. «Сделано» не значит «всё как
+     * хотели»: у дела с напоминанием звонка может не быть
+     * ([app.askya.reminders.SavedReminder.NoAlarm]), и это видно из [result].
+     */
     data class Applied(
         override val proposal: Proposal,
-        val data: Map<String, Any?>,
-        val warnings: List<String>,
+        val result: app.askya.agent.apply.Applied,
     ) : ApplyOutcome
 
     /** Не удалось — предложение в [ProposalStatus.FAILED], причина безопасна для показа. */

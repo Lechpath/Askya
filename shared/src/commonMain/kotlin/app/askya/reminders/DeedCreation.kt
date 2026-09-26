@@ -19,42 +19,54 @@ import java.time.LocalTime
  * карточку дела в AskyaDay, экран напоминаний и агента.
  *
  * Правило о напоминаниях прежнее: **источник истины — строка в базе**, а
- * будильник системы — только способ донести её вовремя. Будильники теряются
- * при перезагрузке и обновлении приложения, и `ReminderBootReceiver` ставит их
- * заново из базы; поэтому отказ будильника не отменяет записанного. Но и не
- * замалчивается: тот, кто создал, получает [Alarm] и может сказать человеку,
- * что звонок не гарантирован.
+ * будильник — только способ донести её вовремя. Будильники теряются при
+ * перезагрузке и обновлении приложения, и `ReminderBootReceiver` ставит их
+ * заново из базы; поэтому неудача с будильником не отменяет записанного. Но и
+ * не замалчивается: результат прямо говорит, передана ли просьба о звонке.
  */
 
 /**
- * Что стало с будильником только что записанного напоминания.
+ * Записанное напоминание и то, что стало с просьбой о звонке.
  *
- * Спросить у системы «поставлен ли» нельзя — [ReminderClock.schedule] ничего
- * не отвечает, — поэтому это лучшее, что известно: упал ли вызов, прошло ли
- * время и есть ли право звонить минута в минуту.
+ * **Чего здесь нет — гарантии доставки.** [ReminderClock.schedule] ничего не
+ * отвечает, и спросить систему, поставлен ли будильник, нельзя. Известно одно:
+ * просили ли о звонке и не упала ли просьба. На телефоне это просьба к
+ * `AlarmManager`, которую система может отложить или потерять (экономия
+ * заряда, «убийцы» фона у части прошивок); на компьютере — таймер внутри
+ * запущенной Askya, который живёт, пока она открыта или в трее.
+ *
+ * Запечатано, чтобы случай «напоминание есть, а звонка не будет» нельзя было
+ * пропустить: `when` по результату его потребует.
  */
-enum class Alarm {
-    /** Поставлен точно. */
-    SET,
+sealed interface SavedReminder {
+    val id: Long
 
-    /** Поставлен, но без права на точность: может прозвучать с опозданием. */
-    INEXACT,
+    /**
+     * Просьба о звонке передана и не упала. [exact] — было ли у Askya право
+     * звонить минута в минуту; без него система вправе опоздать.
+     */
+    data class AlarmRequested(override val id: Long, val exact: Boolean) : SavedReminder
 
-    /** Время звонка уже прошло — будильник не ставится, как и раньше. */
-    PASSED,
-
-    /** Поставить не удалось. Напоминание записано, но само может не прозвучать. */
-    NOT_SET,
+    /** Напоминание записано, но звонка не просили или просьба упала. */
+    data class NoAlarm(override val id: Long, val reason: NoAlarmReason) : SavedReminder
 }
 
-data class CreatedReminder(val id: Long, val alarm: Alarm)
+enum class NoAlarmReason {
+    /**
+     * Время звонка уже прошло. Будильник такого не ставит — так было и до
+     * этого: звонить о прошедшем незачем.
+     */
+    TIME_PASSED,
+
+    /** Просьба о звонке упала. Напоминание есть, звонок — нет. */
+    REQUEST_FAILED,
+}
 
 /**
- * Новое напоминание: записать и завести будильник.
+ * Новое напоминание: записать и попросить о звонке.
  *
- * Будильник заводится уже с номером из базы: по нему приёмник
- * (`ReminderReceiver`) находит напоминание, когда оно звонит, — без номера
- * звонить было бы не о чем.
+ * Просьба уходит уже с номером из базы: по нему приёмник (`ReminderReceiver`)
+ * находит напоминание, когда оно звонит, — без номера звонить было бы не о чем.
  */
 class ReminderCreator(
     private val reminders: ReminderRepository,
@@ -62,32 +74,29 @@ class ReminderCreator(
     private val now: () -> LocalDateTime = LocalDateTime::now,
 ) {
 
-    suspend fun create(reminder: Reminder): CreatedReminder {
-        val saved = store(reminder)
-        return CreatedReminder(saved.id, arm(saved))
-    }
+    suspend fun create(reminder: Reminder): SavedReminder = arm(store(reminder))
 
-    /** Только записать. Будильник — [arm], когда запись уже окончательна. */
+    /** Только записать. Просьба о звонке — [arm], когда запись уже окончательна. */
     internal suspend fun store(reminder: Reminder): Reminder =
         reminder.copy(id = reminders.add(reminder))
 
     /**
-     * Завести будильник записанного напоминания. Зовётся и для прошедшего
+     * Попросить о звонке записанного напоминания. Зовётся и для прошедшего
      * времени — сам будильник его не ставит, и поведение остаётся прежним.
      */
-    internal fun arm(saved: Reminder): Alarm {
+    internal fun arm(saved: Reminder): SavedReminder {
         val passed = !saved.date.atTime(saved.time).isAfter(now())
         try {
             alarms.schedule(saved)
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (_: Exception) {
-            return Alarm.NOT_SET
+            return SavedReminder.NoAlarm(saved.id, NoAlarmReason.REQUEST_FAILED)
         }
-        return when {
-            passed -> Alarm.PASSED
-            !alarms.exact -> Alarm.INEXACT
-            else -> Alarm.SET
+        return if (passed) {
+            SavedReminder.NoAlarm(saved.id, NoAlarmReason.TIME_PASSED)
+        } else {
+            SavedReminder.AlarmRequested(saved.id, exact = alarms.exact)
         }
     }
 }
@@ -130,18 +139,39 @@ data class NewDeed(
     }
 }
 
-data class CreatedDeed(val deedId: Long, val reminder: CreatedReminder?)
+/**
+ * Что получилось из [NewDeed].
+ *
+ * Дело есть всегда — иначе было бы исключение. Остальное различает [reminder]:
+ * - `null` — напоминания не просили;
+ * - [SavedReminder.NoAlarm] — напоминание записано, но звонка не будет;
+ * - [SavedReminder.AlarmRequested] — записано, и о звонке попросили.
+ */
+data class CreatedDeed(
+    val deedId: Long,
+    val date: LocalDate,
+    val start: LocalTime,
+    val end: LocalTime?,
+    val title: String,
+    val reminder: SavedReminder?,
+) {
+    val reminderId: Long? get() = reminder?.id
+}
 
 /**
  * Завести дело дня вместе с напоминанием.
  *
  * Дело и напоминание пишутся одной транзакцией: упала вторая запись — нет и
  * первой, и в дне не остаётся дела, о котором человек просил напомнить, а
- * напоминания нет. Будильник заводится после, когда обе записи уже в базе:
- * его отказ записанного не отменяет (см. [Alarm]).
+ * напоминания нет. О звонке просят после, когда обе записи уже в базе: неудача
+ * записанного не отменяет (см. [SavedReminder]).
  *
  * Ошибка базы — исключение, как и раньше: тот, кто звал, сам решает, что
  * сказать человеку.
+ *
+ * Одинаковых дел операция не ищет: правила «это то же дело» для двух дел дня в
+ * Askya нет (`sameDeed` сравнивает строку списка дел с делом дня), и два
+ * одинаковых дела, заведённых порознь, встанут оба — так же, как из карточки.
  */
 class DeedCreator(
     private val db: AppDatabase,
@@ -166,7 +196,11 @@ class DeedCreator(
         }
         return CreatedDeed(
             deedId = deedId,
-            reminder = saved?.let { CreatedReminder(it.id, reminders.arm(it)) },
+            date = deed.date,
+            start = deed.start,
+            end = deed.end,
+            title = deed.title,
+            reminder = saved?.let(reminders::arm),
         )
     }
 }

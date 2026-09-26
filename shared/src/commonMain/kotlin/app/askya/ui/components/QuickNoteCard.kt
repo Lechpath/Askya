@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.askya.app.appContainer
 import app.askya.domain.model.ListMark
+import app.askya.domain.model.quickNoteTitle
 import app.askya.ui.theme.Accent
 import app.askya.ui.theme.AccentSoft
 import app.askya.ui.theme.Muted
@@ -132,9 +133,7 @@ fun QuickNoteCard(
     val ready = title.isNotBlank() || body.isNotBlank()
 
     /** Имя: написанное или первая строчка текста, если строку не трогали. */
-    fun name(): String = title.trim().ifBlank {
-        body.trim().lineSequence().firstOrNull()?.take(60).orEmpty()
-    }
+    fun name(): String = quickNoteTitle(title, body)
 
     fun save(then: (Long) -> Unit) {
         if (!ready) return

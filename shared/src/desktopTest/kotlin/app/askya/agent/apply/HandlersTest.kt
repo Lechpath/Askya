@@ -3,6 +3,7 @@ package app.askya.agent.apply
 import app.askya.agent.CreateNotePayload
 import app.askya.agent.CreateReminderPayload
 import app.askya.agent.CreateTaskPayload
+import app.askya.agent.PayloadRules
 import app.askya.agent.Proposal
 import app.askya.agent.ProposalId
 import app.askya.agent.ProposalPayload
@@ -14,7 +15,9 @@ import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.ScheduleRepository
 import app.askya.domain.model.RemindAt
 import app.askya.reminders.DeedCreator
+import app.askya.reminders.NoAlarmReason
 import app.askya.reminders.ReminderCreator
+import app.askya.reminders.SavedReminder
 import app.askya.testing.NoImages
 import app.askya.testing.NoVoices
 import app.askya.testing.RecordingClock
@@ -92,9 +95,9 @@ class HandlersTest {
         val reminder = reminders.reminders().first().single()
         assertEquals(deed.id, reminder.itemId)
         assertEquals(reminder.id, alarms.scheduled.single().id)
-        assertEquals(deed.id, outcome.data["deedId"])
-        assertEquals(reminder.id, outcome.data["reminderId"])
-        assertTrue(outcome.warnings.isEmpty())
+        val created = assertIs<Applied.Task>(outcome.result).deed
+        assertEquals(deed.id, created.deedId)
+        assertEquals(SavedReminder.AlarmRequested(reminder.id, exact = true), created.reminder)
     }
 
     @Test
@@ -171,8 +174,12 @@ class HandlersTest {
 
         assertEquals(1, schedule.itemsOnce(day).size)
         assertEquals(1, reminders.reminders().first().size)
-        assertEquals("NOT_SET", outcome.data["alarm"])
-        assertTrue(outcome.warnings.single().contains("может не прозвучать"))
+        // Сделано, но звонка не будет — и агент это видит, а не узнаёт по тишине.
+        val reminder = reminders.reminders().first().single()
+        assertEquals(
+            SavedReminder.NoAlarm(reminder.id, NoAlarmReason.REQUEST_FAILED),
+            assertIs<Applied.Task>(outcome.result).deed.reminder,
+        )
     }
 
     @Test
@@ -183,7 +190,7 @@ class HandlersTest {
         val reminder = reminders.reminders().first().single()
         assertEquals(null, reminder.itemId)
         assertEquals(LocalTime.of(21, 0), reminder.time)
-        assertEquals(reminder.id, outcome.data["reminderId"])
+        assertEquals(SavedReminder.AlarmRequested(reminder.id, exact = true), assertIs<Applied.Reminder>(outcome.result).reminder)
         assertEquals(reminder.id, alarms.scheduled.single().id)
     }
 
@@ -201,12 +208,59 @@ class HandlersTest {
         )
         val note = notes.notes().first().single()
         assertEquals("Покупки", note.title)
-        assertEquals(note.id, outcome.data["noteId"])
+        assertEquals(Applied.Note(note.id, "Покупки"), outcome.result)
     }
 
     @Test
     fun `пустая заметка — FAILED`() = runTest {
         assertIs<ApplyOutcome.Failed>(executor().apply(confirmed(CreateNotePayload(title = "x", body = " "))))
         assertTrue(notes.notes().first().isEmpty())
+    }
+
+    @Test
+    fun `заметка без имени называется первой строкой`() = runTest {
+        val outcome = assertIs<ApplyOutcome.Applied>(
+            executor().apply(confirmed(CreateNotePayload(title = "  ", body = "Первая строка\nВторая строка"))),
+        )
+        assertEquals("Первая строка", notes.notes().first().single().title)
+        assertEquals("Первая строка", assertIs<Applied.Note>(outcome.result).title)
+    }
+
+    @Test
+    fun `длинное название дела — FAILED, ничего не записано`() = runTest {
+        val long = task.copy(title = "д".repeat(PayloadRules.MAX_TASK_TITLE + 1))
+        assertIs<ApplyOutcome.Failed>(executor().apply(confirmed(long)))
+        assertTrue(schedule.itemsOnce(day).isEmpty())
+
+        // Предел — ровно 120, и краевые пробелы в него не входят.
+        val edge = task.copy(title = "  " + "д".repeat(PayloadRules.MAX_TASK_TITLE) + "  ")
+        assertIs<ApplyOutcome.Applied>(executor().apply(confirmed(edge)))
+    }
+
+    @Test
+    fun `длинное напоминание и длинная заметка — FAILED`() = runTest {
+        val reminder = CreateReminderPayload(
+            title = "н".repeat(PayloadRules.MAX_REMINDER_TITLE + 1),
+            date = day,
+            time = LocalTime.of(21, 0),
+        )
+        assertIs<ApplyOutcome.Failed>(executor().apply(confirmed(reminder)))
+        val note = CreateNotePayload(title = "", body = "з".repeat(PayloadRules.MAX_NOTE_BODY + 1))
+        assertIs<ApplyOutcome.Failed>(executor().apply(confirmed(note)))
+        assertTrue(reminders.reminders().first().isEmpty())
+        assertTrue(notes.notes().first().isEmpty())
+    }
+
+    @Test
+    fun `проваленное остаётся проваленным`() = runTest {
+        now = LocalDateTime.of(2030, 5, 10, 9, 30)
+        val executor = executor()
+        val proposal = confirmed(task)
+        val failed = assertIs<ApplyOutcome.Failed>(executor.apply(proposal)).proposal
+
+        now = LocalDateTime.of(2030, 5, 10, 8, 0)
+        assertIs<ApplyOutcome.Skipped>(executor.apply(proposal))
+        assertIs<ApplyOutcome.Skipped>(executor.apply(failed))
+        assertTrue(schedule.itemsOnce(day).isEmpty())
     }
 }

@@ -48,19 +48,44 @@ data class CreateNotePayload(
  */
 object PayloadRules {
 
+    /*
+     * Пределы — предложений агента, а не самих записей Askya: в базе и на
+     * экранах их нет, и человек, пишущий руками, им не подчиняется. Они
+     * взяты из архитектуры агента (`AI_AGENT_ARCHITECTURE.md`, §9): то, что
+     * модель предлагает одной карточкой, должно на неё помещаться. Меряется
+     * текст без краевых пробелов — их при записи всё равно срежут.
+     */
+
+    /** Название дела. */
+    const val MAX_TASK_TITLE = 120
+
+    /** Название напоминания — столько же, сколько у дела: оно и бывает названием дела. */
+    const val MAX_REMINDER_TITLE = 120
+
+    /** Текст заметки. Имени заметки предела нет: архитектура его не задаёт. */
+    const val MAX_NOTE_BODY = 20_000
+
     fun check(payload: CreateTaskPayload, now: LocalDateTime): String? {
-        if (payload.title.isBlank()) return "у дела нет названия"
+        val title = payload.title.trim()
+        if (title.isEmpty()) return "у дела нет названия"
+        if (title.length > MAX_TASK_TITLE) return "название дела длиннее $MAX_TASK_TITLE знаков"
         if (payload.date.atTime(payload.start).isBefore(now)) return "время дела уже прошло"
         return payload.remind?.let { remind(it, payload.date, payload.start, now) }
     }
 
     fun check(payload: CreateReminderPayload, now: LocalDateTime): String? {
-        if (payload.title.isBlank()) return "у напоминания нет названия"
+        val title = payload.title.trim()
+        if (title.isEmpty()) return "у напоминания нет названия"
+        if (title.length > MAX_REMINDER_TITLE) return "название напоминания длиннее $MAX_REMINDER_TITLE знаков"
         return remind(payload.remind, payload.date, payload.time, now)
     }
 
-    fun check(payload: CreateNotePayload): String? =
-        if (payload.body.isBlank()) "заметка пустая" else null
+    fun check(payload: CreateNotePayload): String? {
+        val body = payload.body.trim()
+        if (body.isEmpty()) return "заметка пустая"
+        if (body.length > MAX_NOTE_BODY) return "заметка длиннее $MAX_NOTE_BODY знаков"
+        return null
+    }
 
     private fun remind(remind: RemindAt, date: LocalDate, start: LocalTime, now: LocalDateTime): String? {
         if (remind is RemindAt.Before && remind.minutes <= 0) {

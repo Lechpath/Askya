@@ -1,6 +1,8 @@
 package app.askya.agent.apply
 
 import app.askya.agent.ProposalPayload
+import app.askya.reminders.CreatedDeed
+import app.askya.reminders.SavedReminder
 import kotlin.reflect.KClass
 
 /**
@@ -26,16 +28,28 @@ interface ProposalHandler<P : ProposalPayload> {
 /** Чем кончилось применение у обработчика. */
 sealed interface HandlerResult {
 
-    /**
-     * Сделано. [data] — что вернуть модели (номера созданного и т.п., только
-     * простые значения), [warnings] — что сказать человеку: сделано, но не
-     * совсем так, как он мог рассчитывать.
-     */
-    data class Done(
-        val data: Map<String, Any?>,
-        val warnings: List<String> = emptyList(),
-    ) : HandlerResult
+    /** Сделано — вот что именно. */
+    data class Done(val result: Applied) : HandlerResult
 
     /** Повторная проверка не прошла — ничего не записано. */
     data class Invalid(val reason: String) : HandlerResult
+}
+
+/**
+ * Что сделано — типами, а не словарём. Словами для модели и человека это
+ * станет выше: у экрана и у модели слова разные, а сделанное одно.
+ */
+sealed interface Applied {
+
+    /**
+     * Дело заведено. Звонок — в [CreatedDeed.reminder]: там же видно, что
+     * напоминание есть, а звонка не будет ([SavedReminder.NoAlarm]).
+     */
+    data class Task(val deed: CreatedDeed) : Applied
+
+    /** Напоминание записано; что с просьбой о звонке — в самом [reminder]. */
+    data class Reminder(val reminder: SavedReminder) : Applied
+
+    /** Заметка записана под именем [title] — таким, каким его дало правило быстрой заметки. */
+    data class Note(val noteId: Long, val title: String) : Applied
 }

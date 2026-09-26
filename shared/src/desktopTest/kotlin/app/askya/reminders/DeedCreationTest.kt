@@ -4,6 +4,7 @@ import app.askya.data.db.dao.ReminderDao
 import app.askya.data.db.dao.ScheduleDao
 import app.askya.data.entity.Reminder
 import app.askya.data.entity.ScheduleItem
+import app.askya.data.entity.reminderOf
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.ScheduleRepository
 import app.askya.domain.model.RemindAt
@@ -18,6 +19,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -87,7 +89,7 @@ class DeedCreationTest {
         val armed = alarms.scheduled.single()
         assertEquals(reminder.id, armed.id)
         assertTrue(armed.id > 0)
-        assertEquals(Alarm.SET, created.reminder?.alarm)
+        assertEquals(SavedReminder.AlarmRequested(reminder.id, exact = true), created.reminder)
     }
 
     @Test
@@ -125,7 +127,9 @@ class DeedCreationTest {
             NewDeed(date = day, start = LocalTime.of(9, 0), title = "Созвон", remind = RemindAt.Before(15)),
         )
 
-        assertEquals(Alarm.NOT_SET, created.reminder?.alarm)
+        // Вариант C: напоминание есть, звонка нет — и это видно, а не спрятано.
+        val reminder = allReminders().single()
+        assertEquals(SavedReminder.NoAlarm(reminder.id, NoAlarmReason.REQUEST_FAILED), created.reminder)
         assertEquals(1, deedsOn(day).size)
         assertEquals(1, allReminders().size, "база — источник истины: будильник поставится при перезапуске")
     }
@@ -137,7 +141,7 @@ class DeedCreationTest {
         val created = deeds.create(
             NewDeed(date = day, start = LocalTime.of(9, 0), title = "Созвон", remind = RemindAt.Before(15)),
         )
-        assertEquals(Alarm.INEXACT, created.reminder?.alarm)
+        assertEquals(false, assertIs<SavedReminder.AlarmRequested>(created.reminder).exact)
     }
 
     @Test
@@ -147,6 +151,74 @@ class DeedCreationTest {
             NewDeed(date = day, start = LocalTime.of(7, 0), title = "Зарядка", remind = RemindAt.Before(15)),
         )
         // Как и раньше, запись есть, а будильник её не ставит — об этом и сказано.
-        assertEquals(Alarm.PASSED, created.reminder?.alarm)
+        assertEquals(NoAlarmReason.TIME_PASSED, assertIs<SavedReminder.NoAlarm>(created.reminder).reason)
+    }
+
+    @Test
+    fun `результат называет созданное`() = runTest {
+        val (deeds, _) = creator()
+        val created = deeds.create(
+            NewDeed(
+                date = day,
+                start = LocalTime.of(9, 0),
+                end = LocalTime.of(9, 30),
+                title = "Созвон",
+                remind = RemindAt.Exact(LocalTime.of(8, 30)),
+            ),
+        )
+
+        val deed = deedsOn(day).single()
+        val reminder = allReminders().single()
+        assertEquals(
+            CreatedDeed(
+                deedId = deed.id,
+                date = day,
+                start = LocalTime.of(9, 0),
+                end = LocalTime.of(9, 30),
+                title = "Созвон",
+                reminder = SavedReminder.AlarmRequested(reminder.id, exact = true),
+            ),
+            created,
+        )
+        assertEquals(reminder.id, created.reminderId)
+    }
+
+    // --- Отдельное напоминание -----------------------------------------------
+
+    private fun standalone() = reminderOf(
+        title = "Лекарство",
+        eventDate = day,
+        eventStart = LocalTime.of(21, 0),
+        remind = RemindAt.Exact(LocalTime.of(21, 0)),
+    )
+
+    @Test
+    fun `напоминание с просьбой о звонке`() = runTest {
+        val saved = ReminderCreator(ReminderRepository(db.reminderDao()), alarms) { now }.create(standalone())
+
+        val reminder = allReminders().single()
+        assertEquals(SavedReminder.AlarmRequested(reminder.id, exact = true), saved)
+        assertEquals(reminder.id, alarms.scheduled.single().id)
+    }
+
+    @Test
+    fun `напоминание без звонка остаётся в базе`() = runTest {
+        alarms.failing = true
+        val saved = ReminderCreator(ReminderRepository(db.reminderDao()), alarms) { now }.create(standalone())
+
+        val reminder = allReminders().single()
+        assertEquals(SavedReminder.NoAlarm(reminder.id, NoAlarmReason.REQUEST_FAILED), saved)
+        assertTrue(alarms.scheduled.isEmpty())
+    }
+
+    @Test
+    fun `ошибка записи напоминания — исключение, просьбы о звонке нет`() = runTest {
+        val broken = object : ReminderDao by db.reminderDao() {
+            override suspend fun insert(reminder: Reminder): Long = error("диск полон")
+        }
+        assertFailsWith<IllegalStateException> {
+            ReminderCreator(ReminderRepository(broken), alarms) { now }.create(standalone())
+        }
+        assertTrue(alarms.scheduled.isEmpty())
     }
 }

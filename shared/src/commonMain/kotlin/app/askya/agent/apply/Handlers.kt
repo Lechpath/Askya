@@ -6,8 +6,7 @@ import app.askya.agent.CreateTaskPayload
 import app.askya.agent.PayloadRules
 import app.askya.data.entity.reminderOf
 import app.askya.data.repository.NoteRepository
-import app.askya.reminders.Alarm
-import app.askya.reminders.CreatedReminder
+import app.askya.domain.model.quickNoteTitle
 import app.askya.reminders.DeedCreator
 import app.askya.reminders.NewDeed
 import app.askya.reminders.ReminderCreator
@@ -19,7 +18,13 @@ import java.time.LocalDateTime
  * «дело → напоминание → будильник» у агента нет.
  */
 
-/** Новое дело дня — через [DeedCreator], как из карточки дела в AskyaDay. */
+/**
+ * Новое дело дня — через [DeedCreator], как из карточки дела в AskyaDay.
+ *
+ * Известное ограничение: одинаковых дел здесь не ищут — правила «то же дело»
+ * для двух дел дня в Askya нет. Два одинаковых предложения, подтверждённые
+ * порознь, заведут два дела.
+ */
 class CreateTaskHandler(
     private val deeds: DeedCreator,
     private val now: () -> LocalDateTime = LocalDateTime::now,
@@ -39,14 +44,7 @@ class CreateTaskHandler(
                 remind = payload.remind,
             ),
         )
-        return HandlerResult.Done(
-            data = mapOf(
-                "deedId" to created.deedId,
-                "reminderId" to created.reminder?.id,
-                "alarm" to created.reminder?.alarm?.name,
-            ),
-            warnings = listOfNotNull(created.reminder?.let(::warningOf)),
-        )
+        return HandlerResult.Done(Applied.Task(created))
     }
 }
 
@@ -60,7 +58,7 @@ class CreateReminderHandler(
 
     override suspend fun apply(payload: CreateReminderPayload): HandlerResult {
         PayloadRules.check(payload, now())?.let { return HandlerResult.Invalid(it) }
-        val created = reminders.create(
+        val saved = reminders.create(
             reminderOf(
                 title = payload.title.trim(),
                 eventDate = payload.date,
@@ -68,33 +66,22 @@ class CreateReminderHandler(
                 remind = payload.remind,
             ),
         )
-        return HandlerResult.Done(
-            data = mapOf("reminderId" to created.id, "alarm" to created.alarm.name),
-            warnings = listOfNotNull(warningOf(created)),
-        )
+        return HandlerResult.Done(Applied.Reminder(saved))
     }
 }
 
-/** Быстрая заметка — [NoteRepository.quickNote], как кнопкой из меню. */
+/**
+ * Быстрая заметка — [NoteRepository.quickNote] с именем по правилу быстрой
+ * заметки ([quickNoteTitle]), как кнопкой из меню.
+ */
 class CreateNoteHandler(private val notes: NoteRepository) : ProposalHandler<CreateNotePayload> {
 
     override val payloadType = CreateNotePayload::class
 
     override suspend fun apply(payload: CreateNotePayload): HandlerResult {
         PayloadRules.check(payload)?.let { return HandlerResult.Invalid(it) }
-        val id = notes.quickNote(payload.title, payload.body)
-        return HandlerResult.Done(data = mapOf("noteId" to id))
+        val title = quickNoteTitle(payload.title, payload.body)
+        val id = notes.quickNote(title, payload.body)
+        return HandlerResult.Done(Applied.Note(id, title))
     }
-}
-
-/**
- * Что сказать о будильнике, если звонок не гарантирован. Напоминание при этом
- * записано: база — источник истины, и будильник поставится заново при
- * перезагрузке или обновлении приложения.
- */
-private fun warningOf(reminder: CreatedReminder): String? = when (reminder.alarm) {
-    Alarm.SET -> null
-    Alarm.INEXACT -> "напоминание может прийти с опозданием: у Askya нет права на точный будильник"
-    Alarm.PASSED -> "время напоминания уже прошло — оно сохранено, но не прозвучит"
-    Alarm.NOT_SET -> "будильник не поставился: напоминание сохранено, но может не прозвучать"
 }

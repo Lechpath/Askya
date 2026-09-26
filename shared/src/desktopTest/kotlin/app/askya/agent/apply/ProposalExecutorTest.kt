@@ -29,11 +29,15 @@ class ProposalExecutorTest {
     private val start = Instant.parse("2030-05-10T05:00:00Z")
     private val clock = Clock.fixed(start.plusSeconds(60), ZoneOffset.UTC)
 
+    private companion object {
+        val NOTE = Applied.Note(noteId = 1L, title = "хлеб")
+    }
+
     private data class Line(val text: String) : ProposalPayload
     private data class Other(val text: String) : ProposalPayload
 
     private class Counting(
-        private val answer: suspend (Line) -> HandlerResult = { HandlerResult.Done(mapOf("id" to 1L)) },
+        private val answer: suspend (Line) -> HandlerResult = { HandlerResult.Done(NOTE) },
     ) : ProposalHandler<Line> {
         var calls = 0
         override val payloadType = Line::class
@@ -63,7 +67,7 @@ class ProposalExecutorTest {
 
         val applied = assertIs<ApplyOutcome.Applied>(outcome)
         assertEquals(ProposalStatus.APPLIED, applied.proposal.status)
-        assertEquals(mapOf("id" to 1L), applied.data)
+        assertEquals(NOTE, applied.result)
         assertEquals(clock.instant(), applied.proposal.updatedAt)
         assertEquals(1, handler.calls)
     }
@@ -137,7 +141,7 @@ class ProposalExecutorTest {
     @Test
     fun `проваленное не применяется второй раз`() = runTest {
         var fail = true
-        val handler = Counting(answer = { if (fail) error("сбой") else HandlerResult.Done(emptyMap()) })
+        val handler = Counting(answer = { if (fail) error("сбой") else HandlerResult.Done(NOTE) })
         val executor = ProposalExecutor(listOf(handler), clock)
         val stale = confirmed()
 
@@ -169,7 +173,7 @@ class ProposalExecutorTest {
         val gate = CompletableDeferred<Unit>()
         val handler = Counting(answer = {
             gate.await()
-            HandlerResult.Done(emptyMap())
+            HandlerResult.Done(NOTE)
         })
         val executor = ProposalExecutor(listOf(handler), clock)
         val stale = confirmed()
