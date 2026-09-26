@@ -10,6 +10,7 @@ import app.askya.data.entity.reminderOf
 import app.askya.data.sync.Uid
 import app.askya.data.repository.ReminderRepository
 import app.askya.reminders.ReminderClock
+import app.askya.reminders.ReminderCreator
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.RemindAt
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,7 @@ import java.time.LocalTime
 class RemindersViewModel(
     private val reminders: ReminderRepository,
     private val alarms: ReminderClock,
+    private val creator: ReminderCreator,
 ) : ViewModel() {
 
     val items: StateFlow<List<Reminder>> = reminders.reminders()
@@ -74,11 +76,13 @@ class RemindersViewModel(
                 uid = existing?.uid ?: Uid.new(),
             )
 
-            val id = if (existing == null) reminders.add(reminder) else {
+            if (existing == null) {
+                // Новое — тем же путём, что у всех: запись, потом будильник с её номером.
+                creator.create(reminder)
+            } else {
                 reminders.save(reminder)
-                reminder.id
+                alarms.schedule(reminder)
             }
-            alarms.schedule(reminder.copy(id = id))
         }
     }
 
@@ -103,7 +107,9 @@ class RemindersViewModel(
 
     companion object {
         fun factory(container: AppContainer) = viewModelFactory {
-            initializer { RemindersViewModel(container.reminderRepository, container.alarms) }
+            initializer {
+                RemindersViewModel(container.reminderRepository, container.alarms, container.reminderCreator)
+            }
         }
     }
 }

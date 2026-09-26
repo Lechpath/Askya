@@ -70,4 +70,15 @@ data class Proposal internal constructor(
         }
         return copy(status = target, updatedAt = at, failure = failure)
     }
+
+    /**
+     * Сеанс кончился: ждущее истекает, всё остальное остаётся как есть.
+     * Подтверждённое не истекает — его судьбу решает применение (см.
+     * [ProposalStatus]).
+     */
+    fun expireIfPending(at: Instant): Proposal =
+        if (status == ProposalStatus.PENDING) moveTo(ProposalStatus.EXPIRED, at) else this
 }
+
+/** Конец сеанса для всех его предложений разом — см. [Proposal.expireIfPending]. */
+fun List<Proposal>.expirePending(at: Instant): List<Proposal> = map { it.expireIfPending(at) }

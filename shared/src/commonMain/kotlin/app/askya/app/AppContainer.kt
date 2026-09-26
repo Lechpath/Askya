@@ -22,7 +22,9 @@ import app.askya.data.repository.Trash
 import app.askya.data.repository.YetRepository
 import app.askya.domain.plan.DayComposer
 import app.askya.domain.plan.RoutineDayComposer
+import app.askya.reminders.DeedCreator
 import app.askya.reminders.ReminderClock
+import app.askya.reminders.ReminderCreator
 import app.askya.reminders.ReminderSoundSource
 
 /**
@@ -85,6 +87,15 @@ abstract class AppContainer {
 
     val scheduleRepository: ScheduleRepository by lazy { ScheduleRepository(database.scheduleDao()) }
     val reminderRepository: ReminderRepository by lazy { ReminderRepository(database.reminderDao()) }
+
+    /** Новое напоминание: запись и будильник — см. [ReminderCreator]. */
+    val reminderCreator: ReminderCreator by lazy { ReminderCreator(reminderRepository, alarms) }
+
+    /**
+     * Новое дело дня с напоминанием — одна транзакция и будильник после неё.
+     * Одно на карточку дела и на всех, кто заводит дела не руками.
+     */
+    val deedCreator: DeedCreator by lazy { DeedCreator(database, scheduleRepository, reminderCreator) }
 
     /**
      * Списки внутри дел дня. Отдельно от расписания: строки переписываются от

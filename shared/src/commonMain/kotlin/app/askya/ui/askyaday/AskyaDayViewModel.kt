@@ -13,13 +13,15 @@ import app.askya.data.repository.DeedTaskRepository
 import app.askya.data.repository.ReminderRepository
 import app.askya.data.repository.RoutineRepository
 import app.askya.data.repository.ScheduleRepository
-import app.askya.data.entity.reminderOf
 import app.askya.domain.model.BlockIcon
 import app.askya.domain.model.DayPlan
 import app.askya.domain.model.RemindAt
 import app.askya.domain.plan.DayLayout
 import app.askya.domain.plan.sameDeed
+import app.askya.reminders.DeedCreator
+import app.askya.reminders.NewDeed
 import app.askya.reminders.ReminderClock
+import app.askya.reminders.ReminderCreator
 import app.askya.reminders.dropReminders
 import app.askya.reminders.moveReminder
 import kotlinx.coroutines.delay
@@ -43,6 +45,8 @@ class AskyaDayViewModel(
     private val reminders: ReminderRepository,
     private val alarms: ReminderClock,
     private val deedTasks: DeedTaskRepository,
+    private val deeds: DeedCreator,
+    private val reminderCreator: ReminderCreator,
 ) : ViewModel() {
 
     /** Идёт сборка дня — на это время в шапке дышит цветок. */
@@ -268,36 +272,40 @@ class AskyaDayViewModel(
         soundTitle: String?,
         link: String?,
     ) {
+        val deed = NewDeed(
+            date = date,
+            start = start,
+            title = title,
+            end = end,
+            note = note,
+            icon = icon,
+            link = link,
+            remind = remind,
+            silent = silent,
+            sound = sound,
+            soundTitle = soundTitle,
+        )
         viewModelScope.launch {
-            val id = if (existing == null) {
-                schedule.add(
-                    ScheduleItem(
-                        date = date,
-                        startTime = start,
-                        endTime = end,
-                        title = title,
-                        note = note,
-                        icon = icon,
-                        link = link,
-                    )
-                )
-            } else {
-                schedule.save(
-                    existing.copy(
-                        startTime = start,
-                        endTime = end,
-                        title = title,
-                        note = note,
-                        icon = icon,
-                        link = link,
-                    )
-                )
-                existing.id
+            if (existing == null) {
+                // Новое дело заводится там же, где его заводят все остальные:
+                // дело и напоминание одной транзакцией, будильник — после.
+                deeds.create(deed)
+                return@launch
             }
+            schedule.save(
+                existing.copy(
+                    startTime = start,
+                    endTime = end,
+                    title = title,
+                    note = note,
+                    icon = icon,
+                    link = link,
+                )
+            )
             // Напоминание переписывается вместе с делом: у него в карточке
             // названы и час, и название, и они должны совпадать с делом, а
             // «за 15 минут» — сдвинуться вслед за перенесённым началом.
-            applyRemind(id, title, date, start, end, icon, remind, silent, sound, soundTitle)
+            applyRemind(existing.id, deed)
         }
     }
 
@@ -349,35 +357,9 @@ class AskyaDayViewModel(
      * первого, а не ещё одно уведомление. Пустое [remind] снимает и не ставит
      * ничего: строку напоминания стёрли — значит, напоминать не надо.
      */
-    private suspend fun applyRemind(
-        itemId: Long,
-        title: String,
-        date: LocalDate,
-        start: LocalTime,
-        end: LocalTime?,
-        icon: BlockIcon?,
-        remind: RemindAt?,
-        silent: Boolean,
-        sound: String?,
-        soundTitle: String?,
-    ) {
+    private suspend fun applyRemind(itemId: Long, deed: NewDeed) {
         dropReminders(alarms, reminders, listOf(itemId))
-        if (remind == null) return
-
-        val reminder = reminderOf(
-            title = title,
-            eventDate = date,
-            eventStart = start,
-            eventEnd = end,
-            remind = remind,
-            icon = icon,
-            silent = silent,
-            sound = sound,
-            soundTitle = soundTitle,
-            itemId = itemId,
-        )
-        val id = reminders.add(reminder)
-        alarms.schedule(reminder.copy(id = id))
+        deed.reminderFor(itemId)?.let { reminderCreator.create(it) }
     }
 
     /**
@@ -410,6 +392,8 @@ class AskyaDayViewModel(
                     container.reminderRepository,
                     container.alarms,
                     container.deedTaskRepository,
+                    container.deedCreator,
+                    container.reminderCreator,
                 )
             }
         }
