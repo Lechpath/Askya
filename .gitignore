@@ -13,3 +13,29 @@ captures/
 keystore.properties
 *.jks
 *.keystore
+
+# Собранное и выгруженное: выпуски кладутся в GitHub Releases, а не в код.
+*.apk
+*.aab
+*.msi
+*.exe
+output-metadata.json
+
+# Логи, дампы и временное.
+*.log
+*.hprof
+*.tmp
+*.bak
+*~
+
+# Файлы редакторов и системы.
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Прочие ключи и переменные окружения.
+.env
+.env.*
+*.p12
+*.pem
