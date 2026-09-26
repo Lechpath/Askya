@@ -5,7 +5,6 @@ import app.askya.agent.ReadTool
 import app.askya.agent.ToolResult
 import app.askya.data.entity.DeedTask
 import app.askya.data.entity.Reminder
-import app.askya.data.entity.ScheduleItem
 import app.askya.data.entity.remindAt
 import app.askya.data.preferences.SettingsPreferences
 import app.askya.data.repository.DeedTaskRepository
@@ -65,7 +64,7 @@ class GetTodayTool(
                 mapOf(
                     "date" to today.toString(),
                     "now" to now.toString(),
-                    "deeds" to deeds.map(::deedOf),
+                    "deeds" to deeds.map { it.agentView() },
                     "tasks" to tasksOf(tasks),
                     "reminders" to todays.map(::reminderOf),
                     "current" to DayPlan(today, deeds).currentBlock(now.toLocalTime())?.id,
@@ -80,25 +79,13 @@ class GetTodayTool(
         }
     }
 
-    private fun deedOf(item: ScheduleItem): Map<String, Any?> = mapOf(
-        "id" to item.id,
-        "start" to item.startTime.toString(),
-        "end" to item.endTime?.toString(),
-        "title" to item.title,
-        "note" to item.note,
-        "done" to item.done,
-        "link" to item.link,
-    )
-
     /**
      * Строки, разложенные по делам. Ключ — номер дела строкой: у объекта JSON
      * ключи бывают только строками, а номер дела в самих делах — число.
      */
     private fun tasksOf(tasks: List<DeedTask>): Map<String, Any?> =
         tasks.groupBy { it.deedId }.entries.associate { (deedId, rows) ->
-            deedId.toString() to rows.map { row ->
-                mapOf("text" to row.text, "done" to row.done, "heading" to row.heading)
-            }
+            deedId.toString() to rows.map { it.agentView() }
         }
 
     /**

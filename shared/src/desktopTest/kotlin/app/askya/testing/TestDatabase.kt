@@ -1,6 +1,7 @@
 package app.askya.testing
 
 import androidx.room.Room
+import androidx.room.useReaderConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import app.askya.data.audio.VoiceFiles
 import app.askya.data.db.AppDatabase
@@ -31,6 +32,32 @@ class TestDatabase : AutoCloseable {
     override fun close() {
         db.close()
         folder.deleteRecursively()
+    }
+
+    /**
+     * Все таблицы базы построчно — чтобы сравнить «до» и «после» и убедиться,
+     * что читающий ничего не записал. Журнал правок (`sync_state`) и отметки
+     * собранных дней (`generated_days`) входят сюда же.
+     */
+    suspend fun snapshot(): Map<String, List<String>> = db.useReaderConnection { connection ->
+        val tables = connection.usePrepared(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        ) { statement ->
+            buildList { while (statement.step()) add(statement.getText(0)) }
+        }
+        tables.associateWith { table ->
+            connection.usePrepared("SELECT * FROM `$table`") { statement ->
+                buildList {
+                    while (statement.step()) {
+                        add(
+                            (0 until statement.getColumnCount()).joinToString("|") { column ->
+                                if (statement.isNull(column)) "∅" else statement.getText(column)
+                            },
+                        )
+                    }
+                }.sorted()
+            }
+        }
     }
 }
 

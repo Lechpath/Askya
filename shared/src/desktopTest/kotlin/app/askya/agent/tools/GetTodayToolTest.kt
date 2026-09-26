@@ -1,7 +1,6 @@
 package app.askya.agent.tools
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.room.useReaderConnection
 import app.askya.agent.AgentContext
 import app.askya.agent.AgentPolicy
 import app.askya.agent.ToolCallOutcome
@@ -265,33 +264,11 @@ class GetTodayToolTest {
         deedTasks.addLines(id, "план")
         reminders.add(reminderOf("Созвон", today, LocalTime.of(9, 0), RemindAt.Before(10), itemId = id))
 
-        val before = snapshot()
+        val before = base.snapshot()
         repeat(3) { read() }
-        val after = snapshot()
+        val after = base.snapshot()
 
         assertEquals(before, after)
         assertTrue(before.getValue("generated_days").isEmpty(), "день не собран")
-    }
-
-    /** Все таблицы базы построчно — чтобы сравнить «до» и «после». */
-    private suspend fun snapshot(): Map<String, List<String>> = db.useReaderConnection { connection ->
-        val tables = connection.usePrepared(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        ) { statement ->
-            buildList { while (statement.step()) add(statement.getText(0)) }
-        }
-        tables.associateWith { table ->
-            connection.usePrepared("SELECT * FROM `$table`") { statement ->
-                buildList {
-                    while (statement.step()) {
-                        add(
-                            (0 until statement.getColumnCount()).joinToString("|") { column ->
-                                if (statement.isNull(column)) "∅" else statement.getText(column)
-                            },
-                        )
-                    }
-                }.sorted()
-            }
-        }
     }
 }
